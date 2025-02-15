@@ -72,7 +72,7 @@ The application will be available at http://localhost:3000
 cd backend
 ```
 
-Run the application:
+2. Run the application:
 
 ```bash
 mvn spring-boot:run
@@ -80,6 +80,7 @@ mvn spring-boot:run
 
 The backend API will be available at http://localhost:8080
 
+Swagger is accessible at http://localhost:8080/swagger-ui/index.html
 
 ### Team Members 👥
 
