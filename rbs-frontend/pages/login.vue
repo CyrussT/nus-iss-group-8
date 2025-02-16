@@ -1,4 +1,9 @@
 <script setup lang="ts">
+definePageMeta({
+  middleware: ['guest'],
+  layout: 'unauth'
+})
+
 import { z } from "zod";
 import type { Form, FormError, FormSubmitEvent } from "#ui/types";
 import { useApi } from "~/composables/useApi";

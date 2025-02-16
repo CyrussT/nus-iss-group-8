@@ -7,7 +7,7 @@
     <AppHeader />
 
     <!-- Main Content -->
-    <main >
+    <main>
       <slot />
     </main>
   </div>

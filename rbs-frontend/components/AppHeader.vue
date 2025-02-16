@@ -8,7 +8,7 @@ const toggleColorMode = () => {
 
 <template>
   <header class="h-16 border-b px-4 flex items-center justify-between">
-    <h1 class="font-bold text-xl">Resource Booking System</h1>
+    <h1 class="font-bold text-xl"><NuxtLink to="/">Resource Booking System</NuxtLink></h1>
     <div class="flex items-center gap-4">
       <UButton variant="ghost" @click="toggleColorMode">
         <UIcon
