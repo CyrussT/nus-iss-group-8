@@ -14,5 +14,8 @@
     "@nuxt/ui": "^2.21.0",
     "nuxt": "^3.15.4",
     "vue": "latest"
+  },
+  "dependencies": {
+    "zod": "^3.24.2"
   }
 }

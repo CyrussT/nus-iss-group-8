@@ -16,7 +16,7 @@ The Resource Booking System (RBS) is a modern web application designed for Singa
 ### Tech Stack 💻
 - Frontend: Angular
 - Backend: Spring Boot
-- Database: MySQL
+- Database: PostgreSQL (Supabase)
 - Containerization: Docker/Kubernetes
 - Version Control: GitHub
 
@@ -24,8 +24,7 @@ The Resource Booking System (RBS) is a modern web application designed for Singa
 
 ### Prerequisites
 - Node.js (LTS version)
-- Java JDK 17 or higher
-- MySQL 8.0 or higher
+- Java JDK 21 or higher
 - Bun (for development server)
 - Maven
 - Docker (optional)
@@ -33,17 +32,18 @@ The Resource Booking System (RBS) is a modern web application designed for Singa
 ### Frontend Setup ⚡
 
 1. Install Bun
-1.1 Windows Installation
-```bash
-powershell -c "irm bun.sh/install.ps1 | iex"
-```
-Restart shell and IDE
 
-1.2 Linux / macOS Installation
-```bash
-curl -fsSL https://bun.sh/install | bash
-```
-Restart shell and IDE
+    1.1 Windows Installation
+    ```bash
+    powershell -c "irm bun.sh/install.ps1 | iex"
+    ```
+    Restart shell and IDE
+
+    1.2 Linux / macOS Installation
+    ```bash
+    curl -fsSL https://bun.sh/install | bash
+    ```
+    Restart shell and IDE
 
 2. Navigate to the frontend directory:
 ```bash
