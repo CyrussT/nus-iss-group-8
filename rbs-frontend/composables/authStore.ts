@@ -1,7 +1,26 @@
+import type { IUser, IAuthTokenPayload } from '~/types/auth'
+
 export const useAuthStore = () => {
   const token = useState<string | null>('auth_token', () => {
     if (import.meta.client) {
-      return localStorage.getItem('auth_token')
+      const storedToken = localStorage.getItem('auth_token')
+      if (storedToken && isJWTExpired(storedToken)) {
+        localStorage.removeItem('auth_token')
+        return null
+      }
+      return storedToken
+    }
+    return null
+  })
+
+  const user = useState<IUser | null>('auth_user', () => {
+    if (import.meta.client && token.value) {
+      const decoded = decodeJWT(token.value)
+      return decoded ? {
+        email: decoded.email,
+        role: decoded.role,
+        exp: decoded.exp
+      } : null
     }
     return null
   })
@@ -22,9 +41,16 @@ export const useAuthStore = () => {
     return !!token.value
   })
 
+  const logout = () => {
+    token.value = null
+    localStorage.removeItem('auth_token')
+  }
+
   return {
     token,
     setToken,
-    isAuthenticated
+    isAuthenticated,
+    logout,
+    user
   }
 }

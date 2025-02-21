@@ -1,4 +1,10 @@
 <script lang="ts" setup>
+
+const auth = useAuthStore();
+const user = auth.user.value;
+console.log(user?.email);
+console.log(user);
+
 definePageMeta({
   middleware: ['auth']
 })
@@ -6,7 +12,9 @@ definePageMeta({
 
 <template>
   <div>
-    <h1>Dashboard page</h1>
+    <h1>Welcome to Dashboard Page!</h1>
+    <br/>
+    <h1>{{ user?.email }}</h1>
   </div>
 </template>
 
