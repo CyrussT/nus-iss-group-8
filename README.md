@@ -23,8 +23,8 @@ The Resource Booking System (RBS) is a modern web application designed for Singa
 ## Getting Started 🚀
 
 ### Prerequisites
-- Node.js (LTS version)
-- Java JDK 21 or higher
+- Node.js 22.14 (LTS version)
+- Java JDK 21 (https://adoptium.net/temurin/releases/)
 - Bun (for development server)
 - Maven
 - Docker (optional)
