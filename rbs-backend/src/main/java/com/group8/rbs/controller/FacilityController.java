@@ -3,6 +3,7 @@ package com.group8.rbs.controller;
 import java.util.List;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -12,6 +13,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.group8.rbs.dto.facility.FacilityRequestDTO;
@@ -42,31 +44,44 @@ public class FacilityController {
         return ResponseEntity.status(HttpStatus.CREATED).body(newFacility);
     }
     
-    @GetMapping
+    @GetMapping("/list")
     public ResponseEntity<List<FacilityResponseDTO>> getAllFacilities() {
         return ResponseEntity.ok(facilityService.getAllFacilities());
     }
 
-    @GetMapping("/{id}")
+    @GetMapping("/details/{id}")
     public ResponseEntity<FacilityResponseDTO> getFacilityById(@PathVariable Long id) {
         return ResponseEntity.ok(facilityService.getFacilityById(id));
     }
 
-    @PutMapping("/{id}")
+    @PutMapping("/update/{id}")
     public ResponseEntity<FacilityResponseDTO> updateFacility(@PathVariable Long id, @RequestBody FacilityRequestDTO facilityRequestDTO) {
         FacilityResponseDTO facility = facilityService.updateFacility(id, facilityRequestDTO);
         return ResponseEntity.ok(facility);
     }
 
-    @DeleteMapping("/{id}")
+    @DeleteMapping("/delete/{id}")
     public ResponseEntity<Void> deleteFacility(@PathVariable Long id) {
         facilityService.deleteFacility(id);
         return ResponseEntity.noContent().build();
     }
 
-    @PostMapping("/search")
-    public ResponseEntity<List<FacilityResponseDTO>> searchFacilities(@RequestBody FacilitySearchDTO searchDTO) {
-        List<FacilityResponseDTO> facilities = facilityService.searchFacilities(searchDTO);
+    @GetMapping("/search")
+    public ResponseEntity<Page<FacilityResponseDTO>> searchFacilities(
+            @RequestParam(required = false) String resourceType,
+            @RequestParam(required = false) String resourceName,
+            @RequestParam(required = false) String location,
+            @RequestParam(required = false) Integer capacity,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size) {
+
+        FacilitySearchDTO searchDTO = new FacilitySearchDTO();
+        searchDTO.setResourceType(resourceType);
+        searchDTO.setResourceName(resourceName);
+        searchDTO.setLocation(location);
+        searchDTO.setCapacity(capacity);
+
+        Page<FacilityResponseDTO> facilities = facilityService.searchFacilities(searchDTO, page, size);
         return ResponseEntity.ok(facilities);
     }
 }

@@ -7,6 +7,9 @@ import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.web.bind.annotation.RequestBody;
 
@@ -84,14 +87,13 @@ public class FacilityService {
         facilityRepository.delete(facility);
     }
 
-      public List<FacilityResponseDTO> searchFacilities(FacilitySearchDTO searchDTO) {
-        List<Facility> facilities = facilityRepository.findAll(FacilitySpecification.searchFacilities(searchDTO));
+    public Page<FacilityResponseDTO> searchFacilities(FacilitySearchDTO searchDTO, int page, int size) {
+        Pageable pageable = PageRequest.of(page, size);
         
-        return facilities.stream()
-                .map(facilityMapper::toDTO)
-                .collect(Collectors.toList());
-    }
+        Page<Facility> facilityPage = facilityRepository.findAll(FacilitySpecification.searchFacilities(searchDTO), pageable);
 
+        return facilityPage.map(facilityMapper::toDTO);
+    }
 
     
 }
