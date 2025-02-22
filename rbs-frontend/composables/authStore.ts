@@ -13,17 +13,25 @@ export const useAuthStore = () => {
     return null
   })
 
-  const user = useState<IUser | null>('auth_user', () => {
-    if (import.meta.client && token.value) {
-      const decoded = decodeJWT(token.value)
-      return decoded ? {
-        email: decoded.email,
-        role: decoded.role,
-        exp: decoded.exp
-      } : null
-    }
-    return null
-  })
+  const user = useState<IUser | null>("auth_user", () => null);
+  watch(
+    token,
+    (newToken) => {
+      if (newToken) {
+        const decoded = decodeJWT(newToken);
+        user.value = decoded
+          ? {
+              email: decoded.email,
+              role: decoded.role,
+              exp: decoded.exp,
+            }
+          : null;
+      } else {
+        user.value = null;
+      }
+    },
+    { immediate: true } 
+  );
 
   const setToken = (newToken: string | null) => {
     token.value = newToken
