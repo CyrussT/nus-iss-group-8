@@ -4,10 +4,10 @@
 <template>
   <div class="min-h-screen">
     <!-- Header -->
-    <AppHeader />
+    <AuthAppHeader />
 
     <!-- Main Content -->
-    <main >
+    <main>
       <slot />
     </main>
   </div>
