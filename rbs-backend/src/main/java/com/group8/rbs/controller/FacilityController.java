@@ -45,8 +45,11 @@ public class FacilityController {
     }
     
     @GetMapping("/list")
-    public ResponseEntity<List<FacilityResponseDTO>> getAllFacilities() {
-        return ResponseEntity.ok(facilityService.getAllFacilities());
+    public ResponseEntity<Page<FacilityResponseDTO>> getAllFacilities(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size) {
+        Page<FacilityResponseDTO> facilities = facilityService.getAllFacilities(page, size);
+        return ResponseEntity.ok(facilities);
     }
 
     @GetMapping("/details/{id}")

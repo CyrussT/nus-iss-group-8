@@ -55,10 +55,9 @@ public class FacilityService {
         return responseDTO;
     }
 
-    public List<FacilityResponseDTO> getAllFacilities() {
-        return facilityRepository.findAll().stream()
-                .map(facilityMapper::toDTO)
-                .collect(Collectors.toList());
+    public Page<FacilityResponseDTO> getAllFacilities(int page, int size) {
+        Pageable pageable = PageRequest.of(page, size);
+        return facilityRepository.findAll(pageable).map(facilityMapper::toDTO);
     }
 
 
