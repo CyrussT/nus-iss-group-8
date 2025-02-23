@@ -166,6 +166,7 @@
 					</execution>
 				</executions>
 				<configuration>
+					<dataDirectory>${user.home}/.m2/repository/org/owasp/dependency-check-data</dataDirectory>
 					<failBuildOnCVSS>9</failBuildOnCVSS>
 					<formats>
 						<format>HTML</format>

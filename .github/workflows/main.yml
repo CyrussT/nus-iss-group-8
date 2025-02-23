@@ -6,7 +6,6 @@ on:
   push:
     branches: [main]
 
-    
 jobs:
   backend:
     name: build-backend
@@ -19,6 +18,10 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Get current date
+        id: get-date
+        run: echo "datetime=$(date +'%Y-%m-%d')" >> $GITHUB_OUTPUT
+
       - name: Set up Maven
         uses: stCarolas/setup-maven@v5
         with:
@@ -30,6 +33,17 @@ jobs:
           distribution: "temurin"
           java-version: "21"
           cache: "maven"
+        
+      - name: Restore OWASP cache
+        uses: actions/cache/restore@v3
+        with:
+          path: |
+            ~/.m2/repository
+            ~/.cache/dependency-check
+          key: ${{ runner.os }}-owasp-${{ steps.get-date.outputs.datetime }}-${{ hashFiles('**/pom.xml') }}
+          restore-keys: |
+            ${{ runner.os }}-owasp-${{ steps.get-date.outputs.datetime }}
+            ${{ runner.os }}-owasp-
 
       - name: Build and test backend and run OWASP Dependency Check
         run: |
@@ -38,6 +52,15 @@ jobs:
         env:
           NVD_API_KEY: ${{ secrets.NVD_KEY }}
 
+      - name: Save OWASP cache
+        uses: actions/cache/save@v3
+        if: always()
+        with:
+          path: |
+            ~/.m2/repository
+            ~/.cache/dependency-check
+          key: ${{ runner.os }}-owasp-${{ steps.get-date.outputs.datetime }}-${{ hashFiles('**/pom.xml') }}
+  
       - name: Upload dependency check report
         uses: actions/upload-artifact@v4
         if: always()
@@ -47,6 +70,7 @@ jobs:
 
   frontend:
     name: build-frontend
+    # runs-on: ubuntu-latest
     runs-on: self-hosted
     steps:
       - name: Checkout
