@@ -67,7 +67,6 @@ async function onSubmit(event: FormSubmitEvent<LoginData>) {
   } finally {
     loading.value = false
   }
-  console.log(event);
 }
 </script>
 

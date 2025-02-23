@@ -2,8 +2,6 @@
 
 const auth = useAuthStore();
 const user = auth.user.value;
-console.log(user?.email);
-console.log(user);
 
 definePageMeta({
   middleware: ['auth']

@@ -27,7 +27,7 @@ const handleLogout = () => {
         <UIcon v-else name="i-heroicons:sun" class="w-5 h-5" />
       </UButton>
       <UButton :ui="{ rounded: 'rounded-full' }" size="lg" @click="handleLogout">
-        <NuxtLink to="/logout"> Logout </NuxtLink>
+        <a> Logout </a>
       </UButton>
     </div>
   </header>
