@@ -117,14 +117,14 @@
 			<artifactId>resend-java</artifactId>
 			<version>3.1.0</version>
 		</dependency>
-		
+
 		<!-- H2 Database for Testing -->
 		<dependency>
 			<groupId>com.h2database</groupId>
 			<artifactId>h2</artifactId>
 			<scope>test</scope>
 		</dependency>
-		
+
 		<!-- Mockito for mocking in tests -->
 		<dependency>
 			<groupId>org.mockito</groupId>
@@ -156,6 +156,28 @@
 							<artifactId>lombok</artifactId>
 						</exclude>
 					</excludes>
+				</configuration>
+			</plugin>
+			<!-- https://mvnrepository.com/artifact/org.owasp/dependency-check-maven -->
+			<plugin>
+				<groupId>org.owasp</groupId>
+				<artifactId>dependency-check-maven</artifactId>
+				<version>12.1.0</version>
+				<executions>
+					<execution>
+						<goals>
+							<goal>check</goal>
+						</goals>
+					</execution>
+				</executions>
+				<configuration>
+					<dataDirectory>${user.home}/.m2/repository/org/owasp/dependency-check-data</dataDirectory>
+					<failBuildOnCVSS>9</failBuildOnCVSS>
+					<formats>
+						<format>HTML</format>
+						<format>JSON</format>
+					</formats>
+					<nvdApiKey>${NVD_API_KEY}</nvdApiKey>
 				</configuration>
 			</plugin>
 		</plugins>

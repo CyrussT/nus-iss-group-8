@@ -44,7 +44,7 @@ const handleLogout = () => {
       </UButton>
 
       <UButton :ui="{ rounded: 'rounded-full' }" size="lg" @click="handleLogout">
-        <NuxtLink to="/logout"> Logout </NuxtLink>
+        <a> Logout </a>
       </UButton>
     </div>
   </header>

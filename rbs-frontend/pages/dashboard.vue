@@ -2,8 +2,6 @@
 
 const auth = useAuthStore();
 const user = auth.user.value;
-console.log(user?.email);
-console.log(user);
 
 definePageMeta({
   middleware: ['auth']
@@ -15,6 +13,8 @@ definePageMeta({
     <h1>Welcome to Dashboard Page!</h1>
     <br/>
     <h1>{{ user?.email }}</h1>
+
+    <p>You have {{ user?.role }} role.</p>
   </div>
 </template>
 
