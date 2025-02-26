@@ -7,27 +7,6 @@ export const useAuthStore = () => {
     sameSite: 'strict'
   })
 
-<<<<<<< HEAD
-  const user = useState<IUser | null>("auth_user", () => null);
-  watch(
-    token,
-    (newToken) => {
-      if (newToken) {
-        const decoded = decodeJWT(newToken);
-        user.value = decoded
-          ? {
-              email: decoded.email,
-              role: decoded.role,
-              exp: decoded.exp,
-            }
-          : null;
-      } else {
-        user.value = null;
-      }
-    },
-    { immediate: true } 
-  );
-=======
   const token = useState<string | null>('auth_token', () => tokenCookie.value || null)
   const user = useState<IUser | null>("auth_user", () => null)
 
@@ -42,7 +21,6 @@ export const useAuthStore = () => {
       exp: decoded.exp,
     }
   }
->>>>>>> main
 
   const setToken = (newToken: string | null) => {
     token.value = newToken
