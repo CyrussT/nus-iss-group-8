@@ -5,11 +5,11 @@ const auth = useAuthStore();
 //   middleware: ['auth']
 // })
 
-import { ref, reactive, onMounted, computed } from 'vue';
+import { ref, reactive, onMounted } from 'vue';
 import FullCalendar from '@fullcalendar/vue3';
 import resourceTimelinePlugin from '@fullcalendar/resource-timeline';
 import interactionPlugin from '@fullcalendar/interaction';
-import { UCard, UModal, UInput, USelect, UButton, UTextarea } from '#components';
+import { UCard, UModal, UInput, USelect, UButton, UTextarea, UIcon, UInputMenu } from '#components';
 import { useApi } from '~/composables/useApi';
 
 const { apiUrl } = useApi();
@@ -19,6 +19,15 @@ const loading = ref(true);
 const facilities = ref([]);
 const resourceGroups = ref([]);
 const resources = ref([]);
+
+// Search and dropdown loading states
+const searchLoading = ref(false);
+const optionsLoading = ref(false);
+
+// Options for dropdown selectors (simple strings for UInputMenu)
+const resourceTypeOptions = ref([]);
+const resourceNameOptions = ref([]);
+const locationOptions = ref([]);
 
 // Modal state
 const isModalOpen = ref(false);
@@ -73,20 +82,6 @@ const searchQuery = ref({
   location: "",
   capacity: "",
 });
-
-const resetSearch = () => {
-  searchQuery.value = {
-    resourceType: "",
-    resourceName: "",
-    location: "",
-    capacity: "",
-  };
-  
-  // Reset to show all resources
-  if (calendarRef.value) {
-    updateCalendarResources(resources.value, resourceGroups.value);
-  }
-};
 
 const bookings = reactive([
   {
@@ -187,7 +182,7 @@ const submitBooking = () => {
 const calendarOptions = ref({
   plugins: [resourceTimelinePlugin, interactionPlugin],
   initialView: 'resourceTimelineDay',
-  schedulerLicenseKey: 'CC-Attribution-NonCommercial-NoDerivatives',
+  schedulerLicenseKey: 'GPL-My-Project-Is-Open-Source',
   headerToolbar: {
     left: 'prev',
     center: 'title',
@@ -274,6 +269,57 @@ function updateCalendarResources(resourcesList, groupsList) {
   }
 }
 
+// Function to fetch dropdown options from backend
+async function fetchDropdownOptions() {
+  try {
+    optionsLoading.value = true;
+    
+    // Resource Types
+    const typeResponse = await fetch(`${apiUrl}/api/bookings/resource-types`, {
+      headers: {
+        Authorization: "Bearer " + auth.token.value
+      }
+    });
+    
+    if (typeResponse.ok) {
+      const types = await typeResponse.json();
+      // Extract just the values for UInputMenu
+      resourceTypeOptions.value = types.map(type => type.value);
+    }
+    
+    // Locations
+    const locationResponse = await fetch(`${apiUrl}/api/bookings/locations`, {
+      headers: {
+        Authorization: "Bearer " + auth.token.value
+      }
+    });
+    
+    if (locationResponse.ok) {
+      const locations = await locationResponse.json();
+      // Extract just the values for UInputMenu
+      locationOptions.value = locations.map(location => location.value);
+    }
+    
+    // Resource Names
+    const nameResponse = await fetch(`${apiUrl}/api/bookings/resource-names`, {
+      headers: {
+        Authorization: "Bearer " + auth.token.value
+      }
+    });
+    
+    if (nameResponse.ok) {
+      const names = await nameResponse.json();
+      // Extract just the values for UInputMenu
+      resourceNameOptions.value = names.map(name => name.value);
+    }
+    
+  } catch (error) {
+    console.error('Error fetching dropdown options:', error);
+  } finally {
+    optionsLoading.value = false;
+  }
+}
+
 async function fetchFacilities() {
   try {
     loading.value = true;
@@ -352,19 +398,44 @@ async function fetchFacilities() {
   }
 }
 
-function searchFacilities() {
-  // Filter resources based on search criteria
-  const filteredResources = facilities.value
-    .filter(facility => {
-      return (
-        (!searchQuery.value.resourceType || facility.resourceType.toLowerCase().includes(searchQuery.value.resourceType.toLowerCase())) &&
-        (!searchQuery.value.resourceName || facility.resourceName.toLowerCase().includes(searchQuery.value.resourceName.toLowerCase())) &&
-        (!searchQuery.value.location || facility.location.toLowerCase().includes(searchQuery.value.location.toLowerCase())) &&
-        (!searchQuery.value.capacity || facility.capacity >= parseInt(searchQuery.value.capacity))
-      );
-    })
-    .map(facility => {
-      const building = facility.location.split('-')[0];
+// Updated search function to use backend filtering
+async function searchFacilities() {
+  try {
+    searchLoading.value = true;
+    
+    // Build query parameters from search criteria
+    const params = new URLSearchParams();
+    if (searchQuery.value.resourceType) {
+      params.append('resourceType', searchQuery.value.resourceType);
+    }
+    if (searchQuery.value.resourceName) {
+      params.append('resourceName', searchQuery.value.resourceName);
+    }
+    if (searchQuery.value.location) {
+      params.append('location', searchQuery.value.location);
+    }
+    if (searchQuery.value.capacity) {
+      params.append('capacity', searchQuery.value.capacity);
+    }
+    
+    // Call the backend search API
+    const response = await fetch(`${apiUrl}/api/bookings/facilities/search?${params.toString()}`, {
+      headers: {
+        Authorization: "Bearer " + auth.token.value
+      }
+    });
+    
+    if (!response.ok) {
+      throw new Error('Failed to search facilities');
+    }
+    
+    // Process the filtered facilities from backend
+    const filteredFacilities = await response.json();
+    facilities.value = filteredFacilities; // Update the facilities reference
+    
+    // Convert facilities to FullCalendar resource format
+    const filteredResources = filteredFacilities.map(facility => {
+      const building = facility.location.split('-')[0] || facility.location;
       
       return {
         id: facility.facilityId.toString(),
@@ -377,16 +448,38 @@ function searchFacilities() {
         }
       };
     });
-
-  // Update calendar with filtered resources
-  if (calendarRef.value) {
-    const calendarApi = calendarRef.value.getApi();
-    calendarApi.setOption('resources', filteredResources);
+    
+    // Update calendar with filtered resources
+    if (calendarRef.value) {
+      const calendarApi = calendarRef.value.getApi();
+      calendarApi.setOption('resources', filteredResources);
+    }
+    
+  } catch (error) {
+    console.error('Error searching facilities:', error);
+    // Show error notification to user
+    alert('An error occurred while searching. Please try again.');
+  } finally {
+    searchLoading.value = false;
   }
 }
 
+// Reset search function
+const resetSearch = async () => {
+  searchQuery.value = {
+    resourceType: "",
+    resourceName: "",
+    location: "",
+    capacity: "",
+  };
+  
+  // Fetch all facilities from backend
+  await fetchFacilities();
+};
+
 onMounted(() => {
   fetchFacilities();
+  fetchDropdownOptions(); // Fetch dropdown options when component mounts
 });
 
 </script>
@@ -395,27 +488,89 @@ onMounted(() => {
   <div class="mx-auto w-3/4 mt-8">
     <h1 class="text-2xl font-bold">Booking Management</h1>
     
-    <UCard class="mt-4">
-      <div class="mb-4 grid grid-cols-2 gap-4">
-        <UInput v-model="searchQuery.resourceType" placeholder="Resource Type" />
-        <UInput v-model="searchQuery.resourceName" placeholder="Resource Name" />
-        <UInput v-model="searchQuery.location" placeholder="Location" />
-        <UInput v-model="searchQuery.capacity" type="number" placeholder="Capacity" />
+    <!-- Search UI component with UInputMenu -->
+    <UCard class="mt-4 p-4">
+      <template #header>
+        <div class="flex items-center">
+          <UIcon name="i-heroicons-magnifying-glass" class="mr-2 text-gray-500" />
+          <h3 class="text-lg font-medium">Find Available Resources</h3>
+        </div>
+      </template>
+
+      <!-- Updated Search UI component with regular UInput for Resource Name -->
+      <div class="mb-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+        <!-- Resource Type with UInputMenu -->
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Resource Type</label>
+          <UInputMenu
+            v-model="searchQuery.resourceType"
+            :options="resourceTypeOptions"
+            placeholder="Type or select resource type"
+            size="md"
+            class="w-full"
+            :loading="optionsLoading"
+            clearable
+          />
+        </div>
+
+        <!-- Resource Name with regular UInput - no autocomplete -->
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Resource Name</label>
+          <UInput
+            v-model="searchQuery.resourceName"
+            placeholder="Enter resource name"
+            size="md"
+            class="w-full"
+            icon="i-heroicons-building-office"
+            clearable
+          />
+        </div>
+
+        <!-- Location with UInputMenu -->
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Location</label>
+          <UInputMenu
+            v-model="searchQuery.location"
+            :options="locationOptions"
+            placeholder="Type or select location"
+            size="md"
+            class="w-full"
+            :loading="optionsLoading"
+            clearable
+          />
+        </div>
+
+        <!-- Capacity -->
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Minimum Capacity</label>
+          <UInput 
+            v-model="searchQuery.capacity" 
+            type="number" 
+            placeholder="Min. capacity needed"
+            size="md"
+            icon="i-heroicons-user-group"
+          />
+        </div>
       </div>
-      <div class="col-span-2 flex justify-end gap-2">
-        <button
+
+      <div class="flex justify-end gap-3">
+        <UButton
+          color="gray"
+          variant="soft"
+          icon="i-heroicons-arrow-path"
           @click="resetSearch"
-          class="bg-gray-400 text-white px-4 py-2 rounded hover:bg-gray-600"
         >
           Reset
-        </button>
+        </UButton>
         
-        <button
+        <UButton
+          color="primary"
+          icon="i-heroicons-magnifying-glass"
           @click="searchFacilities"
-          class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-700"
+          :loading="searchLoading"
         >
           Search
-        </button>
+        </UButton>
       </div>
     </UCard>
     
