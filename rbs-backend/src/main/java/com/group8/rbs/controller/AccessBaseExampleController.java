@@ -3,6 +3,8 @@ package com.group8.rbs.controller;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.group8.rbs.util.SecurityUtils;
+
 import lombok.RequiredArgsConstructor;
 
 import org.springframework.http.ResponseEntity;
@@ -19,13 +21,13 @@ public class AccessBaseExampleController {
     @GetMapping("student")
     @PreAuthorize("hasRole('ROLE_STUDENT')")
     public ResponseEntity<String> accessStudent() {
-        return ResponseEntity.ok("Student Access");
+        return ResponseEntity.ok("Student Access " + SecurityUtils.getCurrentUserEmail());
     }
 
     // Example endpoint for an admin 
     @GetMapping("admin")
     @PreAuthorize("hasRole('ROLE_ADMINISTRATOR')")
     public ResponseEntity<String> accessAdmin() {
-        return ResponseEntity.ok("Admin Access");
+        return ResponseEntity.ok("Admin Access " + SecurityUtils.getCurrentUserEmail());
     }
 }

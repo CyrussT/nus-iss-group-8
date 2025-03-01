@@ -1,5 +1,5 @@
 package com.group8.rbs.entities;
-
+import jakarta.persistence.*;
 import java.util.List;
 
 import jakarta.persistence.Column;
@@ -15,8 +15,14 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
+
 @Entity
-@Table(name = "TBL_FACILITY")
+@Table(name = "TBL_FACILITY", indexes = {
+    @Index(name = "idx_resource_type", columnList = "RESOURCE_TYPE"),
+    @Index(name = "idx_resource_name", columnList = "RESOURCE_NAME"),
+    @Index(name = "idx_location", columnList = "LOCATION"),
+    @Index(name = "idx_capacity", columnList = "CAPACITY")
+})
 @AllArgsConstructor
 @NoArgsConstructor
 @Builder

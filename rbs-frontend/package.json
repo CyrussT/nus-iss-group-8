@@ -20,6 +20,7 @@
     "@fullcalendar/interaction": "^6.1.15",
     "@fullcalendar/resource-timeline": "^6.1.15",
     "@fullcalendar/vue3": "^6.1.15",
+    "axios": "^1.7.9",
     "zod": "^3.24.2"
   }
 }

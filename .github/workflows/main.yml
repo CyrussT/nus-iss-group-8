@@ -1,0 +1,87 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+jobs:
+  backend:
+    name: build-backend
+    # runs-on: ubuntu-latest
+    runs-on: self-hosted
+    defaults:
+      run:
+        working-directory: ./rbs-backend
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Get current date
+        id: get-date
+        run: echo "datetime=$(date +'%Y-%m-%d')" >> $GITHUB_OUTPUT
+
+      - name: Set up Maven
+        uses: stCarolas/setup-maven@v5
+        with:
+          maven-version: 3.8.2
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: "temurin"
+          java-version: "21"
+          cache: "maven"
+        
+      - name: Restore OWASP cache
+        uses: actions/cache/restore@v3
+        with:
+          path: |
+            ~/.m2/repository
+            ~/.cache/dependency-check
+          key: ${{ runner.os }}-owasp-${{ steps.get-date.outputs.datetime }}-${{ hashFiles('**/pom.xml') }}
+          restore-keys: |
+            ${{ runner.os }}-owasp-${{ steps.get-date.outputs.datetime }}
+            ${{ runner.os }}-owasp-
+
+      - name: Build and test backend and run OWASP Dependency Check
+        run: |
+          mvn clean verify
+          mvn test
+        env:
+          NVD_API_KEY: ${{ secrets.NVD_KEY }}
+
+      - name: Save OWASP cache
+        uses: actions/cache/save@v3
+        if: always()
+        with:
+          path: |
+            ~/.m2/repository
+            ~/.cache/dependency-check
+          key: ${{ runner.os }}-owasp-${{ steps.get-date.outputs.datetime }}-${{ hashFiles('**/pom.xml') }}
+  
+      - name: Upload dependency check report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: dependency-check-report
+          path: rbs-backend/target/dependency-check-report.html
+
+  frontend:
+    name: build-frontend
+    # runs-on: ubuntu-latest
+    runs-on: self-hosted
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install bun
+        uses: oven-sh/setup-bun@v2
+
+      - name: Build and test frontend
+        run: |
+          cd rbs-frontend
+          bun install
+          bun test
+          bun run build

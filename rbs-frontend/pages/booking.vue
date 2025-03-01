@@ -19,6 +19,7 @@ const loading = ref(true);
 const facilities = ref([]);
 const resourceGroups = ref([]);
 const resources = ref([]);
+const bookings = ref([]);
 
 // Search and dropdown loading states
 const searchLoading = ref(false);
@@ -82,25 +83,6 @@ const searchQuery = ref({
   location: "",
   capacity: "",
 });
-
-const bookings = reactive([
-  {
-    id: '1',
-    resourceId: '1', // This will be matched with facilityId
-    title: 'Project Discussion',
-    start: '2025-02-23T08:00:00',
-    end: '2025-02-23T10:00:00',
-    backgroundColor: '#2e7d32'
-  },
-  {
-    id: '2',
-    resourceId: '1', // This will be matched with facilityId
-    title: 'Project',
-    start: '2025-02-23T10:00:00',
-    end: '2025-02-23T13:00:00',
-    backgroundColor: '#2e7d32'
-  }
-]);
 
 // Function to check if a time slot is available
 const isSlotAvailable = (startTime, endTime, resourceId, excludeEventId = null) => {
@@ -172,7 +154,7 @@ const submitBooking = () => {
     }
   };
   
-  bookings.push(newBooking);
+  bookings.value.push(newBooking);
   isModalOpen.value = false;
   
   // TODO: Add API call to save booking to backend
