@@ -43,9 +43,10 @@ export const useFacility = () => {
   const fetchFacilities = async () => {
     try {
       loading.value = true;
-      const response = await axios.get("http://localhost:8080/api/facilities/list", {
+      const response = await axios.get("http://localhost:8080/api/facilities/search", {
         params: {
-          page: currentPage.value - 1,  // ✅ Convert UI page (1-based) to API (0-based)
+          ...searchQuery.value,
+          page: currentPage.value - 1, 
           size: pageSize.value,
         },
       });
@@ -96,9 +97,6 @@ export const useFacility = () => {
     loading,
     currentPage,
     pageSize,
-    totalPages,
     totalItems,
-    nextPage,
-    prevPage,
   };
 };

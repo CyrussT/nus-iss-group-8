@@ -23,10 +23,7 @@ const {
   facilities,
   loading,
   currentPage,
-  totalPages,
   totalItems,
-  nextPage,
-  prevPage,
   pageSize,
 } = useFacility();
 
@@ -90,22 +87,16 @@ onMounted(fetchFacilities);
       <UInput v-model="searchQuery.capacity" type="number" placeholder="Capacity" />
 
       <div class="col-span-2 flex justify-end gap-2">
-        <button @click="fetchFacilities"
-          class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-700 flex items-center gap-2">
-          <UIcon name="i-ic:baseline-search" class="w-5 h-5" />
-          Search
-        </button>
 
-        <button @click="resetSearch"
-          class="bg-gray-400 text-white px-4 py-2 rounded hover:bg-red-500 flex items-center gap-2">
-          <UIcon name="i-ic:round-restart-alt" class="w-5 h-5" />
-          Reset
-        </button>
-        <button @click="openModal()"
-          class="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-700 flex items-center gap-2">
-          <UIcon name="i-ic:baseline-plus" class="w-5 h-5" />
-          Add Facility
-        </button>
+        <UButton @click="fetchFacilities" color="blue" variant="solid" icon="i-ic:baseline-search" label="Search"
+          class="px-4 py-2 gap-2" />
+
+        <UButton @click="resetSearch" color="gray" variant="solid" icon="i-ic:round-restart-alt" label="Reset"
+          class="px-4 py-2 gap-2 hover:bg-red-500" />
+
+        <UButton @click="openModal()" color="green" variant="solid" icon="i-ic:baseline-plus" label="Add Facility"
+          class="px-4 py-2 gap-2" />
+
       </div>
     </div>
 
@@ -125,24 +116,21 @@ onMounted(fetchFacilities);
 
           <template #actions-data="{ row }">
             <div class="flex justify-center gap-2">
-              <button @click="openModal(row)"
-                class="bg-yellow-500 text-white px-3 py-1 rounded flex items-center gap-2 hover:bg-yellow-700">
-                <UIcon name="i-heroicons-pencil" class="w-5 h-5" />
-                Edit
-              </button>
+              <UButton @click="openModal(row)" color="yellow" variant="solid" icon="i-heroicons-pencil" label="Edit"
+                class="px-3 py-1 gap-2" />
 
-              <button @click="markAsMaintenance(row)"
-                class="bg-red-500 text-white px-3 py-1 rounded flex items-center gap-2 hover:bg-red-700">
-                <UIcon name="i-heroicons-wrench" class="w-5 h-5" />
-                Maintenance
-              </button>
+
+              <UButton @click="markAsMaintenance(row)" color="red" variant="solid" icon="i-heroicons-wrench"
+                label="Maintenance" class="px-3 py-1 gap-2" />
+
             </div>
           </template>
         </UTable>
       </div>
 
       <div class="mt-4 flex justify-center">
-        <UPagination v-model="currentPage" :max="5" :total="totalItems" @update:model-value="fetchFacilities" show-last show-first />
+        <UPagination v-model="currentPage" :max="5" :total="totalItems" @update:model-value="fetchFacilities" show-last
+          show-first />
       </div>
     </UCard>
   </div>
