@@ -10,13 +10,9 @@ const router = useRouter();
 const isModalOpen = ref(false);
 const isEditing = ref(false);
 
-const isAdmin = computed(() => auth.user.value?.role === "ADMINISTRATOR");
-
-onMounted(() => {
-  if (!isAdmin.value) {
-    router.push("/");
-  }
-});
+definePageMeta({
+  middleware: ['auth', 'admin']
+})
 
 const {
   searchQuery,
@@ -28,6 +24,7 @@ const {
   loading,
   currentPage,
   totalPages,
+  totalItems,
   nextPage,
   prevPage,
   pageSize,
@@ -115,7 +112,7 @@ onMounted(fetchFacilities);
     <UCard class="w-full max-w-8xl p-6 shadow-lg bg-white">
       <div class="mt-6 overflow-x-auto">
         <UTable :rows="facilities" :loading="loading" :columns="[
-          { key: 'sn', label: 'SN', sortable: true },
+          { key: 'sn', label: 'SN', sortable: false },
           { key: 'resourceType', label: 'Type', sortable: true },
           { key: 'resourceName', label: 'Name', sortable: true },
           { key: 'location', label: 'Location', sortable: true },
@@ -123,7 +120,7 @@ onMounted(fetchFacilities);
           { key: 'actions', label: 'Actions', class: 'text-center' }
         ]">
           <template #sn-data="{ index }">
-            {{ index + 1 + currentPage * pageSize }}
+            {{ index + 1 + (currentPage - 1) * pageSize }}
           </template>
 
           <template #actions-data="{ row }">
@@ -144,20 +141,8 @@ onMounted(fetchFacilities);
         </UTable>
       </div>
 
-      <div class="mt-4 flex justify-center items-center">
-        <button @click="currentPage > 0 ? (currentPage--, fetchFacilities()) : null" :disabled="currentPage === 0"
-          class="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-700 disabled:opacity-50 flex items-center">
-          <UIcon name="i-heroicons-arrow-left" class="w-5 h-5 mr-1" />
-          Previous
-        </button>
-
-        <span class="text-lg">Page {{ currentPage + 1 }} of {{ totalPages }}</span>
-
-        <button @click="nextPage" :disabled="currentPage >= totalPages - 1"
-          class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-700 disabled:opacity-50 flex items-center">
-          Next
-          <UIcon name="i-heroicons-arrow-right" class="w-5 h-5 ml-1" />
-        </button>
+      <div class="mt-4 flex justify-center">
+        <UPagination v-model="currentPage" :max="5" :total="totalItems" @update:model-value="fetchFacilities" show-last show-first />
       </div>
     </UCard>
   </div>

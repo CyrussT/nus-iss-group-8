@@ -35,23 +35,24 @@ export const useFacility = () => {
   });
   const facilities = ref([]);
   const loading = ref(true);
-  const currentPage = ref(0);
+  const currentPage = ref(1); 
   const pageSize = ref(10);
-  const totalPages = ref(1); // Track total pages from backend
+  const totalPages = ref(1); 
+  const totalItems = ref(0);
 
   const fetchFacilities = async () => {
     try {
       loading.value = true;
-      const response = await axios.get("http://localhost:8080/api/facilities/search", {
+      const response = await axios.get("http://localhost:8080/api/facilities/list", {
         params: {
-          ...searchQuery.value, // Spread search parameters
-          page: currentPage.value,
+          page: currentPage.value - 1,  // ✅ Convert UI page (1-based) to API (0-based)
           size: pageSize.value,
         },
       });
   
-      facilities.value = response.data.content; // Extract paginated content
-      totalPages.value = response.data.totalPages; // Get total pages
+      facilities.value = response.data.content;
+      totalPages.value = response.data.totalPages;
+      totalItems.value = response.data.totalElements;
     } catch (error) {
       console.error("Error fetching facilities:", error);
     } finally {
@@ -96,6 +97,7 @@ export const useFacility = () => {
     currentPage,
     pageSize,
     totalPages,
+    totalItems,
     nextPage,
     prevPage,
   };
