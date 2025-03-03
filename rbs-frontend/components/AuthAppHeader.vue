@@ -2,35 +2,53 @@
 const auth = useAuthStore();
 const router = useRouter();
 const colorMode = useColorMode();
-
+const showManageDropdown = ref(false); // Controls dropdown visibility
 
 const toggleColorMode = () => {
   colorMode.preference = colorMode.value === "dark" ? "light" : "dark";
 };
-const isAdmin = computed(() => auth.user.value?.role === "ADMINISTRATOR");
 
-console.log("user role:"+auth.user.value?.role);
+const userRole = computed(() => auth.user.value?.role);
+
+const isAdmin = computed(() => userRole.value === "ADMINISTRATOR");
+const isStudent = computed(() => userRole.value === "STUDENT");
+
+console.log("User role:", userRole.value);
 
 const handleLogout = () => {
   auth.logout();
   router.push("/login");
 };
+
+
 </script>
 
 <template>
   <header class="h-16 border-b px-4 flex items-center justify-between">
-    <h1 class="font-bold text-xl"><NuxtLink to="/">Resource Booking System</NuxtLink></h1>
+    <h1 class="font-bold text-xl">
+      <NuxtLink to="/">Resource Booking System</NuxtLink>
+    </h1>
 
-    <div> 
-      <NuxtLink
-        v-if="isAdmin"
-        to="/facility"
-        class="text-sm font-semibold text-blue-500 hover:underline"
-      >
-        Facility
-      </NuxtLink>
-    </div>
-          
+    <nav class="flex gap-4 relative">
+      <template v-if="isAdmin">
+        <NuxtLink to="/facility" class="text-sm font-semibold text-blue-500 hover:underline">
+          Facility
+        </NuxtLink>
+
+        <NuxtLink to="/student-list" class="text-sm font-semibold text-blue-500 hover:underline">
+          Manage Students
+        </NuxtLink>
+      </template>
+
+    <NuxtLink
+      v-if="isStudent"
+      to="/student-booking"
+      class="text-sm font-semibold text-blue-500 hover:underline">
+      My Bookings
+    </NuxtLink>
+    </nav>
+
+
 
 
     <div class="flex items-center gap-4">
@@ -49,3 +67,4 @@ const handleLogout = () => {
     </div>
   </header>
 </template>
+
