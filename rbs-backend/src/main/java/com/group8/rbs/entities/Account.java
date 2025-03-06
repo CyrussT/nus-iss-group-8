@@ -34,8 +34,20 @@ public class Account {
     @Column(name = "ACCOUNT_ID")
     private Long accountId;
 
-    @Column(name = "EMAIL", nullable = false, unique = true)
+    @Column(name = "NAME", nullable = false)
+    private String name;
+
+    @Column(name = "STUDENT_ID", nullable = true, unique = true)
+    private String studentId;
+
+    @Column(name = "EMAIL", nullable = true, unique = true)
     private String email;
+
+    @Column(name = "ENROLLMENT_YEAR", nullable = true)
+    private Integer enrollmentYear;
+
+    @Column(name = "STATUS", nullable = false)
+    private String status;  // Added Status (e.g., Active, Inactive, Graduated)
 
     @Column(name = "PASSWORD", nullable = false)
     private String password;
