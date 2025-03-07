@@ -3,9 +3,28 @@ definePageMeta({
   middleware: ['auth', 'student']
 })
 
+import { useBooking } from "@/composables/useBooking";  // Import composable
+import { useAuthStore } from "@/composables/authStore";
+import axios from "axios";
 import { useRouter } from "vue-router";
 import { computed, onMounted, ref } from "vue";
-import axios from "axios";
+
+const auth = useAuthStore();
+const {upcomingApprovedBookings, pendingBookings, pastBookings, fetchAccountId, fetchUpcomingApprovedBookings, fetchPendingBookings, fetchPastBookings } = useBooking();
+
+const authStore = useAuthStore();
+const accountId = ref<number | null>(null);
+
+onMounted(async () => {
+  if (auth.user.value?.email) {
+    accountId.value = await fetchAccountId(auth.user.value.email);
+    if (accountId.value) {
+      fetchPastBookings(accountId.value);
+      fetchPendingBookings(accountId.value);
+      fetchUpcomingApprovedBookings(accountId.value);
+    }
+  }
+});
 
 
 const items = [{
@@ -25,38 +44,56 @@ const items = [{
     description: 'Past bookings are shown here'
 }]
 
-// change and add backend later
-const yearEnrolled = ['All', '2020', '2021', '2022', '2023', '2024', '2025'];
-const selectedYear = ref(yearEnrolled[0]);
+const columns = [
+  { key: "facilityName", label: "Resource Name", sortable: true },
+  { key: "bookedDatetime", label: "Date", sortable: true },
+  { key: "timeslot", label: "Time", sortable: true },
+  { key: "supported", label: "Supporter", sortable: false },
+  { key: "purpose", label: "Purpose", sortable: false },
+  { key: "status", label: "Status", sortable: true },
+  { key: "bookingId", label: "Booking ID", sortable: true }
+];
 
-const status = ['All','Active', 'Inactive'];
-const selectedStatus  = ref(status[0]);
+// Format Upcoming bookings
+const formattedUpcomingApprovedBookings = computed(() => {
+  return upcomingApprovedBookings.value.map(upcomingApprovedBookings => ({
+    facilityName: upcomingApprovedBookings.facilityName,
+    bookedDatetime: new Date(upcomingApprovedBookings.bookedDatetime).toLocaleDateString(),
+    timeslot: upcomingApprovedBookings.timeslot,
+    supported: "N/A",
+    purpose: "N/A",
+    status: upcomingApprovedBookings.status,
+    bookingId: upcomingApprovedBookings.bookingId
+  }));
+});
+
+// Format Pending bookings
+const formattedPendingBookings = computed(() => {
+  return pendingBookings.value.map(pendingBookings => ({
+    facilityName: pendingBookings.facilityName,
+    bookedDatetime: new Date(pendingBookings.bookedDatetime).toLocaleDateString(),
+    timeslot: pendingBookings.timeslot,
+    supported: "N/A",
+    purpose: "N/A",
+    status: pendingBookings.status,
+    bookingId: pendingBookings.bookingId
+  }));
+});
 
 
-const studentName = ref("");
-const studentID = ref("");
+// Format Past bookings 
+const formattedPastBookings = computed(() => {
+  return pastBookings.value.map(pastBookings => ({
+    facilityName: pastBookings.facilityName,
+    bookedDatetime: new Date(pastBookings.bookedDatetime).toLocaleDateString(),  // Format date
+    timeslot: pastBookings.timeslot,
+    supported: "N/A",  // Placeholder
+    purpose: "N/A",  // Placeholder
+    status: pastBookings.status,
+    bookingId: pastBookings.bookingId
+  }));
+});
 
-// Fetch students (Backend will be implemented later)
-const fetchStudents = () => {
-  console.log("Fetching students with filters:", {
-    name: studentName.value,
-    studentID: studentID.value,
-    year: selectedYear.value,
-    status: selectedStatus.value
-  });
-  // Placeholder for API call
-  // axios.get('/api/students', { params: { name, studentID, year, status } })
-  //   .then(response => { console.log(response.data); })
-  //   .catch(error => { console.error(error); });
-};
-
-// Reset search filters
-const resetSearch = () => {
-  studentName.value = "";
-  studentID.value = "";
-  selectedYear.value = yearEnrolled[0];  // Reset to 'All'
-  selectedStatus.value = status[0];  // Reset to 'All'
-};
 </script>
 
 
@@ -75,13 +112,43 @@ const resetSearch = () => {
         
             <template #item="{ item }">
                 <div v-if="item.key === 'upcoming'">
-                    <p>Upcoming Approve Bookings are shown here</p>
+                    <p class="font-bold mb-2">Upcoming Approve Bookings are shown here</p>
+                    <UTable 
+                        v-if="upcomingApprovedBookings.length > 0"
+                        :rows="upcomingApprovedBookings"
+                        :columns="columns"
+                        class="shadow-lg rounded-lg overflow-hidden"  
+                    />
+
+                    <p v-else>No upcoming bookings found.</p>
+
                 </div>
+
                 <div v-else-if="item.key === 'pending'">
-                    <p>Pending Bookings not approve are shown here</p>
+                    <p class="font-bold mb-2">Pending Bookings not approve are shown here</p>
+                    <UTable 
+                      v-if="pendingBookings.length > 0"
+                      :rows="pendingBookings"
+                      :columns="columns"
+                      class="shadow-lg rounded-lg overflow-hidden"
+                    />
+
+                    <p v-else>No pending bookings found.</p>
                 </div>
+
+                
                 <div v-else-if="item.key === 'past'">
-                    <p>Past Bookings</p>
+                    <p class="font-bold mb-2">Past Bookings</p>
+
+                    <UTable 
+                        v-if="pastBookings.length > 0"
+                        :rows="pastBookings"
+                        :columns="columns"
+                        class="shadow-lg rounded-lg overflow-hidden"
+                    />
+
+                    <p v-else>No past bookings found.</p>
+
                 </div>
             </template>
         </UTabs>
