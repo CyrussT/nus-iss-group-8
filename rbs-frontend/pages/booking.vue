@@ -254,45 +254,34 @@ function updateCalendarResources(resourcesList, groupsList) {
 // Function to fetch dropdown options from backend
 async function fetchDropdownOptions() {
   try {
+    console.log('Fetching dropdown options');
     optionsLoading.value = true;
     
-    // Resource Types
-    const typeResponse = await fetch(`${apiUrl}/api/bookings/resource-types`, {
+    // Make a single API call to get all dropdown options
+    const response = await fetch(`${apiUrl}/api/bookings/dropdown-options`, {
       headers: {
         Authorization: "Bearer " + auth.token.value
       }
     });
     
-    if (typeResponse.ok) {
-      const types = await typeResponse.json();
-      // Extract just the values for UInputMenu
-      resourceTypeOptions.value = types.map(type => type.value);
-    }
-    
-    // Locations
-    const locationResponse = await fetch(`${apiUrl}/api/bookings/locations`, {
-      headers: {
-        Authorization: "Bearer " + auth.token.value
+    if (response.ok) {
+      const options = await response.json();
+      console.log('Received dropdown options:', options);
+      
+      // Extract each type of option from the map
+      if (options.resourceTypes) {
+        resourceTypeOptions.value = options.resourceTypes;
       }
-    });
-    
-    if (locationResponse.ok) {
-      const locations = await locationResponse.json();
-      // Extract just the values for UInputMenu
-      locationOptions.value = locations.map(location => location.value);
-    }
-    
-    // Resource Names
-    const nameResponse = await fetch(`${apiUrl}/api/bookings/resource-names`, {
-      headers: {
-        Authorization: "Bearer " + auth.token.value
+      
+      if (options.locations) {
+        locationOptions.value = options.locations;
       }
-    });
-    
-    if (nameResponse.ok) {
-      const names = await nameResponse.json();
-      // Extract just the values for UInputMenu
-      resourceNameOptions.value = names.map(name => name.value);
+      
+      if (options.resourceNames) {
+        resourceNameOptions.value = options.resourceNames;
+      }
+    } else {
+      console.error('Failed to fetch dropdown options:', response.status);
     }
     
   } catch (error) {
@@ -302,88 +291,18 @@ async function fetchDropdownOptions() {
   }
 }
 
-async function fetchFacilities() {
-  try {
-    loading.value = true;
-    
-    // Fetch facilities from the server
-    const response = await fetch(`${apiUrl}/api/bookings/facilities`, {
-      headers: {
-        Authorization: "Bearer " + auth.token.value
-      }
-    });
-    
-    if (!response.ok) {
-      throw new Error('Failed to fetch facilities');
-    }
-    
-    const data = await response.json();
-    facilities.value = data;
-    
-    // Create unique building list for resource groups
-    const uniqueBuildings = [...new Set(facilities.value.map(facility => facility.location.split('-')[0]))];
-    
-    resourceGroups.value = uniqueBuildings.map(building => ({
-      id: building,
-      title: `Building ${building}`
-    }));
-    
-    // Convert facilities to FullCalendar resource format
-    resources.value = facilities.value.map(facility => {
-      // Extract building code (e.g., E2 from E2-03-20-DR216)
-      const building = facility.location.split('-')[0];
-      
-      return {
-        id: facility.facilityId.toString(),
-        building: building, // Used for grouping
-        title: facility.resourceName, // Display room name
-        extendedProps: {
-          resourceType: facility.resourceType,
-          fullLocation: facility.location,
-          capacity: facility.capacity
-        }
-      };
-    });
-    
-    // Update calendar options with the fetched resources
-    calendarOptions.value = {
-      ...calendarOptions.value,
-      resources: resources.value
-    };
-    
-    // Handle any existing bookings from the backend
-    const allBookings = [];
-    
-    facilities.value.forEach(facility => {
-      if (facility.bookings && facility.bookings.length > 0) {
-        facility.bookings.forEach(booking => {
-          allBookings.push({
-            id: booking.id.toString(),
-            resourceId: facility.facilityId.toString(),
-            title: booking.title || 'Booked',
-            start: booking.startTime,
-            end: booking.endTime,
-            backgroundColor: '#2e7d32',
-            extendedProps: booking.description ? { description: booking.description } : {}
-          });
-        });
-      }
-    });
-    
-    // Combine existing bookings with any new ones created in the UI
-    bookings.splice(0, bookings.length, ...allBookings);
-    
-  } catch (error) {
-    console.error('Error fetching facilities:', error);
-  } finally {
-    loading.value = false;
-  }
-}
-
-// Updated search function to use backend filtering
+// Fixed searchFacilities function to properly update calendar and loading state
 async function searchFacilities() {
   try {
-    searchLoading.value = true;
+    // Determine which loading state to use
+    const isInitialLoad = loading.value;
+    
+    // Ensure loading state is set appropriately
+    if (isInitialLoad) {
+      loading.value = true;
+    } else {
+      searchLoading.value = true;
+    }
     
     // Build query parameters from search criteria
     const params = new URLSearchParams();
@@ -400,7 +319,9 @@ async function searchFacilities() {
       params.append('capacity', searchQuery.value.capacity);
     }
     
-    // Call the backend search API
+    console.log('Searching facilities with params:', params.toString());
+    
+    // Always use the search endpoint
     const response = await fetch(`${apiUrl}/api/bookings/facilities/search?${params.toString()}`, {
       headers: {
         Authorization: "Bearer " + auth.token.value
@@ -408,21 +329,57 @@ async function searchFacilities() {
     });
     
     if (!response.ok) {
-      throw new Error('Failed to search facilities');
+      throw new Error(`Failed to fetch facilities: ${response.status}`);
     }
     
     // Process the filtered facilities from backend
     const filteredFacilities = await response.json();
-    facilities.value = filteredFacilities; // Update the facilities reference
+    console.log('Received facilities:', filteredFacilities);
+    facilities.value = filteredFacilities;
+    
+    // Create unique building list for resource groups
+    const uniqueBuildings = [...new Set(facilities.value.map(facility => 
+      facility.location ? facility.location.split('-')[0] : 'Unknown'
+    ))];
+    
+    resourceGroups.value = uniqueBuildings.map(building => ({
+      id: building,
+      title: `Building ${building}`
+    }));
+    
+    // We only need to process bookings on initial load or when we reset the search
+    if (bookings.value.length === 0) {
+      // Handle any existing bookings from the backend
+      const allBookings = [];
+      
+      facilities.value.forEach(facility => {
+        if (facility.bookings && facility.bookings.length > 0) {
+          facility.bookings.forEach(booking => {
+            allBookings.push({
+              id: booking.id.toString(),
+              resourceId: facility.facilityId.toString(),
+              title: booking.title || 'Booked',
+              start: booking.startTime,
+              end: booking.endTime,
+              backgroundColor: '#2e7d32',
+              extendedProps: booking.description ? { description: booking.description } : {}
+            });
+          });
+        }
+      });
+      
+      // Combine existing bookings with any new ones created in the UI
+      bookings.value = [...allBookings];
+    }
     
     // Convert facilities to FullCalendar resource format
-    const filteredResources = filteredFacilities.map(facility => {
-      const building = facility.location.split('-')[0] || facility.location;
+    const filteredResources = facilities.value.map(facility => {
+      const building = facility.location ? facility.location.split('-')[0] : 'Unknown';
       
       return {
         id: facility.facilityId.toString(),
         building: building,
-        title: facility.resourceName,
+        title: facility.resourceName || 'Unnamed Resource',
         extendedProps: {
           resourceType: facility.resourceType,
           fullLocation: facility.location,
@@ -431,37 +388,75 @@ async function searchFacilities() {
       };
     });
     
+    // Update the resources reference
+    resources.value = filteredResources;
+    console.log('Updated resources:', resources.value.length);
+    
     // Update calendar with filtered resources
     if (calendarRef.value) {
+      console.log('Updating calendar with resources');
       const calendarApi = calendarRef.value.getApi();
+      calendarApi.setOption('resourceGroupField', 'building');
       calendarApi.setOption('resources', filteredResources);
+      
+      // Force calendar to redraw after setting resources
+      calendarApi.render();
+    } else {
+      console.log('Calendar ref not available, updating options');
+      // Initial load - update calendar options directly
+      calendarOptions.value = {
+        ...calendarOptions.value,
+        resources: filteredResources
+      };
     }
     
   } catch (error) {
-    console.error('Error searching facilities:', error);
-    // Show error notification to user
-    alert('An error occurred while searching. Please try again.');
+    console.error('Error in searchFacilities:', error);
+    if (!isInitialLoad) {
+      // Show error notification to user for search errors
+      alert('An error occurred while searching. Please try again.');
+    }
   } finally {
+    console.log('Finished loading, setting loading states to false');
+    // Always ensure both loading states are properly reset
+    loading.value = false;
     searchLoading.value = false;
   }
 }
 
-// Reset search function
-const resetSearch = async () => {
+// Reset search and reload all facilities
+const resetSearch = () => {
+  console.log('Resetting search');
   searchQuery.value = {
     resourceType: "",
     resourceName: "",
     location: "",
-    capacity: "",
+    capacity: ""
   };
   
-  // Fetch all facilities from backend
-  await fetchFacilities();
+  // Reset bookings array to force reload
+  bookings.value = [];
+  
+  // Call searchFacilities with empty search criteria
+  searchFacilities();
 };
 
+// Move this inside onMounted
 onMounted(() => {
-  fetchFacilities();
-  fetchDropdownOptions(); // Fetch dropdown options when component mounts
+  console.log('Component mounted, initializing');
+  // Explicitly set loading state to true
+  loading.value = true;
+  
+  // First fetch dropdown options
+  fetchDropdownOptions()
+    .then(() => {
+      // Then search for facilities
+      return searchFacilities();
+    })
+    .catch(error => {
+      console.error('Error during initialization:', error);
+      loading.value = false;
+    });
 });
 
 </script>
