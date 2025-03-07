@@ -1,36 +1,27 @@
 package com.group8.rbs.controller;
 
+import com.group8.rbs.dto.booking.BookingRequestDTO;
+import com.group8.rbs.dto.booking.BookingResponseDTO;
+import com.group8.rbs.dto.booking.FacilitySearchDTO;
+import com.group8.rbs.entities.Facility;
+import com.group8.rbs.service.booking.BookingService;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
-import com.group8.rbs.dto.booking.FacilitySearchDTO;
-import com.group8.rbs.entities.Facility;
-import com.group8.rbs.service.booking.BookingService;
-
-import lombok.RequiredArgsConstructor;
-
 @RestController
 @RequestMapping("/api/bookings")
-@RequiredArgsConstructor
 public class BookingController {
     private final BookingService bookingService;
-    
-    @GetMapping("/facilities")
-    @PreAuthorize("hasRole('ROLE_STUDENT')")
-    public ResponseEntity<List<Facility>> getFacilities() {
-        return ResponseEntity.ok(bookingService.getFacilities());
+
+    public BookingController(BookingService bookingService) {
+        this.bookingService = bookingService;
     }
 
      @GetMapping("/facilities/search")
-    @PreAuthorize("hasRole('ROLE_STUDENT')")
     public ResponseEntity<List<Facility>> searchFacilities(
             @RequestParam(required = false) String resourceType,
             @RequestParam(required = false) String resourceName,
@@ -48,39 +39,32 @@ public class BookingController {
     }
 
     @GetMapping("/dropdown-options")
-    @PreAuthorize("hasRole('ROLE_STUDENT')")
-    public ResponseEntity<Map<String, List<Object>>> getDropdownOptions() {
-        Map<String, List<Object>> options = bookingService.getDropdownOptions();
+    public ResponseEntity<Map<String, List<String>>> getDropdownOptions() {
+        Map<String, List<String>> options = bookingService.getDropdownOptions();
         return ResponseEntity.ok(options);
     }
-    
-    @GetMapping("/resource-types")
-    @PreAuthorize("hasRole('ROLE_STUDENT')")
-    public ResponseEntity<List<Map<String, String>>> getResourceTypes() {
-        List<String> types = bookingService.getResourceTypes();
-        List<Map<String, String>> formattedTypes = types.stream()
-            .map(type -> Map.of("label", type, "value", type))
-            .collect(Collectors.toList());
-        return ResponseEntity.ok(formattedTypes);
+
+    @GetMapping("/upcoming-approved")
+    public ResponseEntity<List<BookingResponseDTO>> getUpcomingApprovedBookings(@RequestParam Long accountId) {
+        List<BookingResponseDTO> upcomingBookings = bookingService.getUpcomingApprovedBookings(accountId);
+        return ResponseEntity.ok(upcomingBookings);
     }
-    
-    @GetMapping("/locations")
-    @PreAuthorize("hasRole('ROLE_STUDENT')")
-    public ResponseEntity<List<Map<String, String>>> getLocations() {
-        List<String> locations = bookingService.getLocations();
-        List<Map<String, String>> formattedLocations = locations.stream()
-            .map(location -> Map.of("label", location, "value", location))
-            .collect(Collectors.toList());
-        return ResponseEntity.ok(formattedLocations);
+
+    // Fetch pending bookings where the date is in the future
+    @GetMapping("/pending-future")
+    public ResponseEntity<List<BookingResponseDTO>> getPendingFutureBookings(@RequestParam Long accountId) {
+        List<BookingResponseDTO> bookings = bookingService.getPendingFutureBookings(accountId);
+        return ResponseEntity.ok(bookings);
     }
-    
-    @GetMapping("/resource-names")
-    @PreAuthorize("hasRole('ROLE_STUDENT')")
-    public ResponseEntity<List<Map<String, String>>> getResourceNames() {
-        List<String> names = bookingService.getResourceNames();
-        List<Map<String, String>> formattedNames = names.stream()
-            .map(name -> Map.of("label", name, "value", name))
-            .collect(Collectors.toList());
-        return ResponseEntity.ok(formattedNames);
+
+
+    // Fetch booking history for a student (can only see its own booking history)
+    @PostMapping("/history")
+    public ResponseEntity<List<BookingResponseDTO>> getBookingHistory(@RequestBody BookingRequestDTO request) {
+        List<BookingResponseDTO> history = bookingService.getBookingHistory(request.getStudentId(), request.getStatus());
+        return ResponseEntity.ok(history);
     }
+
+    
+
 }

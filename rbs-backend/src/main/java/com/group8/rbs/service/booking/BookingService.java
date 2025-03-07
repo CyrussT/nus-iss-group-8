@@ -1,28 +1,33 @@
 package com.group8.rbs.service.booking;
 
+import com.group8.rbs.dto.booking.BookingResponseDTO;
+import com.group8.rbs.dto.booking.FacilitySearchDTO;
+import com.group8.rbs.entities.Booking;
+import com.group8.rbs.entities.Facility;
+import com.group8.rbs.enums.BookingStatus;
+import com.group8.rbs.mapper.BookingMapper;
+import com.group8.rbs.repository.BookingRepository;
+import com.group8.rbs.repository.FacilityRepository;
+
+import org.springframework.stereotype.Service;
+import org.springframework.util.StringUtils;
+
+import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
-import org.springframework.stereotype.Service;
-import org.springframework.util.StringUtils;
-
-import com.group8.rbs.entities.Facility;
-import com.group8.rbs.repository.BookingRepository;
-import com.group8.rbs.repository.FacilityRepository;
-import com.group8.rbs.dto.booking.FacilitySearchDTO;
-
-import lombok.RequiredArgsConstructor;
-
 @Service
-@RequiredArgsConstructor
 public class BookingService {
     private final BookingRepository bookingRepository;
+    private final BookingMapper bookingMapper;
     private final FacilityRepository facilityRepository;
 
-    public List<Facility> getFacilities() {
-        return facilityRepository.findAll();
+    public BookingService(BookingRepository bookingRepository, BookingMapper bookingMapper, FacilityRepository facilityRepository) {
+        this.bookingRepository = bookingRepository;
+        this.bookingMapper = bookingMapper;
+        this.facilityRepository = facilityRepository;
     }
     
     public List<Facility> searchFacilities(FacilitySearchDTO searchCriteria) {
@@ -63,13 +68,13 @@ public class BookingService {
             .collect(Collectors.toList());
     }
     
-    public Map<String, List<Object>> getDropdownOptions() {
-        Map<String, List<Object>> options = new HashMap<>();
+    public Map<String, List<String>> getDropdownOptions() {
+        Map<String, List<String>> options = new HashMap<>();
         
         // Convert Lists to List<Object> for the Map
-        options.put("resourceTypes", getResourceTypes().stream().map(t -> (Object) t).collect(Collectors.toList()));
-        options.put("locations", getLocations().stream().map(l -> (Object) l).collect(Collectors.toList()));
-        options.put("resourceNames", getResourceNames().stream().map(n -> (Object) n).collect(Collectors.toList()));
+        options.put("resourceTypes", getResourceTypes());
+        options.put("locations", getLocations());
+        options.put("resourceNames", getResourceNames());
         
         return options;
     }
@@ -85,4 +90,54 @@ public class BookingService {
     public List<String> getResourceNames() {
         return facilityRepository.findAllResourceNames();
     }
+
+    // Fetch upcoming approved bookings
+    public List<BookingResponseDTO> getUpcomingApprovedBookings(Long accountId) {
+        LocalDateTime now = LocalDateTime.now(); // ✅ Get current date-time
+    
+        List<Booking> bookings = bookingRepository.findByAccount_AccountIdAndStatusAndBookedDateTimeAfter(
+                accountId, BookingStatus.APPROVED, now); // ✅ Fetch only upcoming approved bookings
+    
+        System.out.println("Found " + bookings.size() + " upcoming approved bookings");
+        return bookings.stream()
+                .map(bookingMapper::toResponseDTO)
+                .collect(Collectors.toList());
+    }
+    
+
+    // Fetch pending bookings with a future date
+    public List<BookingResponseDTO> getPendingFutureBookings(Long accountId) {
+        LocalDateTime now = LocalDateTime.now();
+        List<Booking> bookings = bookingRepository.findByAccount_AccountIdAndStatusAndBookedDateTimeAfter(
+                accountId, BookingStatus.PENDING, now);
+
+        System.out.println("Found " + bookings.size() + " pending bookings");
+        return bookings.stream()
+                .map(bookingMapper::toResponseDTO)
+                .collect(Collectors.toList());
+    }
+
+    public List<BookingResponseDTO> getBookingHistory(Long accountId, String status) {
+        LocalDateTime now = LocalDateTime.now();
+        System.out.println("Fetching booking history for studentId: " + accountId);
+
+        List<Booking> bookings;
+
+        if (status != null && !status.isEmpty()) {
+            BookingStatus bookingStatus = BookingStatus.valueOf(status.toUpperCase());
+            System.out.println("Filtering by status: " + bookingStatus);
+            bookings = bookingRepository.findByAccount_AccountIdAndStatusAndBookedDateTimeBefore(
+                    accountId, bookingStatus, now);
+        } else {
+            System.out.println("Fetching all past bookings (no status filter)");
+            bookings = bookingRepository.findByAccount_AccountIdAndBookedDateTimeBefore(accountId, now);
+        }
+    
+        System.out.println("Found " + bookings.size() + " past bookings");
+        return bookings.stream().map(bookingMapper::toResponseDTO).collect(Collectors.toList());
+    }
+
+    
+    
+
 }

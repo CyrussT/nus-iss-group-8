@@ -1,5 +1,7 @@
 import type { IUser } from '~/types/auth'
 
+
+
 export const useAuthStore = () => {
   const tokenCookie = useCookie('auth_token', {
     maxAge: 7 * 24 * 60 * 60, // 7 days
@@ -19,6 +21,7 @@ export const useAuthStore = () => {
       email: decoded.email,
       role: decoded.role,
       exp: decoded.exp,
+      studentId: decoded.studentId,
     }
   }
 
