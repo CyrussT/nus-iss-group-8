@@ -3,14 +3,15 @@ package com.group8.rbs.controller;
 import com.group8.rbs.dto.booking.BookingRequestDTO;
 import com.group8.rbs.dto.booking.BookingResponseDTO;
 import com.group8.rbs.dto.booking.FacilitySearchDTO;
-import com.group8.rbs.entities.Facility;
 import com.group8.rbs.service.booking.BookingService;
+
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/bookings")
@@ -22,19 +23,24 @@ public class BookingController {
     }
 
      @GetMapping("/facilities/search")
-    public ResponseEntity<List<Facility>> searchFacilities(
+    public ResponseEntity<List<FacilitySearchDTO>> searchFacilities(
+            @RequestParam(required = false) Long facilityId,
             @RequestParam(required = false) String resourceType,
             @RequestParam(required = false) String resourceName,
             @RequestParam(required = false) String location,
-            @RequestParam(required = false) Integer capacity) {
+            @RequestParam(required = false) Integer capacity,
+            @RequestParam(required = true) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
         
         FacilitySearchDTO searchCriteria = FacilitySearchDTO.builder()
+                .facilityId(facilityId)
                 .resourceType(resourceType)
                 .resourceName(resourceName)
                 .location(location)
                 .capacity(capacity)
+                .date(date)
                 .build();
-                
+        
+        // Always use the date-filtered search
         return ResponseEntity.ok(bookingService.searchFacilities(searchCriteria));
     }
 

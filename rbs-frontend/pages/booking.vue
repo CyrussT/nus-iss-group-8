@@ -57,6 +57,13 @@ const formatDate = (date) => {
   });
 };
 
+// Format date for API (YYYY-MM-DD)
+const formatDateForApi = (date) => {
+  if (!date) return '';
+  const d = new Date(date);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+};
+
 // Calculated end time based on start time and duration
 const calculateEndTime = (startTime, durationMinutes) => {
   if (!startTime) return '';
@@ -169,7 +176,7 @@ const calendarOptions = ref({
     left: 'prev',
     center: 'title',
     right: 'next'
-  },
+  },  
   resources: [],
   resourceGroupField: 'building', // Group by building
   events: bookings,
@@ -183,6 +190,12 @@ const calendarOptions = ref({
   contentHeight: "auto", // This ensures content fits inside the container
   nowIndicator: true,
   scrollTime: '07:00:00',
+  
+  // Handle date changes in the calendar
+  datesSet: (dateInfo) => {
+    console.log('Calendar date changed:', dateInfo);
+    searchFacilities();
+  },
   
   // Override default booking modal
   select: (info) => {
@@ -200,10 +213,10 @@ const calendarOptions = ref({
       alert('This time slot is already booked for this room');
     } else {
       // Update the event in our reactive bookings array
-      const bookingIndex = bookings.findIndex(b => b.id === event.id);
+      const bookingIndex = bookings.value.findIndex(b => b.id === event.id);
       if (bookingIndex !== -1) {
-        bookings[bookingIndex] = {
-          ...bookings[bookingIndex],
+        bookings.value[bookingIndex] = {
+          ...bookings.value[bookingIndex],
           start: newStart.toISOString(),
           end: newEnd.toISOString(),
           resourceId: newResourceId
@@ -220,10 +233,10 @@ const calendarOptions = ref({
     } else {
       // Add confirmation dialog
       if (confirm(`Confirm booking update:\nTitle: ${event.title}\nNew time: ${formatDate(event.start)} - ${formatDate(event.end)}`)) {
-        const bookingIndex = bookings.findIndex(b => b.id === event.id);
+        const bookingIndex = bookings.value.findIndex(b => b.id === event.id);
         if (bookingIndex !== -1) {
-          bookings[bookingIndex] = {
-            ...bookings[bookingIndex],
+          bookings.value[bookingIndex] = {
+            ...bookings.value[bookingIndex],
             start: event.start.toISOString(),
             end: event.end.toISOString()
           };
@@ -291,7 +304,7 @@ async function fetchDropdownOptions() {
   }
 }
 
-// Fixed searchFacilities function to properly update calendar and loading state
+// Search facilities with date filtering
 async function searchFacilities() {
   try {
     // Determine which loading state to use
@@ -302,6 +315,17 @@ async function searchFacilities() {
       loading.value = true;
     } else {
       searchLoading.value = true;
+    }
+    
+    // Get the current date from the calendar
+    let currentDate;
+    if (calendarRef.value) {
+      // Get the visible date from the calendar
+      const calendarApi = calendarRef.value.getApi();
+      currentDate = formatDateForApi(calendarApi.getDate());
+    } else {
+      // Fallback to today's date if calendar not initialized
+      currentDate = formatDateForApi(new Date());
     }
     
     // Build query parameters from search criteria
@@ -319,9 +343,12 @@ async function searchFacilities() {
       params.append('capacity', searchQuery.value.capacity);
     }
     
+    // Always include the current calendar date
+    params.append('date', currentDate);
+    console.log('Searching facilities for date:', currentDate);
+    
     console.log('Searching facilities with params:', params.toString());
     
-    // Always use the search endpoint
     const response = await fetch(`${apiUrl}/api/bookings/facilities/search?${params.toString()}`, {
       headers: {
         Authorization: "Bearer " + auth.token.value
@@ -347,30 +374,97 @@ async function searchFacilities() {
       title: `Building ${building}`
     }));
     
-    // We only need to process bookings on initial load or when we reset the search
-    if (bookings.value.length === 0) {
-      // Handle any existing bookings from the backend
-      const allBookings = [];
-      
-      facilities.value.forEach(facility => {
-        if (facility.bookings && facility.bookings.length > 0) {
-          facility.bookings.forEach(booking => {
-            allBookings.push({
-              id: booking.id.toString(),
-              resourceId: facility.facilityId.toString(),
-              title: booking.title || 'Booked',
-              start: booking.startTime,
-              end: booking.endTime,
-              backgroundColor: '#2e7d32',
-              extendedProps: booking.description ? { description: booking.description } : {}
-            });
-          });
-        }
-      });
-      
-      // Combine existing bookings with any new ones created in the UI
-      bookings.value = [...allBookings];
-    }
+    // Process all bookings
+    const allBookings = [];
+    
+    facilities.value.forEach(facility => {
+      if (facility.bookings && facility.bookings.length > 0) {
+        console.log(`Processing ${facility.bookings.length} bookings for facility ${facility.resourceName}`);
+        
+        facility.bookings.forEach(booking => {
+          // Debugging each booking
+          console.log('Processing booking:', booking);
+          
+          try {
+            // Get the date from bookedDatetime
+            const bookedDate = new Date(booking.bookedDatetime);
+            console.log('Booked date:', bookedDate);
+            
+            if (!booking.timeslot) {
+              console.error('Booking has no timeslot:', booking);
+              return; // Skip this booking
+            }
+            
+            // Handle different timeslot formats (with or without spaces)
+            let startTime, endTime;
+            
+            if (booking.timeslot.includes(' - ')) {
+              // Format: "09:00 - 10:00" (with spaces)
+              [startTime, endTime] = booking.timeslot.split(' - ');
+            } else if (booking.timeslot.includes('-')) {
+              // Format: "09:00-10:00" (without spaces)
+              [startTime, endTime] = booking.timeslot.split('-');
+            } else {
+              // Single time format or unknown format
+              startTime = booking.timeslot;
+              endTime = null;
+            }
+            
+            console.log('Parsed times:', { startTime, endTime });
+            
+            if (startTime) {
+              // Parse start time (HH:MM)
+              const [startHour, startMinute] = startTime.trim().split(":").map(Number);
+              
+              // Create a new date object with the booked date and start time
+              const startDateTime = new Date(bookedDate);
+              startDateTime.setHours(startHour || 0, startMinute || 0, 0, 0);
+              
+              // Handle end time if it exists
+              let endDateTime;
+              
+              if (endTime) {
+                const [endHour, endMinute] = endTime.trim().split(":").map(Number);
+                
+                endDateTime = new Date(bookedDate);
+                endDateTime.setHours(endHour || 0, endMinute || 0, 0, 0);
+              } else {
+                // Default to 1 hour duration if no end time
+                endDateTime = new Date(startDateTime);
+                endDateTime.setHours(endDateTime.getHours() + 1);
+              }
+              
+              console.log('Final date/times:', { 
+                start: startDateTime.toISOString(), 
+                end: endDateTime.toISOString() 
+              });
+              
+              // Create the booking event object for FullCalendar
+              allBookings.push({
+                id: booking.bookingId.toString(),
+                resourceId: facility.facilityId.toString(),
+                title: `Booking: ${booking.facilityName || facility.resourceName}`,
+                start: startDateTime.toISOString(),
+                end: endDateTime.toISOString(),
+                backgroundColor: booking.status === 'APPROVED' ? '#2e7d32' : 
+                                booking.status === 'CONFIRMED' ? '#1976d2' : '#f57c00',
+                extendedProps: {
+                  status: booking.status,
+                  location: booking.location || facility.location
+                }
+              });
+            }
+          } catch (err) {
+            console.error('Error processing booking:', err, booking);
+          }
+        });
+      }
+    });
+    
+    console.log('Processed bookings:', allBookings.length);
+    
+    // Set the bookings array - important to create a new array to trigger reactivity
+    bookings.value = [...allBookings];
     
     // Convert facilities to FullCalendar resource format
     const filteredResources = facilities.value.map(facility => {
@@ -392,21 +486,39 @@ async function searchFacilities() {
     resources.value = filteredResources;
     console.log('Updated resources:', resources.value.length);
     
-    // Update calendar with filtered resources
+    // Update calendar with filtered resources and bookings
     if (calendarRef.value) {
-      console.log('Updating calendar with resources');
+      console.log('Updating calendar with resources and bookings');
       const calendarApi = calendarRef.value.getApi();
+      
+      // Set resources
       calendarApi.setOption('resourceGroupField', 'building');
       calendarApi.setOption('resources', filteredResources);
       
-      // Force calendar to redraw after setting resources
+      // IMPORTANT: First remove all existing events
+      calendarApi.removeAllEvents();
+      
+      // Add events directly to the calendar instead of using setOption
+      // This ensures we're not just binding to the array reference
+      allBookings.forEach(booking => {
+        try {
+          const newEvent = calendarApi.addEvent(booking);
+          console.log('Added event to calendar:', newEvent.title, newEvent.start);
+        } catch (err) {
+          console.error('Error adding event to calendar:', err, booking);
+        }
+      });
+      
+      // Force calendar to redraw
+      console.log('Forcing calendar to render');
       calendarApi.render();
     } else {
       console.log('Calendar ref not available, updating options');
       // Initial load - update calendar options directly
       calendarOptions.value = {
         ...calendarOptions.value,
-        resources: filteredResources
+        resources: filteredResources,
+        events: allBookings
       };
     }
     
@@ -434,10 +546,7 @@ const resetSearch = () => {
     capacity: ""
   };
   
-  // Reset bookings array to force reload
-  bookings.value = [];
-  
-  // Call searchFacilities with empty search criteria
+  // Call searchFacilities with empty search criteria but current date
   searchFacilities();
 };
 
@@ -458,7 +567,6 @@ onMounted(() => {
       loading.value = false;
     });
 });
-
 </script>
 
 <template>

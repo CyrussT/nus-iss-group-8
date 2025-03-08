@@ -2,9 +2,11 @@ package com.group8.rbs.service.booking;
 
 import com.group8.rbs.dto.booking.BookingResponseDTO;
 import com.group8.rbs.dto.booking.FacilitySearchDTO;
+import com.group8.rbs.dto.facility.FacilityResponseDTO;
 import com.group8.rbs.entities.Booking;
 import com.group8.rbs.entities.Facility;
 import com.group8.rbs.enums.BookingStatus;
+import com.group8.rbs.mapper.BookingFacilityMapper;
 import com.group8.rbs.mapper.BookingMapper;
 import com.group8.rbs.repository.BookingRepository;
 import com.group8.rbs.repository.FacilityRepository;
@@ -12,6 +14,7 @@ import com.group8.rbs.repository.FacilityRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.List;
@@ -23,18 +26,18 @@ public class BookingService {
     private final BookingRepository bookingRepository;
     private final BookingMapper bookingMapper;
     private final FacilityRepository facilityRepository;
+    private final BookingFacilityMapper bookingFacilityMapper;
 
-    public BookingService(BookingRepository bookingRepository, BookingMapper bookingMapper, FacilityRepository facilityRepository) {
+    public BookingService(BookingRepository bookingRepository, BookingMapper bookingMapper, FacilityRepository facilityRepository, BookingFacilityMapper bookingFacilityMapper) {
         this.bookingRepository = bookingRepository;
         this.bookingMapper = bookingMapper;
         this.facilityRepository = facilityRepository;
+        this.bookingFacilityMapper = bookingFacilityMapper;
     }
     
-    public List<Facility> searchFacilities(FacilitySearchDTO searchCriteria) {
-        List<Facility> allFacilities = facilityRepository.findAll();
-        
+    public List<FacilitySearchDTO> searchFacilities(FacilitySearchDTO searchCriteria) {
         // Filter the facilities based on search criteria
-        return allFacilities.stream()
+        List<Facility> filteredFacilities = facilityRepository.findAll().stream()
             .filter(facility -> {
                 // Resource Type filter
                 if (StringUtils.hasText(searchCriteria.getResourceType()) && 
@@ -65,6 +68,34 @@ public class BookingService {
                 
                 return true;
             })
+            .collect(Collectors.toList());
+
+        // If date filter is provided, use it to filter bookings within each facility
+        if (searchCriteria.getDate() != null) {
+            LocalDate filterDate = searchCriteria.getDate();
+            
+            // For each facility, filter its bookings to only those on the specified date
+            filteredFacilities.forEach(facility -> {
+                if (facility.getBookings() != null && !facility.getBookings().isEmpty()) {
+                    List<Booking> filteredBookings = facility.getBookings().stream()
+                        .filter(booking -> {
+                            // Only include bookings for the specific date and with APPROVED or CONFIRMED status
+                            LocalDate bookingDate = booking.getBookedDateTime().toLocalDate();
+                            return bookingDate.equals(filterDate) && 
+                                (booking.getStatus() == BookingStatus.APPROVED || 
+                                booking.getStatus() == BookingStatus.CONFIRMED);
+                        })
+                        .collect(Collectors.toList());
+                    
+                    // Replace the bookings list with the filtered one
+                    facility.setBookings(filteredBookings);
+                }
+            });
+        }
+
+        // Map to response DTOs with bookings included
+        return filteredFacilities.stream()
+            .map(bookingFacilityMapper::toResponseDTO)
             .collect(Collectors.toList());
     }
     
