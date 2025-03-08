@@ -1,13 +1,17 @@
 package com.group8.rbs.service.booking;
 
+import com.group8.rbs.dto.booking.BookingDTO;
+import com.group8.rbs.dto.booking.BookingRequestDTO;
 import com.group8.rbs.dto.booking.BookingResponseDTO;
 import com.group8.rbs.dto.booking.FacilitySearchDTO;
 import com.group8.rbs.dto.facility.FacilityResponseDTO;
+import com.group8.rbs.entities.Account;
 import com.group8.rbs.entities.Booking;
 import com.group8.rbs.entities.Facility;
 import com.group8.rbs.enums.BookingStatus;
 import com.group8.rbs.mapper.BookingFacilityMapper;
 import com.group8.rbs.mapper.BookingMapper;
+import com.group8.rbs.repository.AccountRepository;
 import com.group8.rbs.repository.BookingRepository;
 import com.group8.rbs.repository.FacilityRepository;
 
@@ -16,9 +20,11 @@ import org.springframework.util.StringUtils;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 @Service
@@ -27,12 +33,20 @@ public class BookingService {
     private final BookingMapper bookingMapper;
     private final FacilityRepository facilityRepository;
     private final BookingFacilityMapper bookingFacilityMapper;
+    private final AccountRepository accountRepository;
 
-    public BookingService(BookingRepository bookingRepository, BookingMapper bookingMapper, FacilityRepository facilityRepository, BookingFacilityMapper bookingFacilityMapper) {
+    public BookingService(
+        BookingRepository bookingRepository, 
+        BookingMapper bookingMapper, 
+        FacilityRepository facilityRepository, 
+        BookingFacilityMapper bookingFacilityMapper,
+        AccountRepository accountRepository
+        ) {
         this.bookingRepository = bookingRepository;
         this.bookingMapper = bookingMapper;
         this.facilityRepository = facilityRepository;
         this.bookingFacilityMapper = bookingFacilityMapper;
+        this.accountRepository = accountRepository;
     }
     
     public List<FacilitySearchDTO> searchFacilities(FacilitySearchDTO searchCriteria) {
@@ -122,6 +136,71 @@ public class BookingService {
         return facilityRepository.findAllResourceNames();
     }
 
+    public BookingResponseDTO createBooking(BookingDTO requestDTO) {
+        // Find the facility
+        Facility facility = facilityRepository.findById(requestDTO.getFacilityId())
+                .orElseThrow(() -> new RuntimeException("Facility not found"));
+        
+        // Find the account
+        Optional<Account> account = accountRepository.findByEmail(requestDTO.getAccountEmail());
+
+        if (account.isEmpty()) {
+            throw new RuntimeException("Account not found");
+        }
+
+        // Check if the time slot is available
+        if (!isTimeSlotAvailable(requestDTO.getFacilityId(), requestDTO.getBookedDateTime(), requestDTO.getTimeSlot())) {
+            throw new RuntimeException("This time slot is already booked");
+        }
+
+        // To set to pending or instant approve based on facility type;
+
+        
+        // Create the booking entity
+        Booking booking = Booking.builder()
+                .facility(facility)
+                .account(account.get())
+                .bookedDateTime(requestDTO.getBookedDateTime())
+                .timeSlot(requestDTO.getTimeSlot())
+                .status(BookingStatus.APPROVED)
+                .build();
+        
+        // Save to database
+        Booking savedBooking = bookingRepository.save(booking);
+        
+        // Return the response DTO
+        return bookingMapper.toResponseDTO(savedBooking);
+    }
+
+    // Helper method to check if a time slot is available
+    private boolean isTimeSlotAvailable(Long facilityId, LocalDateTime bookedDateTime, String timeSlot) {
+        // Get all bookings for this facility on this date with APPROVED or PENDING status
+        
+        // Extract the date part from bookedDateTime
+        LocalDate bookingDate = bookedDateTime.toLocalDate();
+        
+        // Create start and end of day for the date range query
+        LocalDateTime startOfDay = bookingDate.atStartOfDay();
+        LocalDateTime endOfDay = bookingDate.plusDays(1).atStartOfDay().minusNanos(1);
+        
+        // Query using time range
+        List<Booking> existingBookings = bookingRepository.findByFacility_FacilityIdAndBookedDateTimeBetweenAndStatusIn(
+            facilityId, 
+            startOfDay,
+            endOfDay,
+            Arrays.asList(BookingStatus.APPROVED, BookingStatus.CONFIRMED, BookingStatus.PENDING)
+        );
+        
+        // Check for overlap
+        for (Booking booking : existingBookings) {
+            if (booking.getTimeSlot().equals(timeSlot)) {
+                return false; // Time slot already booked
+            }
+        }
+        
+        return true; // Time slot is available
+    }
+
     // Fetch upcoming approved bookings
     public List<BookingResponseDTO> getUpcomingApprovedBookings(Long accountId) {
         LocalDateTime now = LocalDateTime.now(); // ✅ Get current date-time
@@ -167,8 +246,4 @@ public class BookingService {
         System.out.println("Found " + bookings.size() + " past bookings");
         return bookings.stream().map(bookingMapper::toResponseDTO).collect(Collectors.toList());
     }
-
-    
-    
-
 }

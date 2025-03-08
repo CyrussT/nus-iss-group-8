@@ -8,6 +8,7 @@ import com.group8.rbs.enums.BookingStatus;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -23,6 +24,6 @@ public interface BookingRepository extends JpaRepository<Booking, Long> {
     // Pending & Upcoming Bookings Based on status and bookedDateTime
     List<Booking> findByAccount_AccountIdAndStatusAndBookedDateTimeAfter(Long accountId, BookingStatus status, LocalDateTime currentDateTime);
 
-
+    List<Booking> findByFacility_FacilityIdAndBookedDateTimeBetweenAndStatusIn(Long facilityId, LocalDateTime startDateTime, LocalDateTime endDateTime, List<BookingStatus> statuses);
 
 }

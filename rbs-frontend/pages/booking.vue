@@ -132,28 +132,75 @@ const handleEventResize = ({ eventId, newStart, newEnd }) => {
   // updateBookingOnBackend(eventId, newStart, newEnd);
 };
 
-// Handle create booking
-const handleCreateBooking = (booking) => {
-  const newBooking = {
-    id: `booking-${Date.now()}`,
-    resourceId: booking.resourceId,
-    title: booking.title,
-    start: booking.start,
-    end: booking.end,
-    backgroundColor: '#2e7d32',
-    extendedProps: {
+// Update the handleCreateBooking function
+const handleCreateBooking = async (booking) => {
+  try {
+    // Show loading state
+    searchLoading.value = true;
+    
+    // Get the current user email from auth store
+    const accountEmail = auth.user.value.email;
+    
+    // Parse start time to get the date component
+    const startDate = new Date(booking.start);
+    
+    // Format the timeslot
+    const startTime = startDate.toLocaleTimeString('en-US', { 
+      hour: '2-digit', 
+      minute: '2-digit',
+      hour12: false 
+    });
+    
+    const endDate = new Date(booking.end);
+    const endTime = endDate.toLocaleTimeString('en-US', {
+      hour: '2-digit', 
+      minute: '2-digit',
+      hour12: false
+    });
+    
+    const timeSlot = `${startTime} - ${endTime}`;
+
+   
+    // Create the request body
+    const requestBody = {
+      facilityId: parseInt(booking.resourceId),
+      accountEmail: accountEmail,
+      bookedDateTime: startDate.toISOString(),
+      timeSlot: timeSlot,
+      title: booking.title,
       description: booking.description,
-      attendees: booking.attendees,
-      status: 'PENDING',
-      location: '', // You might want to get this from the selected resource
-      isPast: false
+      attendees: booking.attendees
+    };
+    
+    // Make the API call
+    const response = await fetch(`${apiUrl}/api/bookings`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${auth.token.value}`
+      },
+      body: JSON.stringify(requestBody)
+    });
+    
+    if (!response.ok) {
+      throw new Error(`Failed to create booking: ${response.status}`);
     }
-  };
-  
-  bookings.value.push(newBooking);
-  
-  // TODO: Add API call to save booking to backend
-  // saveBookingToBackend(newBooking);
+    
+    // Get the created booking data
+    const createdBooking = await response.json();
+    
+    // Show success message
+    alert('Booking created successfully!');
+    
+    // Refresh the calendar to show the new booking
+    searchFacilities({});
+    
+  } catch (error) {
+    console.error('Error creating booking:', error);
+    alert('Failed to create booking. Please try again.');
+  } finally {
+    searchLoading.value = false;
+  }
 };
 
 // Handle edit booking

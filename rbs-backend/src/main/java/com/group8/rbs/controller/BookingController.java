@@ -1,5 +1,6 @@
 package com.group8.rbs.controller;
 
+import com.group8.rbs.dto.booking.BookingDTO;
 import com.group8.rbs.dto.booking.BookingRequestDTO;
 import com.group8.rbs.dto.booking.BookingResponseDTO;
 import com.group8.rbs.dto.booking.FacilitySearchDTO;
@@ -22,7 +23,7 @@ public class BookingController {
         this.bookingService = bookingService;
     }
 
-     @GetMapping("/facilities/search")
+    @GetMapping("/facilities/search")
     public ResponseEntity<List<FacilitySearchDTO>> searchFacilities(
             @RequestParam(required = false) Long facilityId,
             @RequestParam(required = false) String resourceType,
@@ -48,6 +49,13 @@ public class BookingController {
     public ResponseEntity<Map<String, List<String>>> getDropdownOptions() {
         Map<String, List<String>> options = bookingService.getDropdownOptions();
         return ResponseEntity.ok(options);
+    }
+
+    @PostMapping
+    public ResponseEntity<BookingResponseDTO> createBooking(@RequestBody BookingDTO request) {
+        System.out.println("Request: " + request);
+        BookingResponseDTO response = bookingService.createBooking(request);
+        return ResponseEntity.ok(response);
     }
 
     @GetMapping("/upcoming-approved")
