@@ -9,23 +9,36 @@ import jakarta.persistence.criteria.Predicate;
 import java.util.ArrayList;
 import java.util.List;
 
+
 public class FacilitySpecification {
     
     public static Specification<Facility> searchFacilities(FacilitySearchDTO searchDTO) {
         return (root, query, criteriaBuilder) -> {
             List<Predicate> predicates = new ArrayList<>();
 
-            if (searchDTO.getResourceType() != null && !searchDTO.getResourceType().isEmpty()) {
-                predicates.add(criteriaBuilder.equal(root.get("resourceType"), searchDTO.getResourceType()));
+            if (searchDTO.getResourceType() != null && !searchDTO.getResourceType().trim().isEmpty()) {
+                predicates.add(criteriaBuilder.like(
+                    criteriaBuilder.lower(root.get("resourceType")),
+                    "%" + searchDTO.getResourceType().toLowerCase().trim() + "%"  // ✅ Correct LIKE query
+                ));
             }
-            if (searchDTO.getResourceName() != null && !searchDTO.getResourceName().isEmpty()) {
-                predicates.add(criteriaBuilder.equal(root.get("resourceName"), searchDTO.getResourceName()));
+
+            if (searchDTO.getResourceName() != null && !searchDTO.getResourceName().trim().isEmpty()) {
+                predicates.add(criteriaBuilder.like(
+                    criteriaBuilder.lower(root.get("resourceName")),
+                    "%" + searchDTO.getResourceName().toLowerCase().trim() + "%"
+                ));
             }
-            if (searchDTO.getLocation() != null && !searchDTO.getLocation().isEmpty()) {
-                predicates.add(criteriaBuilder.equal(root.get("location"), searchDTO.getLocation()));
+
+            if (searchDTO.getLocation() != null && !searchDTO.getLocation().trim().isEmpty()) {
+                predicates.add(criteriaBuilder.like(
+                    criteriaBuilder.lower(root.get("location")),
+                    "%" + searchDTO.getLocation().toLowerCase().trim() + "%"
+                ));
             }
+
             if (searchDTO.getCapacity() != null) {
-                predicates.add(criteriaBuilder.equal(root.get("capacity"), searchDTO.getCapacity()));
+                predicates.add(criteriaBuilder.equal(root.get("capacity"), searchDTO.getCapacity()));  // ✅ Capacity remains exact match
             }
 
             return criteriaBuilder.and(predicates.toArray(new Predicate[0]));

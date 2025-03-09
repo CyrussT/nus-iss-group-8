@@ -19,13 +19,4 @@ public interface FacilityRepository extends JpaRepository<Facility, Long>,JpaSpe
     Optional<Facility> findByResourceNameAndLocation(String resourceName, String location);
     Page<Facility> findAll(Pageable pageable);
 
-    @Query(value = "SELECT * FROM facilities f WHERE " +
-    "(:resourceType IS NULL OR f.resource_type = :resourceType) " +
-    "AND (:resourceName IS NULL OR f.resource_name = :resourceName) " +
-    "AND (:location IS NULL OR f.location = :location) " +
-    "AND (:capacity IS NULL OR f.capacity = :capacity)", nativeQuery = true)
-    List<Facility> searchFacilities(@Param("resourceType") String resourceType,
-                                @Param("resourceName") String resourceName,
-                                @Param("location") String location,
-                                @Param("capacity") Integer capacity);
 }
