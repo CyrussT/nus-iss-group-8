@@ -86,6 +86,15 @@ export const useFacility = () => {
     }
   };
 
+  const fetchFacilityDetails = async (facilityId: number) => {
+    try {
+      const response = await axios.get(`http://localhost:8080/api/facilities/details/${facilityId}`);
+      facility.value = response.data;
+    } catch (error) {
+      console.error("Error fetching facility details:", error);
+    }
+  };
+
 
   return {
     facility,
@@ -93,6 +102,7 @@ export const useFacility = () => {
     searchQuery,
     fetchFacilities,
     resetSearch,
+    fetchFacilityDetails,
     facilities,
     loading,
     currentPage,

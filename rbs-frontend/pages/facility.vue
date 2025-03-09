@@ -1,4 +1,9 @@
 <script setup lang="ts">
+definePageMeta({
+  middleware: ['auth', 'admin']
+});
+
+
 import { useRouter } from "vue-router";
 import { computed, onMounted, ref } from "vue";
 import type { Facility } from "@/composables/useFacility";
@@ -53,6 +58,10 @@ const markAsMaintenance = (row: any) => {
 const closeModal = () => {
   isModalOpen.value = false;
   resetFacility();
+};
+
+const viewFacility = (facilityId: number) => {
+  router.push(`/facility-details/${facilityId}`);
 };
 
 
@@ -116,6 +125,9 @@ onMounted(fetchFacilities);
 
           <template #actions-data="{ row }">
             <div class="flex justify-center gap-2">
+
+              <UButton @click="viewFacility(row.facilityId)" color="blue" variant="solid" icon="i-heroicons-eye" label="View" />
+              
               <UButton @click="openModal(row)" color="yellow" variant="solid" icon="i-heroicons-pencil" label="Edit"
                 class="px-3 py-1 gap-2" />
 
