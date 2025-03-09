@@ -60,7 +60,7 @@ public class BookingController {
 
     @GetMapping("/upcoming-approved")
     public ResponseEntity<List<BookingResponseDTO>> getUpcomingApprovedBookings(@RequestParam Long accountId) {
-        List<BookingResponseDTO> upcomingBookings = bookingService.getUpcomingApprovedBookings(accountId);
+        List<BookingResponseDTO> upcomingBookings = bookingService.getUpcomingApprovedOrConfirmedBookings(accountId);
         return ResponseEntity.ok(upcomingBookings);
     }
 

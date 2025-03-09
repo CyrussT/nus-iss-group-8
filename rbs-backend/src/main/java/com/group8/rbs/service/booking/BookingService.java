@@ -202,14 +202,16 @@ public class BookingService {
         return true; // Time slot is available
     }
 
-    // Fetch upcoming approved bookings
-    public List<BookingResponseDTO> getUpcomingApprovedBookings(Long accountId) {
+    // Fetch upcoming bookings that are APPROVED or CONFIRMED
+    public List<BookingResponseDTO> getUpcomingApprovedOrConfirmedBookings(Long accountId) {
         LocalDateTime now = LocalDateTime.now(); // ✅ Get current date-time
-    
-        List<Booking> bookings = bookingRepository.findByAccount_AccountIdAndStatusAndBookedDateTimeAfter(
-                accountId, BookingStatus.APPROVED, now); // ✅ Fetch only upcoming approved bookings
-    
-        System.out.println("Found " + bookings.size() + " upcoming approved bookings");
+
+        // ✅ Fetch only upcoming approved or confirmed bookings
+        List<Booking> bookings = bookingRepository.findUpcomingApprovedOrConfirmedBookings(
+                accountId, List.of(BookingStatus.APPROVED, BookingStatus.CONFIRMED), now);
+
+        System.out.println("Found " + bookings.size() + " upcoming approved/confirmed bookings");
+        
         return bookings.stream()
                 .map(bookingMapper::toResponseDTO)
                 .collect(Collectors.toList());
