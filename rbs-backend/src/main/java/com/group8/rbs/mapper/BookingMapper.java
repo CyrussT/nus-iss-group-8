@@ -14,6 +14,8 @@ public class BookingMapper {
                 .bookedDatetime(booking.getBookedDateTime())
                 .timeslot(booking.getTimeSlot())
                 .status(booking.getStatus().toString())
+                .studentId(booking.getAccount().getStudentId())
+                .studentName(booking.getAccount().getName())
                 .build();
     }
 }

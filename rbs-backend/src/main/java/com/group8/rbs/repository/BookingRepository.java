@@ -10,6 +10,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -25,6 +26,7 @@ public interface BookingRepository extends JpaRepository<Booking, Long> {
     // Pending Bookings Based on status and bookedDateTime
     List<Booking> findByAccount_AccountIdAndStatusAndBookedDateTimeAfter(Long accountId, BookingStatus status, LocalDateTime currentDateTime);
 
+    List<Booking> findByFacility_FacilityIdAndBookedDateTimeBetweenAndStatusIn(Long facilityId, LocalDateTime startDateTime, LocalDateTime endDateTime, List<BookingStatus> statuses);
     // Upcoming Approved or Approved Bookings
     @Query("SELECT b FROM Booking b WHERE b.account.accountId = :accountId AND b.status IN :statuses AND b.bookedDateTime > :now")
     List<Booking> findUpcomingApprovedOrConfirmedBookings(
