@@ -15,6 +15,7 @@ import com.group8.rbs.entities.Credit;
 import com.group8.rbs.enums.AccountType;
 import com.group8.rbs.exception.AuthException;
 import com.group8.rbs.repository.AccountRepository;
+import com.group8.rbs.util.SecurityUtils;
 
 import lombok.RequiredArgsConstructor;
 
@@ -80,4 +81,18 @@ public class AuthService {
                 .token(token)
                 .build();
     }
+
+    public Integer getAccountIdByEmail(String email) {
+        return accountRepository.findAccountIdByEmail(email)
+                .orElseThrow(() -> new AuthException("Account ID not found for email: " + email));
+    }
+    
+    
+
+    public String getStudentIdByEmail(String email) {
+        return accountRepository.findStudentIdByEmail(email)
+                .orElseThrow(() -> new AuthException("Student ID not found for email: " + email));
+    }
+    
+    
 }
