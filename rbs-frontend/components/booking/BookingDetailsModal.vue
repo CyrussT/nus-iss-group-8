@@ -19,7 +19,9 @@ const props = defineProps({
       status: '',
       description: '',
       attendees: '',
-      isPast: false
+      isPast: false,
+      studentId: '',
+      studentName: ''
     })
   }
 });
@@ -92,7 +94,7 @@ const editBooking = () => {
               class="mr-2 text-gray-500"
               size="lg" 
             />
-            <h2 class="text-xl font-bold">{{ booking.isPast ? 'Past Booking Details' : 'Booking Details' }}</h2>
+            <h2 class="text-xl font-bold">{{ "View Booking Details" }}</h2>
           </div>
           <div class="flex items-center">
             <UBadge 
@@ -109,7 +111,9 @@ const editBooking = () => {
       
       <div class="space-y-4">
         <div>
-          <h3 class="text-lg font-medium mb-1">{{ booking.title }}</h3>
+          <h3 class="text-lg font-medium mb-1">
+            {{ "Booked by: " + booking.studentId + " - " + booking.studentName}}
+          </h3>
           <p class="text-gray-600">
             {{ formatDate(booking.start) }}
             <span v-if="booking.end"> - {{ formatTime(booking.end) }}</span>

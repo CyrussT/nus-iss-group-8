@@ -33,7 +33,8 @@ public class BookingFacilityMapper {
             var bookingStream = facility.getBookings().stream()
                 .filter(booking -> 
                     booking.getStatus() == BookingStatus.APPROVED || 
-                    booking.getStatus() == BookingStatus.CONFIRMED);
+                    booking.getStatus() == BookingStatus.CONFIRMED ||
+                    booking.getStatus() == BookingStatus.PENDING);
             
             // Apply date filter if specified
             if (filterDate != null) {

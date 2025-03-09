@@ -97,7 +97,8 @@ public class BookingService {
                             LocalDate bookingDate = booking.getBookedDateTime().toLocalDate();
                             return bookingDate.equals(filterDate) && 
                                 (booking.getStatus() == BookingStatus.APPROVED || 
-                                booking.getStatus() == BookingStatus.CONFIRMED);
+                                booking.getStatus() == BookingStatus.CONFIRMED || 
+                                booking.getStatus() == BookingStatus.PENDING);
                         })
                         .collect(Collectors.toList());
                     

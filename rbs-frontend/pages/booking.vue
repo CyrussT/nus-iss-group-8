@@ -1,5 +1,5 @@
 <script setup>
-import { ref, reactive, onMounted } from 'vue';
+import { ref, reactive, onMounted, computed } from 'vue';
 import { useApi } from '~/composables/useApi';
 import BookingCalendar from '~/components/booking/BookingCalendar.vue';
 import BookingSearchBar from '~/components/booking/BookingSearchBar.vue';
@@ -25,7 +25,7 @@ const locationOptions = ref([]);
 const selectedBookingInfo = reactive({
   resourceId: '',
   resourceName: '',
-  startTime: ''
+  startTime: '',
 });
 
 const selectedBooking = reactive({
@@ -39,8 +39,22 @@ const selectedBooking = reactive({
   status: '',
   description: '',
   attendees: '',
-  isPast: false
+  isPast: false,
+  studentId: '',
+  studentName: ''
 });
+
+// Legend items for booking status colors
+const legendItems = [
+  { status: 'APPROVED', color: '#2e7d32', label: 'Approved' },
+  { status: 'CONFIRMED', color: '#1976d2', label: 'Confirmed' },
+  { status: 'PENDING', color: '#f57c00', label: 'Pending' },
+  { status: 'MY_BOOKING', color: '#9c27b0', label: 'My Booking' }
+];
+
+// Get current user email for checking own bookings
+const currentUserEmail = computed(() => auth.user.value?.email || '');
+const currentUserId = computed(() => auth.user.value?.id || '');
 
 // Modal visibility
 const isCreateModalOpen = ref(false);
@@ -93,7 +107,9 @@ const handleEventClick = (event) => {
     status: event.extendedProps?.status || 'Unknown',
     description: event.extendedProps?.description || '',
     attendees: event.extendedProps?.attendees || '',
-    isPast: event.extendedProps?.isPast || false
+    isPast: event.extendedProps?.isPast || false,
+    studentId: event.extendedProps?.studentId || '',
+    studentName: event.extendedProps?.studentName || ''
   });
   
   isViewModalOpen.value = true;
@@ -322,6 +338,19 @@ async function searchFacilities(criteria = {}) {
               
               // Check if this booking is in the past
               const isPastBooking = endDateTime < now;
+              console.log("Auth: ", auth.user.value);
+              // Check if this booking belongs to the current user
+              const isMyBooking = booking.studentId === currentUserId.value || 
+                                 booking.studentId === auth.user.value?.studentId;
+              
+              // Select color based on status and whether it's user's own booking
+              let backgroundColor;
+              if (isMyBooking) {
+                backgroundColor = '#9c27b0'; // Purple for own bookings
+              } else {
+                backgroundColor = booking.status === 'APPROVED' ? '#2e7d32' : 
+                                 booking.status === 'CONFIRMED' ? '#1976d2' : '#f57c00';
+              }
               
               // Create the booking event object for FullCalendar
               allBookings.push({
@@ -330,8 +359,7 @@ async function searchFacilities(criteria = {}) {
                 title: booking.facilityName || facility.resourceName,
                 start: startDateTime.toISOString(),
                 end: endDateTime.toISOString(),
-                backgroundColor: booking.status === 'APPROVED' ? '#2e7d32' : 
-                                booking.status === 'CONFIRMED' ? '#1976d2' : '#f57c00',
+                backgroundColor: backgroundColor,
                 editable: !isPastBooking,
                 durationEditable: !isPastBooking,
                 startEditable: !isPastBooking,
@@ -340,7 +368,10 @@ async function searchFacilities(criteria = {}) {
                   location: booking.location || facility.location,
                   isPast: isPastBooking,
                   description: '',
-                  attendees: ''
+                  attendees: '',
+                  studentId: booking.studentId || '',
+                  studentName: booking.studentName || '',
+                  isMyBooking: isMyBooking
                 }
               });
             }
@@ -439,6 +470,20 @@ onMounted(() => {
       @search="handleSearch"
       @reset="handleReset"
     />
+    
+    <!-- Legend for booking status colors -->
+    <div class="mt-4 p-3 bg-white rounded-md shadow">
+      <h3 class="text-sm font-medium mb-2">Booking Status Legend:</h3>
+      <div class="flex flex-wrap gap-4">
+        <div v-for="item in legendItems" :key="item.status" class="flex items-center">
+          <div 
+            class="w-4 h-4 rounded mr-1" 
+            :style="{ backgroundColor: item.color }"
+          ></div>
+          <span class="text-sm">{{ item.label }}</span>
+        </div>
+      </div>
+    </div>
     
     <!-- Calendar component -->
     <BookingCalendar

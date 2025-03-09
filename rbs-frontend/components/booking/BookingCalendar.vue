@@ -91,16 +91,58 @@ const getCurrentCalendarDate = () => {
   return formatDateForApi(calendarApi.getDate());
 };
 
+// Force disable the prev button when calendar is at today's date
+const forceDisablePrevButton = () => {
+  if (!calendarRef.value) return;
+  
+  const calendarApi = calendarRef.value.getApi();
+  if (!calendarApi) return;
+  
+  // Get today's date with time set to midnight
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  
+  // Get the current calendar date with time set to midnight
+  const calendarDate = new Date(calendarApi.getDate());
+  calendarDate.setHours(0, 0, 0, 0);
+  
+  // If the calendar is showing today's date, forcibly disable the prev button
+  if (calendarDate.getTime() === today.getTime()) {
+    const prevButton = calendarApi.el.querySelector('.fc-prev-button');
+    if (prevButton) {
+      prevButton.setAttribute('disabled', 'disabled');
+      prevButton.classList.add('fc-button-disabled');
+    }
+  }
+};
+
 // Calendar options
 const calendarOptions = ref({
   plugins: [resourceTimelinePlugin, interactionPlugin],
   initialView: 'resourceTimelineDay',
+  initialDate: new Date().toISOString().split('T')[0], // Format as YYYY-MM-DD string
   schedulerLicenseKey: 'GPL-My-Project-Is-Open-Source',
   headerToolbar: {
-    left: 'prev,today,next',
+    left: 'prev',
     center: 'title',
-    right: 'resourceTimelineDay,resourceTimelineWeek,resourceTimelineMonth'
-  },  
+    right: 'next'
+  },
+  customButtons: {
+    prev: {
+      text: 'prev',
+      click: function() {
+        const calendarApi = calendarRef.value.getApi();
+        const currentDate = calendarApi.getDate();
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        
+        // Only go to previous date if current date is after today
+        if (currentDate > today) {
+          calendarApi.prev();
+        }
+      }
+    }
+  },
   resources: [],
   resourceGroupField: 'building',
   events: [],
@@ -123,9 +165,29 @@ const calendarOptions = ref({
   nowIndicator: true,
   scrollTime: '07:00:00',
   
+  // Run when calendar is done loading
+  loading: (isLoading) => {
+    if (!isLoading) {
+      // This runs after the calendar has fully loaded
+      setTimeout(forceDisablePrevButton, 0);
+    }
+  },
+  
   // Handle date changes in the calendar
   datesSet: (dateInfo) => {
+    // If the date is set to before today, reset it to today
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    if (dateInfo.start < today) {
+      // Navigate to today instead
+      calendarRef.value.getApi().today();
+      return; // The event will fire again with today's date
+    }
+    
     emit('date-change', dateInfo);
+    // Update button states after date change
+    forceDisablePrevButton();
   },
   
   // Override default booking modal
@@ -210,6 +272,12 @@ const calendarOptions = ref({
         eventTitle.appendChild(lockIcon);
       }
     }
+  },
+  
+  // Runs when the view is fully rendered
+  viewDidMount: () => {
+    // Update button states when the view is mounted
+    forceDisablePrevButton();
   }
 });
 
@@ -222,12 +290,23 @@ watch(() => props.bookings, (newBookings) => {
   updateCalendarEvents(newBookings);
 }, { deep: true });
 
+// Watch for calendar reference to be available
+watch(() => calendarRef.value, (newCalendarRef) => {
+  if (newCalendarRef) {
+    // Wait for the calendar to be fully rendered
+    setTimeout(forceDisablePrevButton, 50);
+  }
+});
+
 // Update calendar resources
 const updateCalendarResources = (resourcesList) => {
   if (calendarRef.value) {
     const calendarApi = calendarRef.value.getApi();
     calendarApi.setOption('resourceGroupField', 'building');
     calendarApi.setOption('resources', resourcesList);
+    
+    // Also update button states whenever resources are updated
+    forceDisablePrevButton();
   }
 };
 
@@ -250,6 +329,9 @@ const updateCalendarEvents = (eventsList) => {
     
     // Force calendar to redraw
     calendarApi.render();
+    
+    // Update button states after events are updated
+    forceDisablePrevButton();
   }
 };
 
@@ -265,6 +347,31 @@ onMounted(() => {
   
   // Initial setup of events
   updateCalendarEvents(props.bookings);
+  
+  // Run multiple strategies to ensure the prev button is disabled on initial load
+  // Strategy 1: Immediate attempt
+  setTimeout(() => {
+    if (calendarRef.value) {
+      const calendarApi = calendarRef.value.getApi();
+      calendarApi.today();
+      forceDisablePrevButton();
+    }
+  }, 0);
+  
+  // Strategy 2: Multiple delayed attempts
+  setTimeout(() => forceDisablePrevButton(), 100);
+  setTimeout(() => forceDisablePrevButton(), 300);
+  setTimeout(() => forceDisablePrevButton(), 500);
+  
+  // Strategy 3: Interval check for the first few seconds
+  const checkInterval = setInterval(() => {
+    if (calendarRef.value) {
+      forceDisablePrevButton();
+    }
+  }, 200);
+  
+  // Clear the interval after 2 seconds
+  setTimeout(() => clearInterval(checkInterval), 2000);
 });
 </script>
 
@@ -278,6 +385,7 @@ onMounted(() => {
         ref="calendarRef"
         :options="calendarOptions"
         class="resource-timeline"
+        key="booking-calendar"
       />
     </div>
   </UCard>
@@ -357,5 +465,12 @@ onMounted(() => {
 /* Disable the resize handles on past events */
 :deep(.past-event) .fc-event-resizer {
   display: none !important;
+}
+
+/* Styles for disabled navigation buttons */
+:deep(.fc-button-disabled) {
+  opacity: 0.4 !important;
+  cursor: not-allowed !important;
+  pointer-events: none !important;
 }
 </style>
