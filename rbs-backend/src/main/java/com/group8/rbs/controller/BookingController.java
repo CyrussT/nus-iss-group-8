@@ -1,12 +1,18 @@
 package com.group8.rbs.controller;
 
+import com.group8.rbs.dto.booking.BookingDTO;
 import com.group8.rbs.dto.booking.BookingRequestDTO;
 import com.group8.rbs.dto.booking.BookingResponseDTO;
+import com.group8.rbs.dto.booking.FacilitySearchDTO;
 import com.group8.rbs.service.booking.BookingService;
+
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDate;
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/bookings")
@@ -15,6 +21,41 @@ public class BookingController {
 
     public BookingController(BookingService bookingService) {
         this.bookingService = bookingService;
+    }
+
+    @GetMapping("/facilities/search")
+    public ResponseEntity<List<FacilitySearchDTO>> searchFacilities(
+            @RequestParam(required = false) Long facilityId,
+            @RequestParam(required = false) String resourceType,
+            @RequestParam(required = false) String resourceName,
+            @RequestParam(required = false) String location,
+            @RequestParam(required = false) Integer capacity,
+            @RequestParam(required = true) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
+        
+        FacilitySearchDTO searchCriteria = FacilitySearchDTO.builder()
+                .facilityId(facilityId)
+                .resourceType(resourceType)
+                .resourceName(resourceName)
+                .location(location)
+                .capacity(capacity)
+                .date(date)
+                .build();
+        
+        // Always use the date-filtered search
+        return ResponseEntity.ok(bookingService.searchFacilities(searchCriteria));
+    }
+
+    @GetMapping("/dropdown-options")
+    public ResponseEntity<Map<String, List<String>>> getDropdownOptions() {
+        Map<String, List<String>> options = bookingService.getDropdownOptions();
+        return ResponseEntity.ok(options);
+    }
+
+    @PostMapping
+    public ResponseEntity<BookingResponseDTO> createBooking(@RequestBody BookingDTO request) {
+        System.out.println("Request: " + request);
+        BookingResponseDTO response = bookingService.createBooking(request);
+        return ResponseEntity.ok(response);
     }
 
     @GetMapping("/upcoming-approved")

@@ -39,13 +39,18 @@ const handleLogout = () => {
           Manage Students
         </NuxtLink>
       </template>
-
-    <NuxtLink
-      v-if="isStudent"
-      to="/student-booking"
-      class="text-sm font-semibold text-blue-500 hover:underline">
-      My Bookings
-    </NuxtLink>
+      <template v-if="isStudent">
+        <NuxtLink
+        to="/booking"
+        class="text-sm font-semibold text-blue-500 hover:underline">
+        Booking
+        </NuxtLink>
+          <NuxtLink
+          to="/student-booking"
+          class="text-sm font-semibold text-blue-500 hover:underline">
+          My Bookings
+        </NuxtLink>
+      </template>
     </nav>
 
 
