@@ -1,5 +1,9 @@
 package com.group8.rbs.dto.facility;
 
+import java.util.List;
+
+import com.group8.rbs.dto.booking.BookingResponseDTO;
+
 import lombok.Getter;
 import lombok.Setter;
 
@@ -12,4 +16,5 @@ public class FacilityResponseDTO {
     private String location;
     private Integer capacity;
     private String message;
+    private List<BookingResponseDTO> bookings;
 }

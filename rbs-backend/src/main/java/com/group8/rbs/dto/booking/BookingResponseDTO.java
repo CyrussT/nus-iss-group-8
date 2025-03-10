@@ -18,4 +18,5 @@ public class BookingResponseDTO {
     private LocalDateTime bookedDatetime;
     private String timeslot;
     private String status;
+    private String email;
 }
