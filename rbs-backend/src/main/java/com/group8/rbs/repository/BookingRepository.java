@@ -27,6 +27,7 @@ public interface BookingRepository extends JpaRepository<Booking, Long> {
     List<Booking> findByAccount_AccountIdAndStatusAndBookedDateTimeAfter(Long accountId, BookingStatus status, LocalDateTime currentDateTime);
 
     List<Booking> findByFacility_FacilityIdAndBookedDateTimeBetweenAndStatusIn(Long facilityId, LocalDateTime startDateTime, LocalDateTime endDateTime, List<BookingStatus> statuses);
+    
     // Upcoming Approved or Approved Bookings
     @Query("SELECT b FROM Booking b WHERE b.account.accountId = :accountId AND b.status IN :statuses AND b.bookedDateTime > :now")
     List<Booking> findUpcomingApprovedOrConfirmedBookings(
@@ -34,5 +35,8 @@ public interface BookingRepository extends JpaRepository<Booking, Long> {
             @Param("statuses") List<BookingStatus> statuses, 
             @Param("now") LocalDateTime now
     );
+
+    // Fetch bookings by Facility ID
+    List<Booking> findByFacility_FacilityId(Long facilityId);
 
 }

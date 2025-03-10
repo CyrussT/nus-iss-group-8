@@ -1,12 +1,22 @@
 import { ref } from "vue";
 import axios from "axios";
 
+export interface Booking {
+  bookingId: number;
+  studentId: string;
+  studentName: string;
+  bookedDatetime: string;
+  timeslot: string;
+  status: string;
+}
+
 export interface Facility {
   facilityId?: number; // ✅ Make id optional
   resourceType: string;
   resourceName: string;
   location: string;
   capacity: number;
+  bookings: Booking[]; // Include bookings
 }
 
 export const useFacility = () => {
@@ -15,6 +25,7 @@ export const useFacility = () => {
     resourceName: "",
     location: "",
     capacity: 1,
+    bookings: [],
   });
 
 
@@ -24,6 +35,7 @@ export const useFacility = () => {
       resourceName: "",
       location: "",
       capacity: 1,
+      bookings: [],
     };
   };
 
@@ -88,7 +100,8 @@ export const useFacility = () => {
 
   const fetchFacilityDetails = async (facilityId: number) => {
     try {
-      const response = await axios.get(`http://localhost:8080/api/facilities/details/${facilityId}`);
+      // const response = await axios.get(`http://localhost:8080/api/facilities/details/${facilityId}`);
+      const response = await axios.get(`http://localhost:8080/api/facilities/${facilityId}/details`);
       facility.value = response.data;
     } catch (error) {
       console.error("Error fetching facility details:", error);

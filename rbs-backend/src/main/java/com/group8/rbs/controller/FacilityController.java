@@ -87,4 +87,10 @@ public class FacilityController {
         Page<FacilityResponseDTO> facilities = facilityService.searchFacilities(searchDTO, page, size);
         return ResponseEntity.ok(facilities);
     }
+
+    @GetMapping("/{facilityId}/details")
+    public ResponseEntity<FacilityResponseDTO> getFacilityWithBookings(@PathVariable Long facilityId) {
+        FacilityResponseDTO facilityResponse = facilityService.getFacilityWithBookings(facilityId);
+        return ResponseEntity.ok(facilityResponse);
+    }
 }

@@ -41,6 +41,7 @@ const openModal = (facilityData: Partial<Facility> | null = null) => {
       resourceName: facilityData.resourceName ?? "",
       location: facilityData.location ?? "",
       capacity: facilityData.capacity ?? 1,
+      bookings: facilityData.bookings ?? [],
     };
     isEditing.value = true;
   } else {
