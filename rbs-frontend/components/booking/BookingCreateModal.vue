@@ -112,7 +112,8 @@ const submitBooking = () => {
     start: bookingForm.start,
     end: newEnd,
     description: bookingForm.description,
-    attendees: bookingForm.attendees
+    attendees: bookingForm.attendees,
+    creditsUsed: bookingForm.duration.toString() // Convert duration to string for creditsUsed
   };
   
   emit('save', newBooking);
@@ -147,7 +148,7 @@ const closeModal = () => {
           </div>
           
           <div>
-            <label class="block text-sm font-medium mb-1">Duration</label>
+            <label class="block text-sm font-medium mb-1">Duration (Credits Used: {{ bookingForm.duration }} minutes)</label>
             <USelect
               v-model="bookingForm.duration"
               :options="durationOptions"
