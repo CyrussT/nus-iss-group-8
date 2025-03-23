@@ -179,6 +179,40 @@
 					<nvdApiKey>${NVD_API_KEY}</nvdApiKey>
 				</configuration>
 			</plugin>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-checkstyle-plugin</artifactId>
+				<version>3.1.1</version>
+				<configuration>
+					<failOnViolation>false</failOnViolation>
+					<outputFile>${project.build.directory}/checkstyle-result.xml</outputFile>
+				</configuration>
+				<executions>
+					<execution>
+						<phase>verify</phase>
+						<goals>
+							<goal>check</goal>
+						</goals>
+					</execution>
+				</executions>
+			</plugin>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-pmd-plugin</artifactId>
+				<version>3.13.0</version>
+				<configuration>
+					<failOnViolation>false</failOnViolation>
+					<outputFile>${project.build.directory}/pmd-report.html</outputFile>
+					<reportFormat>html</reportFormat>
+				</configuration>
+				<executions>
+					<execution>
+						<goals>
+							<goal>check</goal>
+						</goals>
+					</execution>
+				</executions>
+			</plugin>
 		</plugins>
 	</build>
 
