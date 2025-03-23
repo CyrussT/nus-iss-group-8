@@ -41,29 +41,6 @@ const sortKey = ref<keyof typeof facility.value.bookings[0] | null>(null);
 const sortOrder = ref<"asc" | "desc">("asc");
 
 // Sorting function
-const sortBookings = (key: keyof typeof facility.value.bookings[0]) => {
-  if (sortKey.value === key) {
-    sortOrder.value = sortOrder.value === "asc" ? "desc" : "asc";
-  } else {
-    sortKey.value = key;
-    sortOrder.value = "asc";
-  }
-  
-  facility.value.bookings.sort((a, b) => {
-    const valA = a[key];
-    const valB = b[key];
-
-    if (typeof valA === "string" && typeof valB === "string") {
-      return sortOrder.value === "asc" ? valA.localeCompare(valB) : valB.localeCompare(valA);
-    }
-
-    if (typeof valA === "number" && typeof valB === "number") {
-      return sortOrder.value === "asc" ? valA - valB : valB - valA;
-    }
-
-    return 0;
-  });
-};
 </script>
 
 <template>
@@ -122,20 +99,12 @@ const sortBookings = (key: keyof typeof facility.value.bookings[0]) => {
           {{ index + 1 + (currentPage - 1) * pageSize }}
       </template>
       
-        <!-- Sorting -->
-        <template #header="{ column }">
-          <span @click="sortBookings(column.key)" class="cursor-pointer">
-            {{ column.label }}
-            <span v-if="sortKey === column.key">{{ sortOrder === 'asc' ? '▲' : '▼' }}</span>
-          </span>
-        </template>
-
         <!-- Format Date -->
         <template #bookedDatetime-data="{ row }">
           {{ new Date(row.bookedDatetime).toLocaleDateString('en-GB').replace(/\//g, '-') }}
         </template>
 
-        <!-- Status Styling
+        <!-- Status Styling -->
         <template #status-data="{ row }">
           <span :class="{
             'text-green-600 font-bold': row.status === 'CONFIRMED',
@@ -144,7 +113,7 @@ const sortBookings = (key: keyof typeof facility.value.bookings[0]) => {
           }">
             {{ row.status }}
           </span>
-        </template> -->
+        </template> 
 
       </UTable>
 
