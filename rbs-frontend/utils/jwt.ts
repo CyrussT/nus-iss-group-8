@@ -10,7 +10,8 @@ export const decodeJWT = (token: string) => {
     return {
       email: payload.sub,
       role: payload.role,
-      exp: payload.exp
+      exp: payload.exp,
+      studentId: payload.studentId,
     }
   } catch (error) {
     console.error('Error decoding JWT:', error)

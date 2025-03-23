@@ -40,8 +40,8 @@ public class SecurityConfig {
                         .requestMatchers("/swagger-ui.html").permitAll()
                         .requestMatchers("/api/auth/**").permitAll()
                         .requestMatchers("/api/admin/**").hasRole("ADMINISTRATOR")
-                        // .anyRequest().permitAll()
-                        .anyRequest().authenticated() // toggle to enable authentication
+                        .anyRequest().permitAll()
+                        // .anyRequest().authenticated() // toggle to enable authentication
                 )
                 .sessionManagement(session -> session
                         .sessionCreationPolicy(SessionCreationPolicy.STATELESS))

@@ -1,22 +1,24 @@
 package com.group8.rbs.entities;
-
+import jakarta.persistence.*;
 import java.util.List;
 
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
-import jakarta.persistence.Id;
-import jakarta.persistence.OneToMany;
-import jakarta.persistence.Table;
+import com.fasterxml.jackson.annotation.JsonBackReference;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
+
 @Entity
-@Table(name = "TBL_FACILITY")
+@Table(name = "TBL_FACILITY", indexes = {
+    @Index(name = "idx_resource_type", columnList = "RESOURCE_TYPE"),
+    @Index(name = "idx_resource_name", columnList = "RESOURCE_NAME"),
+    @Index(name = "idx_location", columnList = "LOCATION"),
+    @Index(name = "idx_capacity", columnList = "CAPACITY")
+})
 @AllArgsConstructor
 @NoArgsConstructor
 @Builder
@@ -41,5 +43,6 @@ public class Facility {
     private Integer capacity;
 
     @OneToMany(mappedBy = "facility")
+    @JsonBackReference
     private List<Booking> bookings;
 }
