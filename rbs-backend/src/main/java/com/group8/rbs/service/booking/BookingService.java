@@ -14,6 +14,7 @@ import com.group8.rbs.mapper.BookingMapper;
 import com.group8.rbs.repository.AccountRepository;
 import com.group8.rbs.repository.BookingRepository;
 import com.group8.rbs.repository.FacilityRepository;
+import com.group8.rbs.repository.FacilityTypeRepository;
 
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
@@ -34,16 +35,19 @@ public class BookingService {
     private final FacilityRepository facilityRepository;
     private final BookingFacilityMapper bookingFacilityMapper;
     private final AccountRepository accountRepository;
+    private final FacilityTypeRepository facilityTypeRepository;
 
     public BookingService(
         BookingRepository bookingRepository, 
         BookingMapper bookingMapper, 
+        FacilityTypeRepository facilityTypeRepository,
         FacilityRepository facilityRepository, 
         BookingFacilityMapper bookingFacilityMapper,
         AccountRepository accountRepository
         ) {
         this.bookingRepository = bookingRepository;
         this.bookingMapper = bookingMapper;
+        this.facilityTypeRepository = facilityTypeRepository;
         this.facilityRepository = facilityRepository;
         this.bookingFacilityMapper = bookingFacilityMapper;
         this.accountRepository = accountRepository;
@@ -54,11 +58,11 @@ public class BookingService {
         List<Facility> filteredFacilities = facilityRepository.findAll().stream()
             .filter(facility -> {
                 // Resource Type filter
-                if (StringUtils.hasText(searchCriteria.getResourceType()) && 
-                    !facility.getResourceType().toLowerCase().contains(
-                        searchCriteria.getResourceType().toLowerCase())) {
-                    return false;
-                }
+                if (searchCriteria.getResourceTypeId() != null && 
+                !searchCriteria.getResourceTypeId().equals(facility.getResourceTypeId())) {
+                return false;
+            }
+            
                 
                 // Resource Name filter
                 if (StringUtils.hasText(searchCriteria.getResourceName()) && 
@@ -126,7 +130,7 @@ public class BookingService {
     }
     
     public List<String> getResourceTypes() {
-        return facilityRepository.findAllResourceTypes();
+        return facilityTypeRepository.findDistinctNames();
     }
     
     public List<String> getLocations() {

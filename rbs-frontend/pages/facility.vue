@@ -30,6 +30,8 @@ const {
   currentPage,
   totalItems,
   pageSize,
+  fetchResourceTypes,
+  resourceTypeOptions,
 } = useFacility();
 
 
@@ -66,6 +68,7 @@ const viewFacility = (facilityId: number) => {
 };
 
 
+
 const saveFacility = async () => {
   try {
     if (isEditing.value) {
@@ -83,7 +86,10 @@ const saveFacility = async () => {
   }
 };
 
-onMounted(fetchFacilities);
+onMounted(() => {
+  fetchResourceTypes()
+  fetchFacilities()
+})
 </script>
 
 <template>
@@ -91,7 +97,15 @@ onMounted(fetchFacilities);
     <h1 class="text-2xl font-bold mb-4">Facility Management</h1>
 
     <div class="grid grid-cols-2 gap-4">
-      <UInput v-model="searchQuery.resourceType" placeholder="Resource Type" />
+        
+      <USelect
+        v-model="searchQuery.resourceName"
+        :items="resourceTypeOptions"
+        value-key="id"
+        option-attribute="name"
+        placeholder="Select Resource Type"
+      />
+
       <UInput v-model="searchQuery.resourceName" placeholder="Resource Name" />
       <UInput v-model="searchQuery.location" placeholder="Location" />
       <UInput v-model="searchQuery.capacity" type="number" placeholder="Capacity" />

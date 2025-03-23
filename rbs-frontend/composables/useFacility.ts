@@ -47,9 +47,9 @@ export const useFacility = () => {
   });
   const facilities = ref([]);
   const loading = ref(true);
-  const currentPage = ref(1); 
+  const currentPage = ref(1);
   const pageSize = ref(10);
-  const totalPages = ref(1); 
+  const totalPages = ref(1);
   const totalItems = ref(0);
 
   const fetchFacilities = async () => {
@@ -58,11 +58,11 @@ export const useFacility = () => {
       const response = await axios.get("http://localhost:8080/api/facilities/search", {
         params: {
           ...searchQuery.value,
-          page: currentPage.value - 1, 
+          page: currentPage.value - 1,
           size: pageSize.value,
         },
       });
-  
+
       facilities.value = response.data.content;
       totalPages.value = response.data.totalPages;
       totalItems.value = response.data.totalElements;
@@ -72,7 +72,10 @@ export const useFacility = () => {
       loading.value = false;
     }
   };
-  
+
+
+
+
 
   const resetSearch = () => {
     searchQuery.value = {
@@ -81,22 +84,9 @@ export const useFacility = () => {
       location: "",
       capacity: "",
     };
-    fetchFacilities(); 
+    fetchFacilities();
   };
 
-  const nextPage = () => {
-    if (currentPage.value < totalPages.value - 1) {
-      currentPage.value++;
-      fetchFacilities();
-    }
-  };
-
-  const prevPage = () => {
-    if (currentPage.value > 0) {
-      currentPage.value--;
-      fetchFacilities();
-    }
-  };
 
   const fetchFacilityDetails = async (facilityId: number) => {
     try {
@@ -105,6 +95,20 @@ export const useFacility = () => {
       facility.value = response.data;
     } catch (error) {
       console.error("Error fetching facility details:", error);
+    }
+  };
+
+
+  const resourceTypeOptions = ref([])
+
+  const fetchResourceTypes = async () => {
+    try {
+      const response = await axios.get('http://localhost:8080/api/facility-types/all');
+      resourceTypeOptions.value = response.data;
+
+      console.log(resourceTypeOptions.value); // ✅
+    } catch (error) {
+      console.error('Failed to fetch resource types:', error);
     }
   };
 
@@ -121,5 +125,7 @@ export const useFacility = () => {
     currentPage,
     pageSize,
     totalItems,
+    fetchResourceTypes,
+    resourceTypeOptions,
   };
 };

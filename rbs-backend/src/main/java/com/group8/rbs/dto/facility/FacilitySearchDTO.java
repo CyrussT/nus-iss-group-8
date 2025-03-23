@@ -6,7 +6,7 @@ import lombok.Setter;
 @Getter
 @Setter
 public class FacilitySearchDTO {
-    private String resourceType;
+    private Long resourceTypeId;
     private String resourceName;
     private String location;
     private Integer capacity;

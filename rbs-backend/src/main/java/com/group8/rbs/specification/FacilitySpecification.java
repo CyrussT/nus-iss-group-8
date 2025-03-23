@@ -16,12 +16,10 @@ public class FacilitySpecification {
         return (root, query, criteriaBuilder) -> {
             List<Predicate> predicates = new ArrayList<>();
 
-            if (searchDTO.getResourceType() != null && !searchDTO.getResourceType().trim().isEmpty()) {
-                predicates.add(criteriaBuilder.like(
-                    criteriaBuilder.lower(root.get("resourceType")),
-                    "%" + searchDTO.getResourceType().toLowerCase().trim() + "%"  // ✅ Correct LIKE query
-                ));
+            if (searchDTO.getResourceTypeId() != null) {
+                predicates.add(criteriaBuilder.equal(root.get("resourceTypeID"), searchDTO.getResourceTypeId()));
             }
+            
 
             if (searchDTO.getResourceName() != null && !searchDTO.getResourceName().trim().isEmpty()) {
                 predicates.add(criteriaBuilder.like(
