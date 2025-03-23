@@ -1,0 +1,54 @@
+name: Lint and Format
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  eslint:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Install Bun
+        uses: oven-sh/setup-bun@v1
+        with:
+          bun-version: latest
+
+      - name: Install Dependencies
+        run: bun install
+        working-directory: ./rbs-frontend
+
+      - name: Run ESLint and Save Report (Stylish Format)
+        run: bun eslint . --format stylish --output-file eslint-report.txt
+        working-directory: ./rbs-frontend
+
+      - name: Upload ESLint Report as Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: eslint-report
+          path: ./rbs-frontend/eslint-report.txt
+
+  prettier:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Install Bun
+        uses: oven-sh/setup-bun@v1
+        with:
+          bun-version: latest
+
+      - name: Install Dependencies
+        run: bun install
+        working-directory: ./rbs-frontend
+
+      - name: Run Prettier Format
+        run: bun prettier --write .
+        working-directory: ./rbs-frontend
