@@ -160,8 +160,12 @@ public class BookingService {
     }
     
     // Parse the credits needed from the request
-    Double creditsNeeded = Double.parseDouble(requestDTO.getCreditsUsed());
-    
+    Double creditsNeeded;
+    try {
+        creditsNeeded = Double.parseDouble(requestDTO.getCreditsUsed());
+    } catch (NumberFormatException e) {
+        throw new RuntimeException("Invalid credits used value: " + requestDTO.getCreditsUsed(), e);
+    }
     // Attempt to deduct credits - this will only succeed if sufficient credits exist
     int updatedRows = creditRepository.checkAndDeductCredits(account.get().getAccountId(), creditsNeeded);
     
