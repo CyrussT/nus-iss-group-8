@@ -155,7 +155,10 @@ public class BookingService {
             throw new RuntimeException("This time slot is already booked");
         }
 
-        // To set to pending or instant approve based on facility type;
+        // To set to pending or instant approve based on facility type
+        BookingStatus bookingStatus = facility.getResourceType().equals("5")
+                ? BookingStatus.PENDING // Sports & Recreation requires approval
+                : BookingStatus.APPROVED;
 
         // Create the booking entity
         Booking booking = Booking.builder()
@@ -163,7 +166,7 @@ public class BookingService {
                 .account(account.get())
                 .bookedDateTime(requestDTO.getBookedDateTime())
                 .timeSlot(requestDTO.getTimeSlot())
-                .status(BookingStatus.APPROVED)
+                .status(bookingStatus)
                 .build();
 
         // Save to database
@@ -257,6 +260,28 @@ public class BookingService {
             return true;
         } else {
             return false;
+        }
+    }
+
+    public List<BookingResponseDTO> getBookingsByStatus(String status) {
+
+        List<Booking> bookings = bookingRepository.findByStatus(BookingStatus.valueOf(status));
+
+        return bookings.stream()
+                .map(bookingMapper::toResponseDTO)
+                .toList();
+    }
+
+    public boolean updateBookingStatus(Long bookingId, BookingStatus status) {
+        Optional<Booking> optionalBooking = bookingRepository.findById(bookingId);
+
+        if (optionalBooking.isPresent()) {
+            Booking booking = optionalBooking.get();
+            booking.setStatus(status);
+            bookingRepository.save(booking);
+            return true; // Return true if update was successful
+        } else {
+            return false; // Return false if booking not found
         }
     }
 }

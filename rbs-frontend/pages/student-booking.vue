@@ -99,7 +99,7 @@ const formattedPastBookings = computed(() => {
 const openCancelModal = (bookingId: number) => {
   if (confirmModal.value) {
     confirmModal.value.openModal({
-      title: "Confirm Booking Cancellation?",
+      title: "Cancel Booking",
       confirmLabel: "Yes, Cancel",
       cancelLabel: "No, Keep it",
       onConfirm: () => cancelBooking(bookingId), // Pass the method to be executed
