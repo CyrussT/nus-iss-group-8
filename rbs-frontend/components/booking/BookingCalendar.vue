@@ -91,7 +91,7 @@ const getCurrentCalendarDate = () => {
   return formatDateForApi(calendarApi.getDate());
 };
 
-// Force disable the prev button when calendar is at today's date
+// Force disable/enable the prev button based on the current calendar date
 const forceDisablePrevButton = () => {
   if (!calendarRef.value) return;
   
@@ -106,13 +106,19 @@ const forceDisablePrevButton = () => {
   const calendarDate = new Date(calendarApi.getDate());
   calendarDate.setHours(0, 0, 0, 0);
   
-  // If the calendar is showing today's date, forcibly disable the prev button
-  if (calendarDate.getTime() === today.getTime()) {
-    const prevButton = calendarApi.el.querySelector('.fc-prev-button');
-    if (prevButton) {
-      prevButton.setAttribute('disabled', 'disabled');
-      prevButton.classList.add('fc-button-disabled');
-    }
+  // Get the prev button
+  const prevButton = calendarApi.el.querySelector('.fc-prev-button');
+  if (!prevButton) return;
+  
+  // Compare dates properly
+  if (calendarDate.getTime() <= today.getTime()) {
+    // If calendar date is today or earlier, disable the prev button
+    prevButton.setAttribute('disabled', 'disabled');
+    prevButton.classList.add('fc-button-disabled');
+  } else {
+    // If calendar date is in the future, enable the prev button
+    prevButton.removeAttribute('disabled');
+    prevButton.classList.remove('fc-button-disabled');
   }
 };
 
@@ -132,13 +138,18 @@ const calendarOptions = ref({
       text: 'prev',
       click: function() {
         const calendarApi = calendarRef.value.getApi();
-        const currentDate = calendarApi.getDate();
+        
+        const currentDate = new Date(calendarApi.getDate());
+        currentDate.setHours(0, 0, 0, 0);
+        
         const today = new Date();
         today.setHours(0, 0, 0, 0);
         
         // Only go to previous date if current date is after today
-        if (currentDate > today) {
+        if (currentDate.getTime() > today.getTime()) {
           calendarApi.prev();
+          // Update button state after navigation
+          setTimeout(forceDisablePrevButton, 0);
         }
       }
     }
@@ -179,7 +190,10 @@ const calendarOptions = ref({
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     
-    if (dateInfo.start < today) {
+    const startDate = new Date(dateInfo.start);
+    startDate.setHours(0, 0, 0, 0);
+    
+    if (startDate.getTime() < today.getTime()) {
       // Navigate to today instead
       calendarRef.value.getApi().today();
       return; // The event will fire again with today's date
@@ -187,7 +201,7 @@ const calendarOptions = ref({
     
     emit('date-change', dateInfo);
     // Update button states after date change
-    forceDisablePrevButton();
+    setTimeout(forceDisablePrevButton, 0);
   },
   
   // Override default booking modal
@@ -306,7 +320,7 @@ const updateCalendarResources = (resourcesList) => {
     calendarApi.setOption('resources', resourcesList);
     
     // Also update button states whenever resources are updated
-    forceDisablePrevButton();
+    setTimeout(forceDisablePrevButton, 0);
   }
 };
 
@@ -331,7 +345,7 @@ const updateCalendarEvents = (eventsList) => {
     calendarApi.render();
     
     // Update button states after events are updated
-    forceDisablePrevButton();
+    setTimeout(forceDisablePrevButton, 0);
   }
 };
 
@@ -348,30 +362,19 @@ onMounted(() => {
   // Initial setup of events
   updateCalendarEvents(props.bookings);
   
-  // Run multiple strategies to ensure the prev button is disabled on initial load
-  // Strategy 1: Immediate attempt
+  // Simplified approach to ensure the prev button state is correct
+  // Two attempts with different delays should be sufficient
   setTimeout(() => {
     if (calendarRef.value) {
-      const calendarApi = calendarRef.value.getApi();
-      calendarApi.today();
       forceDisablePrevButton();
     }
-  }, 0);
+  }, 100);
   
-  // Strategy 2: Multiple delayed attempts
-  setTimeout(() => forceDisablePrevButton(), 100);
-  setTimeout(() => forceDisablePrevButton(), 300);
-  setTimeout(() => forceDisablePrevButton(), 500);
-  
-  // Strategy 3: Interval check for the first few seconds
-  const checkInterval = setInterval(() => {
+  setTimeout(() => {
     if (calendarRef.value) {
       forceDisablePrevButton();
     }
-  }, 200);
-  
-  // Clear the interval after 2 seconds
-  setTimeout(() => clearInterval(checkInterval), 2000);
+  }, 300);
 });
 </script>
 

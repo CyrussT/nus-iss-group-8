@@ -15,6 +15,7 @@ export function useBooking() {
   const upcomingApprovedBookings = ref<Booking[]>([]);
   const pendingBookings = ref<Booking[]>([]); 
   const pastBookings = ref<Booking[]>([]); 
+  const availableCredits = ref<number | null>(null);
 
   const fetchAccountId = async (email: string) => {
     try {
@@ -72,13 +73,31 @@ export function useBooking() {
     }
   };
 
+  // Fetch available credits
+  const fetchAvailableCredits = async (email: string | null) => {
+    if (!email) return; // Ensure email is available before fetching
+
+    try {
+      const response = await axios.get("http://localhost:8080/api/credit", {
+        params: { email }  // Send email as query param
+      });
+
+      availableCredits.value = response.data;  // Store available credits
+    } catch (error) {
+      console.error("Error fetching available credits:", error);
+      return null;
+    }
+  }
+
   return {
     upcomingApprovedBookings,
     pendingBookings,
     pastBookings,
+    availableCredits,
     fetchAccountId,
     fetchUpcomingApprovedBookings,
     fetchPendingBookings,
     fetchPastBookings,
+    fetchAvailableCredits
   };
 }

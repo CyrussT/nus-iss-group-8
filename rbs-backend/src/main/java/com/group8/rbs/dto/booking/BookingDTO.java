@@ -18,4 +18,5 @@ public class BookingDTO {
     private String title; // not sure if storing this
     private String description; // not sure if storing this
     private String attendees; // not sure if storing this
+    private String creditsUsed; // Credits used for the booking
 }
