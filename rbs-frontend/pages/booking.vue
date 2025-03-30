@@ -5,9 +5,11 @@ import BookingCalendar from '~/components/booking/BookingCalendar.vue';
 import BookingSearchBar from '~/components/booking/BookingSearchBar.vue';
 import BookingCreateModal from '~/components/booking/BookingCreateModal.vue';
 import BookingDetailsModal from '~/components/booking/BookingDetailsModal.vue';
+import { useBooking } from '#imports';
 
 const auth = useAuthStore();
 const { apiUrl } = useApi();
+const {availableCredits, fetchAvailableCredits} = useBooking();
 
 // State variables
 const facilities = ref([]);
@@ -51,6 +53,23 @@ const legendItems = [
   { status: 'PENDING', color: '#f57c00', label: 'Pending' },
   { status: 'MY_BOOKING', color: '#9c27b0', label: 'My Booking' }
 ];
+
+// Format minutes to hours and minutes
+const formatCredits = computed(() => {
+  if (!availableCredits.value) return '0 mins';
+  
+  if (availableCredits.value < 60) {
+    return `${availableCredits.value} mins`;
+  } else {
+    const hours = Math.floor(availableCredits.value / 60);
+    const mins = availableCredits.value % 60;
+    if (mins === 0) {
+      return `${hours} hr${hours > 1 ? 's' : ''}`;
+    } else {
+      return `${hours} hr${hours > 1 ? 's' : ''} ${mins} min${mins > 1 ? 's' : ''}`;
+    }
+  }
+});
 
 // Get current user email for checking own bookings
 const currentUserEmail = computed(() => auth.user.value?.email || '');
@@ -185,7 +204,8 @@ const handleCreateBooking = async (booking) => {
       timeSlot: timeSlot,
       title: booking.title,
       description: booking.description,
-      attendees: booking.attendees
+      attendees: booking.attendees,
+      creditsUsed: booking.creditsUsed
     };
     
     // Make the API call
@@ -210,6 +230,9 @@ const handleCreateBooking = async (booking) => {
     
     // Refresh the calendar to show the new booking
     searchFacilities({});
+    
+    // Refresh available credits since we just used some
+    fetchAvailableCredits(auth.user.value.email);
     
   } catch (error) {
     console.error('Error creating booking:', error);
@@ -441,6 +464,8 @@ async function fetchDropdownOptions() {
 onMounted(() => {
   console.log('Component mounted, initializing');
   loading.value = true;
+
+  fetchAvailableCredits(auth.user.value.email);
   
   // First fetch dropdown options
   fetchDropdownOptions()
@@ -452,6 +477,7 @@ onMounted(() => {
       console.error('Error during initialization:', error);
       loading.value = false;
     });
+
 });
 </script>
 
@@ -471,9 +497,17 @@ onMounted(() => {
       @reset="handleReset"
     />
     
-    <!-- Legend for booking status colors -->
+    <!-- Legend for booking status colors and available credits -->
     <div class="mt-4 p-3 bg-white rounded-md shadow">
-      <h3 class="text-sm font-medium mb-2">Booking Status Legend:</h3>
+      <div class="flex justify-between items-center mb-2">
+        <h3 class="text-sm font-medium">Booking Status Legend:</h3>
+        <div class="flex items-center">
+          <span class="text-sm font-medium mr-2">Available Credits:</span>
+          <span class="text-sm bg-blue-100 text-blue-800 px-2 py-1 rounded font-semibold">
+            {{ formatCredits }}
+          </span>
+        </div>
+      </div>
       <div class="flex flex-wrap gap-4">
         <div v-for="item in legendItems" :key="item.status" class="flex items-center">
           <div 

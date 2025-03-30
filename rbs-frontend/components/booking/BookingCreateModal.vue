@@ -112,7 +112,8 @@ const submitBooking = () => {
     start: bookingForm.start,
     end: newEnd,
     description: bookingForm.description,
-    attendees: bookingForm.attendees
+    attendees: bookingForm.attendees,
+    creditsUsed: bookingForm.duration.toString() // Convert duration to string for creditsUsed
   };
   
   emit('save', newBooking);
@@ -126,82 +127,75 @@ const closeModal = () => {
 
 <template>
   <UModal :model-value="modelValue" @update:model-value="closeModal" prevent-close>
-    <UCard class="booking-modal">
-      <div class="mb-4">
-        <h2 class="text-xl font-bold mb-2">Create Booking</h2>
-        <p class="text-gray-600">
-          {{ formatDate(bookingForm.start) }}
-          <span v-if="bookingForm.resourceName"> | {{ bookingForm.resourceName }}</span>
-        </p>
-      </div>
-      
-      <div class="space-y-4">
-        <div>
-          <label class="block text-sm font-medium mb-1">Title *</label>
-          <UInput 
-            v-model="bookingForm.title" 
-            placeholder="Meeting title" 
-            class="w-full"
-            required
-          />
+      <UCard class="p-2">
+        <div class="mb-4">
+          <h2 class="text-xl font-bold mb-2">Create Booking</h2>
+          <p class="text-gray-600">
+            {{ formatDate(bookingForm.start) }}
+            <span v-if="bookingForm.resourceName"> | {{ bookingForm.resourceName }}</span>
+          </p>
         </div>
         
-        <div>
-          <label class="block text-sm font-medium mb-1">Duration</label>
-          <USelect
-            v-model="bookingForm.duration"
-            :options="durationOptions"
-            placeholder="Select duration"
-            class="w-full"
-            @update:model-value="handleDurationChange"
-          />
+        <div class="space-y-4">
+          <div>
+            <label class="block text-sm font-medium mb-1">Title *</label>
+            <UInput 
+              v-model="bookingForm.title" 
+              placeholder="Meeting title" 
+              class="w-full"
+              required
+            />
+          </div>
+          
+          <div>
+            <label class="block text-sm font-medium mb-1">Duration (Credits Used: {{ bookingForm.duration }} minutes)</label>
+            <USelect
+              v-model="bookingForm.duration"
+              :options="durationOptions"
+              placeholder="Select duration"
+              class="w-full"
+              @update:model-value="handleDurationChange"
+            />
+          </div>
+          
+          <div>
+            <label class="block text-sm font-medium mb-1">Description</label>
+            <UTextarea
+              v-model="bookingForm.description"
+              placeholder="Add details about this booking"
+              class="w-full"
+              rows="3"
+            />
+          </div>
+          
+          <div>
+            <label class="block text-sm font-medium mb-1">Attendees</label>
+            <UTextarea
+              v-model="bookingForm.attendees"
+              placeholder="Add attendees (one per line)"
+              class="w-full"
+              rows="2"
+            />
+          </div>
         </div>
         
-        <div>
-          <label class="block text-sm font-medium mb-1">Description</label>
-          <UTextarea
-            v-model="bookingForm.description"
-            placeholder="Add details about this booking"
-            class="w-full"
-            rows="3"
-          />
+        <div class="flex justify-end gap-3 mt-6">
+          <UButton 
+            color="gray" 
+            variant="ghost" 
+            @click="closeModal"
+          >
+            Cancel
+          </UButton>
+          
+          <UButton 
+            color="primary" 
+            @click="submitBooking"
+            :disabled="!bookingForm.title"
+          >
+            Create Booking
+          </UButton>
         </div>
-        
-        <div>
-          <label class="block text-sm font-medium mb-1">Attendees</label>
-          <UTextarea
-            v-model="bookingForm.attendees"
-            placeholder="Add attendees (one per line)"
-            class="w-full"
-            rows="2"
-          />
-        </div>
-      </div>
-      
-      <div class="flex justify-end gap-3 mt-6">
-        <UButton 
-          color="gray" 
-          variant="ghost" 
-          @click="closeModal"
-        >
-          Cancel
-        </UButton>
-        
-        <UButton 
-          color="primary" 
-          @click="submitBooking"
-          :disabled="!bookingForm.title"
-        >
-          Create Booking
-        </UButton>
-      </div>
-    </UCard>
+      </UCard>
   </UModal>
 </template>
-
-<style scoped>
-.booking-modal {
-  width: 100%;
-  max-width: 500px;
-}
-</style>
