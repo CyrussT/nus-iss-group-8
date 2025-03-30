@@ -32,6 +32,7 @@ const {
   pageSize,
   fetchResourceTypes,
   resourceTypeOptions,
+  getResourceTypeName,
 } = useFacility();
 
 
@@ -39,7 +40,7 @@ const openModal = (facilityData: Partial<Facility> | null = null) => {
   if (facilityData && typeof facilityData === "object") {
     facility.value = {
       facilityId: facilityData.facilityId ?? undefined,
-      resourceType: facilityData.resourceType ?? "",
+      resourceTypeId: facilityData.resourceTypeId ?? undefined,
       resourceName: facilityData.resourceName ?? "",
       location: facilityData.location ?? "",
       capacity: facilityData.capacity ?? 1,
@@ -69,6 +70,8 @@ const viewFacility = (facilityId: number) => {
 
 
 
+
+
 const saveFacility = async () => {
   try {
     if (isEditing.value) {
@@ -86,10 +89,11 @@ const saveFacility = async () => {
   }
 };
 
-onMounted(() => {
-  fetchResourceTypes()
-  fetchFacilities()
-})
+onMounted(async () => {
+  await fetchResourceTypes();
+  fetchFacilities();
+});
+
 </script>
 
 <template>
@@ -97,14 +101,17 @@ onMounted(() => {
     <h1 class="text-2xl font-bold mb-4">Facility Management</h1>
 
     <div class="grid grid-cols-2 gap-4">
-        
-      <USelect
-        v-model="searchQuery.resourceName"
-        :items="resourceTypeOptions"
-        value-key="id"
-        option-attribute="name"
-        placeholder="Select Resource Type"
-      />
+
+      <div class="relative z-50">
+  <USelect
+    v-model="searchQuery.resourceTypeId"
+    :items="resourceTypeOptions"
+    value-key="id"
+    option-attribute="name"
+    placeholder="Select Resource Type"
+  />
+</div>
+
 
       <UInput v-model="searchQuery.resourceName" placeholder="Resource Name" />
       <UInput v-model="searchQuery.location" placeholder="Location" />
@@ -128,7 +135,7 @@ onMounted(() => {
       <div class="mt-6 overflow-x-auto">
         <UTable :rows="facilities" :loading="loading" :columns="[
           { key: 'sn', label: 'SN', sortable: false },
-          { key: 'resourceType', label: 'Type', sortable: true },
+          { key: 'resourceTypeName', label: 'Resource Type', sortable: true },
           { key: 'resourceName', label: 'Name', sortable: true },
           { key: 'location', label: 'Location', sortable: true },
           { key: 'capacity', label: 'Capacity', sortable: true },
@@ -141,8 +148,9 @@ onMounted(() => {
           <template #actions-data="{ row }">
             <div class="flex justify-center gap-2">
 
-              <UButton @click="viewFacility(row.facilityId)" color="blue" variant="solid" icon="i-heroicons-eye" label="View" />
-              
+              <UButton @click="viewFacility(row.facilityId)" color="blue" variant="solid" icon="i-heroicons-eye"
+                label="View" />
+
               <UButton @click="openModal(row)" color="yellow" variant="solid" icon="i-heroicons-pencil" label="Edit"
                 class="px-3 py-1 gap-2" />
 
@@ -172,7 +180,9 @@ onMounted(() => {
       </h2>
       <div class="grid grid-cols-3 gap-4 items-center">
         <label class="text-gray-700 font-medium col-span-1">Resource Type:</label>
-        <UInput v-model="facility.resourceType" class="col-span-2 w-full" />
+        <USelect v-model="facility.resourceTypeId" :items="resourceTypeOptions" value-key="id" option-attribute="name"
+          placeholder="Select Resource Type" class="col-span-2 w-full" />
+
 
         <label class="text-gray-700 font-medium col-span-1">Resource Name:</label>
         <UInput v-model="facility.resourceName" class="col-span-2 w-full" />
