@@ -38,16 +38,16 @@ const handleLogout = () => {
         <NuxtLink to="/student-list" class="text-sm font-semibold text-blue-500 hover:underline">
           Manage Students
         </NuxtLink>
+
+        <NuxtLink to="/booking-review-list" class="text-sm font-semibold text-blue-500 hover:underline">
+          Booking Requests
+        </NuxtLink>
       </template>
       <template v-if="isStudent">
-        <NuxtLink
-        to="/booking"
-        class="text-sm font-semibold text-blue-500 hover:underline">
-        Booking
+        <NuxtLink to="/booking" class="text-sm font-semibold text-blue-500 hover:underline">
+          Booking
         </NuxtLink>
-          <NuxtLink
-          to="/student-booking"
-          class="text-sm font-semibold text-blue-500 hover:underline">
+        <NuxtLink to="/student-booking" class="text-sm font-semibold text-blue-500 hover:underline">
           My Bookings
         </NuxtLink>
       </template>
@@ -58,11 +58,7 @@ const handleLogout = () => {
 
     <div class="flex items-center gap-4">
       <UButton variant="ghost" @click="toggleColorMode">
-        <UIcon
-          v-if="colorMode.preference === 'light'"
-          name="i-heroicons:moon"
-          class="w-5 h-5"
-        />
+        <UIcon v-if="colorMode.preference === 'light'" name="i-heroicons:moon" class="w-5 h-5" />
         <UIcon v-else name="i-heroicons:sun" class="w-5 h-5" />
       </UButton>
 
@@ -72,4 +68,3 @@ const handleLogout = () => {
     </div>
   </header>
 </template>
-

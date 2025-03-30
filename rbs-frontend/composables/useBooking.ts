@@ -89,8 +89,6 @@ export function useBooking() {
     }
   }
 
-  
-
   return {
     upcomingApprovedBookings,
     pendingBookings,

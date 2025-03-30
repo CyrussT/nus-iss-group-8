@@ -16,6 +16,7 @@ public class BookingMapper {
                 .status(booking.getStatus().toString())
                 .studentId(booking.getAccount().getStudentId())
                 .studentName(booking.getAccount().getName())
+                .email(booking.getAccount().getEmail())
                 .build();
     }
 }
