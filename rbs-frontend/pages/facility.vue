@@ -3,14 +3,13 @@ definePageMeta({
   middleware: ['auth', 'admin']
 });
 
-
 import { useRouter } from "vue-router";
 import { computed, onMounted, ref } from "vue";
 import type { Facility } from "@/composables/useFacility";
 import { useFacility } from "@/composables/useFacility";
 import axios from "axios";
 
-const auth = useAuthStore();
+
 const router = useRouter();
 const isModalOpen = ref(false);
 const isEditing = ref(false);
@@ -32,7 +31,6 @@ const {
   pageSize,
   fetchResourceTypes,
   resourceTypeOptions,
-  getResourceTypeName,
 } = useFacility();
 
 
@@ -68,10 +66,6 @@ const viewFacility = (facilityId: number) => {
   router.push(`/facility-details/${facilityId}`);
 };
 
-
-
-
-
 const saveFacility = async () => {
   try {
     if (isEditing.value) {
@@ -89,8 +83,11 @@ const saveFacility = async () => {
   }
 };
 
+
+
 onMounted(async () => {
   await fetchResourceTypes();
+  console.log("resourceTypeOptions:", resourceTypeOptions.value); // Add this line
   fetchFacilities();
 });
 
@@ -102,16 +99,20 @@ onMounted(async () => {
 
     <div class="grid grid-cols-2 gap-4">
 
-      <div class="relative z-50">
+      <USelect v-model="searchQuery.resourceTypeId" :items="resourceTypeOptions" value-key="id" option-attribute="name"
+        placeholder="Select Resource Type" />
+
+    
+
   <USelect
+    v-if="resourceTypeOptions.length > 0"
     v-model="searchQuery.resourceTypeId"
     :items="resourceTypeOptions"
     value-key="id"
     option-attribute="name"
     placeholder="Select Resource Type"
   />
-</div>
-
+  <div v-else>Loading...</div>
 
       <UInput v-model="searchQuery.resourceName" placeholder="Resource Name" />
       <UInput v-model="searchQuery.location" placeholder="Location" />
@@ -119,8 +120,9 @@ onMounted(async () => {
 
       <div class="col-span-2 flex justify-end gap-2">
 
-        <UButton @click="fetchFacilities" color="blue" variant="solid" icon="i-ic:baseline-search" label="Search"
-          class="px-4 py-2 gap-2" />
+        <UButton @click="() => { currentPage = 1; fetchFacilities(); }" color="blue" variant="solid"
+          icon="i-ic:baseline-search" label="Search" class="px-4 py-2 gap-2" />
+
 
         <UButton @click="resetSearch" color="gray" variant="solid" icon="i-ic:round-restart-alt" label="Reset"
           class="px-4 py-2 gap-2 hover:bg-red-500" />
