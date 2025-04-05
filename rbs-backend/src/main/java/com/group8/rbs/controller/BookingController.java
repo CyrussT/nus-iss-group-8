@@ -52,8 +52,8 @@ public class BookingController {
     }
 
     @GetMapping("/dropdown-options")
-    public ResponseEntity<Map<String, List<String>>> getDropdownOptions() {
-        Map<String, List<String>> options = bookingService.getDropdownOptions();
+    public ResponseEntity<Map<String, Object>> getDropdownOptions() {
+        Map<String, Object> options = bookingService.getDropdownOptions();
         return ResponseEntity.ok(options);
     }
 

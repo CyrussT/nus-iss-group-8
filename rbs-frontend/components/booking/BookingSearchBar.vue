@@ -1,4 +1,5 @@
 <script setup>
+import { options } from '@fullcalendar/core/preact.js';
 import { ref, defineEmits } from 'vue';
 
 const props = defineProps({
@@ -64,6 +65,8 @@ const handleReset = () => {
         <UInputMenu
           v-model="searchQuery.resourceType"
           :options="resourceTypeOptions"
+          option-attribute="facilityType"
+          value-attribute="facilityTypeId"
           placeholder="Type or select resource type"
           size="md"
           class="w-full"
