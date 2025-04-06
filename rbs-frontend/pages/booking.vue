@@ -1,5 +1,5 @@
 <script setup>
-import { ref, reactive, onMounted, computed } from 'vue';
+import { ref, reactive, onMounted, computed, watch } from 'vue';
 import { useApi } from '~/composables/useApi';
 import BookingCalendar from '~/components/booking/BookingCalendar.vue';
 import BookingSearchBar from '~/components/booking/BookingSearchBar.vue';
@@ -28,6 +28,7 @@ const selectedBookingInfo = reactive({
   resourceId: '',
   resourceName: '',
   startTime: '',
+  duration: 30, // Default to 0.5 hours
 });
 
 const selectedBooking = reactive({
@@ -54,20 +55,25 @@ const legendItems = [
   { status: 'MY_BOOKING', color: '#9c27b0', label: 'My Booking' }
 ];
 
-// Format minutes to hours and minutes
+// Format minutes to 0.5 hour increments
 const formatCredits = computed(() => {
-  if (!availableCredits.value) return '0 mins';
+  if (!availableCredits.value && availableCredits.value !== 0) return '0 hrs';
   
-  if (availableCredits.value < 60) {
-    return `${availableCredits.value} mins`;
+  // Convert to 0.5 hour increments
+  const halfHours = Math.floor(availableCredits.value / 30);
+  
+  if (halfHours === 0) {
+    return '0 hrs';
+  } else if (halfHours === 1) {
+    return '0.5 hrs';
+  } else if (halfHours === 2) {
+    return '1 hr';
+  } else if (halfHours % 2 === 0) {
+    // Even number of half hours (whole hours)
+    return `${halfHours / 2} hrs`;
   } else {
-    const hours = Math.floor(availableCredits.value / 60);
-    const mins = availableCredits.value % 60;
-    if (mins === 0) {
-      return `${hours} hr${hours > 1 ? 's' : ''}`;
-    } else {
-      return `${hours} hr${hours > 1 ? 's' : ''} ${mins} min${mins > 1 ? 's' : ''}`;
-    }
+    // Odd number of half hours (X.5 hours)
+    return `${Math.floor(halfHours / 2)}.5 hrs`;
   }
 });
 
@@ -82,11 +88,61 @@ const isViewModalOpen = ref(false);
 // Refs for components
 const calendarRef = ref(null);
 
+// Get the next half hour
+const getNextHalfHour = () => {
+  const now = new Date();
+  const minutes = now.getMinutes();
+  const newMinutes = minutes < 30 ? 30 : 0;
+  const hoursToAdd = minutes < 30 ? 0 : 1;
+  
+  now.setMinutes(newMinutes);
+  now.setSeconds(0);
+  now.setMilliseconds(0);
+  now.setHours(now.getHours() + hoursToAdd);
+  
+  return now;
+};
+
 // Format date for API (YYYY-MM-DD)
 const formatDateForApi = (date) => {
   if (!date) return '';
   const d = new Date(date);
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+};
+
+// Open create booking modal from button
+const openCreateBookingModal = () => {
+  // Reset selections to empty when using the create button
+  selectedBookingInfo.resourceId = '';
+  selectedBookingInfo.resourceName = '';
+  selectedBookingInfo.startTime = ''; // Set to empty instead of current time
+  selectedBookingInfo.duration = 30; // Ensure duration is set to 0.5 hours
+  
+  // Show the create modal directly
+  isCreateModalOpen.value = true;
+};
+
+// Add CSS to override FullCalendar's default cursor behavior
+const addPointerCursorToEvents = () => {
+  if (!calendarRef.value) return;
+  
+  setTimeout(() => {
+    const calendarEl = calendarRef.value.getApi().el;
+    
+    // Add a style element with our custom CSS
+    const styleEl = document.createElement('style');
+    styleEl.textContent = `
+      .fc-event,
+      .fc-event-main,
+      .fc-event-draggable,
+      .fc-event-resizable,
+      .fc-timegrid-event {
+        cursor: pointer !important;
+      }
+    `;
+    
+    calendarEl.appendChild(styleEl);
+  }, 200);
 };
 
 // Handle search with criteria
@@ -107,9 +163,44 @@ const handleDateChange = (dateInfo) => {
 
 // Handle timeslot selection
 const handleTimeslotSelect = (info) => {
+  // Get the selected date and time
+  const selectedDateTime = new Date(info.startStr);
+  const now = new Date();
+  
+  // Improved past date check
+  const isPastDate = 
+    (selectedDateTime.getFullYear() < now.getFullYear()) ||
+    (selectedDateTime.getFullYear() === now.getFullYear() && 
+     selectedDateTime.getMonth() < now.getMonth()) ||
+    (selectedDateTime.getFullYear() === now.getFullYear() && 
+     selectedDateTime.getMonth() === now.getMonth() && 
+     selectedDateTime.getDate() < now.getDate());
+  
+  // Improved same-day past time check
+  const isSameDay = 
+    selectedDateTime.getFullYear() === now.getFullYear() &&
+    selectedDateTime.getMonth() === now.getMonth() &&
+    selectedDateTime.getDate() === now.getDate();
+  
+  const isPastTime = isSameDay && 
+    (selectedDateTime.getHours() < now.getHours() ||
+    (selectedDateTime.getHours() === now.getHours() && 
+     selectedDateTime.getMinutes() < now.getMinutes()));
+  
+  // Only check for past time if it's the same day
+  if (isPastDate || isPastTime) {
+    alert('Cannot create bookings in the past');
+    return;
+  }
+  
+  // Default booking duration to 30 minutes
   selectedBookingInfo.resourceId = info.resource.id;
   selectedBookingInfo.resourceName = info.resource.title;
   selectedBookingInfo.startTime = info.startStr;
+  
+  // Force modal to use 30 minutes as default duration
+  selectedBookingInfo.duration = 30;
+  
   isCreateModalOpen.value = true;
 };
 
@@ -176,37 +267,61 @@ const handleCreateBooking = async (booking) => {
     // Get the current user email from auth store
     const accountEmail = auth.user.value.email;
     
-    // Parse start time to get the date component
-    const startDate = new Date(booking.start);
+    // Create a proper local date from the booking date/time information
+    let bookedDateTime;
+    
+    if (booking.localDate && booking.localTime) {
+      // Use the local date/time if available
+      const [year, month, day] = booking.localDate.split('-').map(Number);
+      const [hours, minutes] = booking.localTime.split(':').map(Number);
+      
+      // Month is 0-indexed in JavaScript Date
+      bookedDateTime = new Date(year, month - 1, day, hours, minutes, 0, 0);
+    } else {
+      // Fallback to using the ISO string (which might have timezone issues)
+      bookedDateTime = new Date(booking.start);
+    }
     
     // Format the timeslot
-    const startTime = startDate.toLocaleTimeString('en-US', { 
+    const startTime = bookedDateTime.toLocaleTimeString('en-US', { 
       hour: '2-digit', 
       minute: '2-digit',
       hour12: false 
     });
     
-    const endDate = new Date(booking.end);
-    const endTime = endDate.toLocaleTimeString('en-US', {
+    // Calculate end time (add duration minutes to start time)
+    const durationMinutes = parseInt(booking.creditsUsed, 10);
+    const endDateTime = new Date(bookedDateTime.getTime() + durationMinutes * 60000);
+    
+    const endTime = endDateTime.toLocaleTimeString('en-US', {
       hour: '2-digit', 
       minute: '2-digit',
       hour12: false
     });
     
     const timeSlot = `${startTime} - ${endTime}`;
-
-   
+    
+    console.log("Booking datetime:", {
+      originalStart: booking.start,
+      localDateString: booking.localDate,
+      localTimeString: booking.localTime,
+      bookedDateTime: bookedDateTime.toISOString(),
+      timeSlot
+    });
+    
     // Create the request body
     const requestBody = {
       facilityId: parseInt(booking.resourceId),
       accountEmail: accountEmail,
-      bookedDateTime: startDate.toISOString(),
+      bookedDateTime: bookedDateTime.toISOString(),
       timeSlot: timeSlot,
       title: booking.title,
       description: booking.description,
       attendees: booking.attendees,
       creditsUsed: booking.creditsUsed
     };
+    
+    console.log("Full booking request body:", requestBody);
     
     // Make the API call
     const response = await fetch(`${apiUrl}/api/bookings`, {
@@ -354,9 +469,9 @@ async function searchFacilities(criteria = {}) {
                 endDateTime = new Date(bookedDate);
                 endDateTime.setHours(endHour || 0, endMinute || 0, 0, 0);
               } else {
-                // Default to 1 hour duration if no end time
+                // Default to 30 minutes duration if no end time
                 endDateTime = new Date(startDateTime);
-                endDateTime.setHours(endDateTime.getHours() + 1);
+                endDateTime.setMinutes(endDateTime.getMinutes() + 30);
               }
               
               // Check if this booking is in the past
@@ -383,9 +498,9 @@ async function searchFacilities(criteria = {}) {
                 start: startDateTime.toISOString(),
                 end: endDateTime.toISOString(),
                 backgroundColor: backgroundColor,
-                editable: !isPastBooking,
-                durationEditable: !isPastBooking,
-                startEditable: !isPastBooking,
+                editable: false, // Disable all drag and resize for bookings
+                durationEditable: false,
+                startEditable: false,
                 extendedProps: {
                   status: booking.status,
                   location: booking.location || facility.location,
@@ -473,12 +588,36 @@ onMounted(() => {
       // Then search for facilities
       return searchFacilities({});
     })
+    .then(() => {
+      // Apply cursor styles
+      addPointerCursorToEvents();
+    })
     .catch(error => {
       console.error('Error during initialization:', error);
       loading.value = false;
     });
-
 });
+
+// Expose methods to parent components that might need them
+const updateCalendarResources = (resources) => {
+  if (calendarRef.value) {
+    calendarRef.value.updateCalendarResources(resources);
+  }
+};
+
+const updateCalendarEvents = (events) => {
+  if (calendarRef.value) {
+    calendarRef.value.updateCalendarEvents(events);
+  }
+};
+
+// Watch for bookings changes if needed
+watch(() => bookings.value, (newBookings) => {
+  if (calendarRef.value) {
+    // Apply pointer cursor after booking updates
+    addPointerCursorToEvents();
+  }
+}, { deep: true });
 </script>
 
 <template>
@@ -519,6 +658,18 @@ onMounted(() => {
       </div>
     </div>
     
+    <!-- New: Create Booking Button Section -->
+    <div class="mt-4 mb-4 flex justify-end">
+      <UButton 
+        color="primary" 
+        icon="i-heroicons-plus-circle" 
+        @click="openCreateBookingModal"
+        size="lg"
+      >
+        Create New Booking
+      </UButton>
+    </div>
+    
     <!-- Calendar component -->
     <BookingCalendar
       ref="calendarRef"
@@ -533,12 +684,16 @@ onMounted(() => {
       @date-change="handleDateChange"
     />
     
-    <!-- Create booking modal -->
+    <!-- Create booking modal - reused for both calendar select and button click -->
     <BookingCreateModal
       v-model="isCreateModalOpen"
       :resource-id="selectedBookingInfo.resourceId"
       :resource-name="selectedBookingInfo.resourceName"
       :start-time="selectedBookingInfo.startTime"
+      :facilities="facilities"
+      :available-credits="availableCredits"
+      :loading="searchLoading"
+      :key="`booking-modal-${isCreateModalOpen}`"
       @save="handleCreateBooking"
     />
     
@@ -546,7 +701,6 @@ onMounted(() => {
     <BookingDetailsModal
       v-model="isViewModalOpen"
       :booking="selectedBooking"
-      @edit="handleEditBooking"
     />
   </div>
 </template>

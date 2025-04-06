@@ -31,9 +31,52 @@ const calendarRef = ref(null);
 
 // Helper function to check if a date is in the past
 const isInPast = (date) => {
+  if (!date) return false;
+  
   const now = new Date();
   const checkDate = date instanceof Date ? date : new Date(date);
-  return checkDate < now;
+  
+  // Compare just the date parts for dates in the future
+  // This avoids timezone issues with future dates
+  if (checkDate.getFullYear() > now.getFullYear()) {
+    return false; // Future year
+  }
+  
+  if (checkDate.getFullYear() === now.getFullYear() && 
+      checkDate.getMonth() > now.getMonth()) {
+    return false; // Future month in same year
+  }
+  
+  if (checkDate.getFullYear() === now.getFullYear() && 
+      checkDate.getMonth() === now.getMonth() && 
+      checkDate.getDate() > now.getDate()) {
+    return false; // Future day in same month and year
+  }
+  
+  // For today, compare with time
+  if (checkDate.getFullYear() === now.getFullYear() && 
+      checkDate.getMonth() === now.getMonth() && 
+      checkDate.getDate() === now.getDate()) {
+    // Same day - compare time
+    return (checkDate.getHours() < now.getHours() || 
+            (checkDate.getHours() === now.getHours() && 
+             checkDate.getMinutes() < now.getMinutes()));
+  }
+  
+  // If we get here, it's a date in the past
+  return true;
+};
+
+// Function to check if a time slot would end after 7 PM
+const wouldEndAfter7PM = (startTime, duration) => {
+  const start = new Date(startTime);
+  const end = new Date(start.getTime() + duration);
+  
+  // Create a 7 PM reference for the same day
+  const sevenPM = new Date(start);
+  sevenPM.setHours(19, 0, 0, 0);
+  
+  return end > sevenPM;
 };
 
 // Format date for API (YYYY-MM-DD)
@@ -80,6 +123,28 @@ const isSlotAvailable = (startTime, endTime, resourceId, excludeEventId = null) 
     const eventEnd = event.end;
     
     return (startTime < eventEnd && endTime > eventStart);
+  });
+};
+
+// Function to check if a cell is already booked (used for selection validation)
+const isCellBooked = (selectInfo) => {
+  if (!calendarRef.value) return false;
+  
+  const calendarApi = calendarRef.value.getApi();
+  const events = calendarApi.getEvents();
+  const resourceId = selectInfo.resource.id;
+  
+  return events.some(event => {
+    // Only check events in the same resource
+    if (event.getResources()[0]?.id !== resourceId) return false;
+    
+    // Check for overlap
+    const selectStart = selectInfo.start;
+    const selectEnd = selectInfo.end;
+    const eventStart = event.start;
+    const eventEnd = event.end;
+    
+    return (selectStart < eventEnd && selectEnd > eventStart);
   });
 };
 
@@ -157,14 +222,24 @@ const calendarOptions = ref({
   resources: [],
   resourceGroupField: 'building',
   events: [],
-  editable: true,
+  editable: false, // Set to false to disable all drag/resize by default
   selectable: true,
   selectAllow: (selectInfo) => {
     // Prevent selecting time slots in the past
-    return !isInPast(selectInfo.start);
+    if (isInPast(selectInfo.start)) return false;
+    
+    // Prevent selecting time slots that are already booked
+    if (isCellBooked(selectInfo)) return false;
+    
+    // Prevent selecting if end time would be after 7 PM
+    // Default selection is usually 30 minutes
+    if (wouldEndAfter7PM(selectInfo.start, 30 * 60000)) return false;
+    
+    return true;
   },
   eventAllow: (dropInfo, draggedEvent) => {
-    // Prevent dragging events to time slots in the past
+    // Only allow events with editable=true to be dragged
+    // This is checked at the event level now
     return !isInPast(dropInfo.start);
   },
   slotDuration: '00:30:00',
@@ -206,9 +281,46 @@ const calendarOptions = ref({
   
   // Override default booking modal
   select: (info) => {
-    // Double-check that the selected time slot is not in the past
-    if (isInPast(info.start)) {
+    // Get the selected date and time
+    const selectedDateTime = new Date(info.startStr);
+    const now = new Date();
+    
+    // Improved past date check
+    const isPastDate = 
+      (selectedDateTime.getFullYear() < now.getFullYear()) ||
+      (selectedDateTime.getFullYear() === now.getFullYear() && 
+      selectedDateTime.getMonth() < now.getMonth()) ||
+      (selectedDateTime.getFullYear() === now.getFullYear() && 
+      selectedDateTime.getMonth() === now.getMonth() && 
+      selectedDateTime.getDate() < now.getDate());
+    
+    // Improved same-day past time check
+    const isSameDay = 
+      selectedDateTime.getFullYear() === now.getFullYear() &&
+      selectedDateTime.getMonth() === now.getMonth() &&
+      selectedDateTime.getDate() === now.getDate();
+    
+    const isPastTime = isSameDay && 
+      (selectedDateTime.getHours() < now.getHours() ||
+      (selectedDateTime.getHours() === now.getHours() && 
+      selectedDateTime.getMinutes() < now.getMinutes()));
+    
+    // Only check for past time if it's the same day
+    if (isPastDate || isPastTime) {
       alert('Cannot create bookings in the past');
+      return;
+    }
+    
+    // Double-check that the selected time slot is not already booked
+    if (isCellBooked(info)) {
+      alert('This time slot is already booked');
+      return;
+    }
+    
+    // Check if selected time would result in booking ending after 7 PM
+    // Using default duration of 30 minutes
+    if (wouldEndAfter7PM(info.start, 30 * 60000)) {
+      alert('Bookings cannot extend beyond 7:00 PM');
       return;
     }
     
@@ -292,6 +404,30 @@ const calendarOptions = ref({
   viewDidMount: () => {
     // Update button states when the view is mounted
     forceDisablePrevButton();
+  },
+  
+  // Add tooltips to show "Already Booked" on booked slots
+  eventRender: (info) => {
+    // Add tooltip
+    const tooltip = document.createElement('div');
+    tooltip.classList.add('event-tooltip');
+    tooltip.innerHTML = `<strong>${info.event.title}</strong><br>
+                         ${formatDate(info.event.start)} - ${formatDate(info.event.end)}`;
+    
+    info.el.addEventListener('mouseover', () => {
+      document.body.appendChild(tooltip);
+    });
+    
+    info.el.addEventListener('mousemove', (evt) => {
+      tooltip.style.top = (evt.pageY + 10) + 'px';
+      tooltip.style.left = (evt.pageX + 10) + 'px';
+    });
+    
+    info.el.addEventListener('mouseout', () => {
+      if (tooltip.parentNode) {
+        tooltip.parentNode.removeChild(tooltip);
+      }
+    });
   }
 });
 
@@ -349,10 +485,36 @@ const updateCalendarEvents = (eventsList) => {
   }
 };
 
+// Add CSS to override FullCalendar's default cursor behavior
+const addPointerCursorToEvents = () => {
+  if (!calendarRef.value) return;
+  
+  setTimeout(() => {
+    const calendarEl = calendarRef.value.getApi().el;
+    
+    // Add a style element with our custom CSS
+    const styleEl = document.createElement('style');
+    styleEl.textContent = `
+      .fc-event,
+      .fc-event-main,
+      .fc-event-draggable,
+      .fc-event-resizable,
+      .fc-timegrid-event {
+        cursor: pointer !important;
+      }
+    `;
+    
+    calendarEl.appendChild(styleEl);
+  }, 200);
+};
+
 // Expose methods to parent
 defineExpose({
   getCurrentCalendarDate,
-  isSlotAvailable
+  isSlotAvailable,
+  updateCalendarResources,
+  updateCalendarEvents,
+  addPointerCursorToEvents
 });
 
 onMounted(() => {
@@ -367,12 +529,14 @@ onMounted(() => {
   setTimeout(() => {
     if (calendarRef.value) {
       forceDisablePrevButton();
+      addPointerCursorToEvents();
     }
   }, 100);
   
   setTimeout(() => {
     if (calendarRef.value) {
       forceDisablePrevButton();
+      addPointerCursorToEvents();
     }
   }, 300);
 });
@@ -441,6 +605,18 @@ onMounted(() => {
   background-color: #f0f0f0;
 }
 
+/* Make booked slots show pointer cursor - even for future events */
+:deep(.fc-event),
+:deep(.fc-event-main) {
+  cursor: pointer !important;
+}
+
+/* Override any potential highlighting cursor for future events */
+:deep(.fc-event-draggable),
+:deep(.fc-event-resizable) {
+  cursor: pointer !important;
+}
+
 /* Styles for past events */
 :deep(.past-event) {
   opacity: 0.7;
@@ -475,5 +651,16 @@ onMounted(() => {
   opacity: 0.4 !important;
   cursor: not-allowed !important;
   pointer-events: none !important;
+}
+
+/* Tooltip styles */
+.event-tooltip {
+  position: absolute;
+  background-color: rgba(0, 0, 0, 0.8);
+  color: white;
+  padding: 5px 8px;
+  border-radius: 4px;
+  z-index: 10000;
+  font-size: 12px;
 }
 </style>
