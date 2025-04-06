@@ -67,6 +67,26 @@ const isInPast = (date) => {
   return true;
 };
 
+// Check if current time is end of day (after 5 PM)
+const isEndOfDay = () => {
+  const now = new Date();
+  return now.getHours() >= 17; // 5 PM or later
+};
+
+// Get the next business day (skip to Monday if it's Friday)
+const getNextBusinessDay = () => {
+  const now = new Date();
+  const nextDay = new Date(now);
+  nextDay.setDate(now.getDate() + 1);
+  
+  // If it's Friday, skip to Monday
+  if (now.getDay() === 5) { // Friday
+    nextDay.setDate(now.getDate() + 3);
+  }
+  
+  return nextDay;
+};
+
 // Function to check if a time slot would end after 7 PM
 const wouldEndAfter7PM = (startTime, duration) => {
   const start = new Date(startTime);
@@ -187,11 +207,23 @@ const forceDisablePrevButton = () => {
   }
 };
 
+// Determine initial date based on time of day
+const getInitialDate = () => {
+  // If it's late in the day (after 5 PM), default to tomorrow
+  if (isEndOfDay()) {
+    const nextDay = getNextBusinessDay();
+    return nextDay.toISOString().split('T')[0]; // Format as YYYY-MM-DD
+  }
+  
+  // Otherwise, use today's date
+  return new Date().toISOString().split('T')[0];
+};
+
 // Calendar options
 const calendarOptions = ref({
   plugins: [resourceTimelinePlugin, interactionPlugin],
   initialView: 'resourceTimelineDay',
-  initialDate: new Date().toISOString().split('T')[0], // Format as YYYY-MM-DD string
+  initialDate: getInitialDate(), // Use the function to determine initial date
   schedulerLicenseKey: 'GPL-My-Project-Is-Open-Source',
   headerToolbar: {
     left: 'prev',

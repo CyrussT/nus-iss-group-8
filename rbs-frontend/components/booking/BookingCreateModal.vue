@@ -1,5 +1,8 @@
 <script setup>
 import { ref, reactive, watch, computed } from 'vue';
+import { useToast } from '#imports';
+
+const toast = useToast();
 
 const props = defineProps({
   modelValue: {
@@ -46,33 +49,156 @@ const durationOptions = [
   { label: '4 hours', value: 240 }
 ];
 
+// Display formatted time range for the modal header
+const formattedTimeDisplay = computed(() => {
+  if (isFromCalendar.value) {
+    // If selected from calendar, show resource and time
+    const resourceText = props.resourceName ? `Room: ${props.resourceName}` : '';
+    const startTimeText = props.startTime ? `Time: ${new Date(props.startTime).toLocaleTimeString('en-US', {
+      hour: 'numeric',
+      minute: '2-digit',
+      hour12: true
+    })}` : '';
+    
+    return [resourceText, startTimeText].filter(Boolean).join(' • ');
+  } else {
+    // Otherwise, show a generic message
+    return 'Select a room and time for your booking';
+  }
+});
+
+// Get the first available time slot based on the selected date
+const getFirstAvailableTimeSlot = (date) => {
+  const now = new Date();
+  const selectedDate = date ? new Date(date) : new Date();
+  
+  // Check if the selected date is today
+  const isToday = selectedDate.getDate() === now.getDate() && 
+                 selectedDate.getMonth() === now.getMonth() && 
+                 selectedDate.getFullYear() === now.getFullYear();
+  
+  let startHour, startMinute;
+  
+  if (isToday) {
+    // If it's today, use the next half-hour slot
+    const currentHour = now.getHours();
+    const currentMinute = now.getMinutes();
+    
+    if (currentMinute < 30) {
+      // Use current hour and 30 minutes
+      startHour = currentHour;
+      startMinute = 30;
+    } else {
+      // Use next hour and 0 minutes
+      startHour = currentHour + 1;
+      startMinute = 0;
+    }
+    
+    // Check if we're past business hours (7 AM to 7 PM)
+    if (startHour < 7) {
+      startHour = 7;
+      startMinute = 0;
+    } else if (startHour >= 19) {
+      // If after business hours, return the first slot of the next day
+      // (this case should be handled by the calendar's end of day logic,
+      // but included here for completeness)
+      startHour = 7;
+      startMinute = 0;
+    }
+  } else {
+    // If it's a future date, use first slot (7:00 AM)
+    startHour = 7;
+    startMinute = 0;
+  }
+  
+  return `${startHour.toString().padStart(2, '0')}:${startMinute.toString().padStart(2, '0')}`;
+};
+
 // Time slot options for dropdown
-const timeSlotOptions = [
-  { label: '7:00 AM', value: '07:00' },
-  { label: '7:30 AM', value: '07:30' },
-  { label: '8:00 AM', value: '08:00' },
-  { label: '8:30 AM', value: '08:30' },
-  { label: '9:00 AM', value: '09:00' },
-  { label: '9:30 AM', value: '09:30' },
-  { label: '10:00 AM', value: '10:00' },
-  { label: '10:30 AM', value: '10:30' },
-  { label: '11:00 AM', value: '11:00' },
-  { label: '11:30 AM', value: '11:30' },
-  { label: '12:00 PM', value: '12:00' },
-  { label: '12:30 PM', value: '12:30' },
-  { label: '1:00 PM', value: '13:00' },
-  { label: '1:30 PM', value: '13:30' },
-  { label: '2:00 PM', value: '14:00' },
-  { label: '2:30 PM', value: '14:30' },
-  { label: '3:00 PM', value: '15:00' },
-  { label: '3:30 PM', value: '15:30' },
-  { label: '4:00 PM', value: '16:00' },
-  { label: '4:30 PM', value: '16:30' },
-  { label: '5:00 PM', value: '17:00' },
-  { label: '5:30 PM', value: '17:30' },
-  { label: '6:00 PM', value: '18:00' },
-  { label: '6:30 PM', value: '18:30' }
-];
+const availableTimeSlots = computed(() => {
+  const options = [];
+  const now = new Date();
+  const selectedDate = bookingForm.bookingDate ? new Date(bookingForm.bookingDate) : new Date();
+  
+  // Extract date parts only from the selected date (avoid timezone issues)
+  const selectedYear = selectedDate.getFullYear();
+  const selectedMonth = selectedDate.getMonth();
+  const selectedDay = selectedDate.getDate();
+  
+  // Determine the baseline start time
+  let baselineHour = 7; // Default to 7 AM
+  let baselineMinute = 0;
+  
+  // Check if the selected date is today or a future date
+  const isToday = selectedDay === now.getDate() && 
+                  selectedMonth === now.getMonth() && 
+                  selectedYear === now.getFullYear();
+  
+  // If it's today, adjust baseline based on current time
+  if (isToday) {
+    // Get next half hour rounded time as baseline
+    const nextHalfHour = getNextHalfHour();
+    baselineHour = nextHalfHour.getHours();
+    baselineMinute = nextHalfHour.getMinutes();
+  }
+  
+  // Generate slots from baseline time to 19:00 (7 PM)
+  for (let hour = baselineHour; hour <= 18; hour++) {
+    for (let minute of [0, 30]) {
+      // Skip slots before baseline for today
+      if (isToday && hour === baselineHour && minute < baselineMinute) continue;
+      
+      const formattedHour = hour.toString().padStart(2, '0');
+      const formattedMinute = minute.toString().padStart(2, '0');
+      const timeValue = `${formattedHour}:${formattedMinute}`;
+      
+      const timeForLabel = new Date(selectedYear, selectedMonth, selectedDay, hour, minute, 0, 0);
+      const timeLabel = timeForLabel.toLocaleTimeString('en-US', {
+        hour: 'numeric',
+        minute: '2-digit',
+        hour12: true
+      });
+      
+      options.push({
+        label: timeLabel,
+        value: timeValue
+      });
+    }
+  }
+  
+  return options;
+});
+
+// Handle resource selection from dropdown
+const handleResourceSelection = (resourceId) => {
+  // Find the selected resource name from the facilityOptions
+  if (!resourceId) {
+    bookingForm.resourceName = '';
+    return;
+  }
+  
+  const selectedResource = facilityOptions.value.find(option => option.value === resourceId);
+  if (selectedResource) {
+    bookingForm.resourceName = selectedResource.resourceName;
+  }
+};
+
+// Handle date change
+const handleDateChange = () => {
+  // Call updateStartTime to recalculate derived values
+  updateStartTime();
+};
+
+// Handle time change
+const handleTimeChange = () => {
+  // Call updateStartTime to recalculate derived values
+  updateStartTime();
+};
+
+// Handle duration change
+const handleDurationChange = () => {
+  // The watcher for duration should handle this, but we can add extra logic here if needed
+};
 
 // Helper function to check if a date is in the past
 const isInPast = (date) => {
@@ -112,28 +238,6 @@ const isInPast = (date) => {
   return true;
 };
 
-// Format date for display
-const formatDate = (date) => {
-  if (!date) return '';
-  const d = new Date(date);
-  return d.toLocaleString('en-US', {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-    hour: 'numeric',
-    minute: '2-digit',
-    hour12: true
-  });
-};
-
-// Calculate end time based on start time and duration
-const calculateEndTime = (startTime, durationMinutes) => {
-  if (!startTime) return '';
-  const start = new Date(startTime);
-  const end = new Date(start.getTime() + durationMinutes * 60000);
-  return end.toISOString();
-};
-
 // Get the next half hour
 const getNextHalfHour = () => {
   const now = new Date();
@@ -152,7 +256,10 @@ const getNextHalfHour = () => {
 // Get today's date formatted for input[type="date"]
 const getTodayFormatted = () => {
   const today = new Date();
-  return today.toISOString().split('T')[0];
+  const year = today.getFullYear();
+  const month = String(today.getMonth() + 1).padStart(2, '0');
+  const day = String(today.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
 };
 
 // Get the next half hour formatted for HH:MM
@@ -177,88 +284,66 @@ const facilityOptions = computed(() => {
   }));
 });
 
-// Generate time slot options based on current time and selected duration
-const availableTimeSlots = computed(() => {
-  const options = [];
-  const now = new Date();
-  const selectedDate = bookingForm.bookingDate ? new Date(bookingForm.bookingDate) : new Date();
+// Calculate end time based on start time and duration
+const calculateEndTime = (startTime, durationMinutes) => {
+  if (!startTime) return '';
   
-  // Extract date parts only from the selected date (avoid timezone issues)
-  const selectedYear = selectedDate.getFullYear();
-  const selectedMonth = selectedDate.getMonth();
-  const selectedDay = selectedDate.getDate();
+  const start = new Date(startTime);
+  const end = new Date(start.getTime() + durationMinutes * 60000);
   
-  // Check if selected date is today
-  const isToday = selectedDay === now.getDate() && 
-                  selectedMonth === now.getMonth() && 
-                  selectedYear === now.getFullYear();
+  return end.toISOString();
+};
+
+// Check if booking would end after 7 PM
+const wouldEndAfter7PM = computed(() => {
+  if (!bookingForm.bookingDate || !bookingForm.bookingTime || !bookingForm.duration) return false;
   
-  // Get next half hour rounded time as baseline for today
-  const nextHalfHour = getNextHalfHour();
-  const baselineHour = isToday ? nextHalfHour.getHours() : 7;
-  const baselineMinute = isToday && nextHalfHour.getHours() === now.getHours() ? nextHalfHour.getMinutes() : 0;
+  // Create a proper Date object with the local date and time
+  const [year, month, day] = bookingForm.bookingDate.split('-').map(Number);
+  const [hours, minutes] = bookingForm.bookingTime.split(':').map(Number);
   
-  // Get current booking duration in minutes
-  const durationMinutes = bookingForm.duration || 30;
+  const startTime = new Date(year, month - 1, day, hours, minutes, 0, 0);
+  const endTime = new Date(startTime.getTime() + bookingForm.duration * 60000);
   
-  // Generate slots from baseline time to 19:00 (7 PM)
-  for (let hour = baselineHour; hour <= 18; hour++) {
-    for (let minute = 0; minute < 60; minute += 30) {
-      // Skip slots before baseline for today
-      if (isToday && hour === baselineHour && minute < baselineMinute) continue;
-      
-      // Calculate if this time slot would end after 7 PM with the current duration
-      const startTime = new Date(selectedYear, selectedMonth, selectedDay, hour, minute, 0, 0);
-      const endTime = new Date(startTime.getTime() + durationMinutes * 60000);
-      
-      // Create 7 PM reference time
-      const sevenPM = new Date(selectedYear, selectedMonth, selectedDay, 19, 0, 0, 0);
-      
-      // Skip this time slot if it would end after 7 PM
-      if (endTime > sevenPM) continue;
-      
-      const formattedHour = hour.toString().padStart(2, '0');
-      const formattedMinute = minute.toString().padStart(2, '0');
-      const timeValue = `${formattedHour}:${formattedMinute}`;
-      
-      const timeForLabel = new Date();
-      timeForLabel.setHours(hour, minute, 0, 0);
-      const timeLabel = timeForLabel.toLocaleTimeString('en-US', {
-        hour: 'numeric',
-        minute: '2-digit',
-        hour12: true
-      });
-      
-      options.push({
-        label: timeLabel,
-        value: timeValue
-      });
-    }
-  }
+  // Create a reference date for 7 PM on the same day
+  const sevenPM = new Date(year, month - 1, day, 19, 0, 0, 0);
   
-  return options;
+  return endTime > sevenPM;
 });
 
-// Make sure the initial default duration is set to 30 minutes (0.5 hours)
-// when the component is first initialized
-const initialDuration = ref(30); 
-
-// Form state with explicit date and time fields (instead of combined)
+// Form state with explicit date and time fields
 const bookingForm = reactive({
   title: '',
   description: '',
   resourceId: props.resourceId || '',
   resourceName: props.resourceName || '',
-  bookingDate: props.startTime ? new Date(props.startTime).toISOString().split('T')[0] : getTodayFormatted(), // YYYY-MM-DD
+  bookingDate: props.startTime ? new Date(props.startTime).toISOString().split('T')[0] : getTodayFormatted(),
   bookingTime: props.startTime && props.startTime.includes('T') 
     ? `${new Date(props.startTime).getHours().toString().padStart(2, '0')}:${new Date(props.startTime).getMinutes().toString().padStart(2, '0')}` 
-    : getNextHalfHourFormatted(), // HH:MM
-  duration: initialDuration.value, // Default to 0.5 hours (30 minutes)
+    : getNextHalfHourFormatted(),
+  duration: 30, // Default to 0.5 hours
   attendees: '',
-  // Combined start date/time for API calls (calculated from bookingDate and bookingTime)
   start: props.startTime || '',
   end: ''
 });
+
+// Update start time method to preserve date
+const updateStartTime = () => {
+  if (bookingForm.bookingDate && bookingForm.bookingTime) {
+    // Explicitly construct the date without relying on timezone conversion
+    const [year, month, day] = bookingForm.bookingDate.split('-').map(Number);
+    const [hours, minutes] = bookingForm.bookingTime.split(':').map(Number);
+    
+    // Create date with explicit components to avoid timezone shifts
+    const localDate = new Date(year, month - 1, day, hours, minutes, 0, 0);
+    
+    // Set as ISO string, keeping the local time
+    bookingForm.start = localDate.toISOString();
+    
+    // Calculate end time preserving the same date
+    bookingForm.end = calculateEndTime(bookingForm.start, bookingForm.duration);
+  }
+};
 
 // Reset form values when dialog is closed
 const resetForm = () => {
@@ -268,32 +353,65 @@ const resetForm = () => {
   bookingForm.resourceName = '';
   bookingForm.bookingDate = getTodayFormatted();
   bookingForm.bookingTime = getNextHalfHourFormatted();
-  bookingForm.duration = 30; // Always reset to 30 minutes (0.5 hours)
+  bookingForm.duration = 30;
   bookingForm.attendees = '';
   bookingForm.start = '';
   bookingForm.end = '';
-  updateStartTime();
 };
 
-// Check if the booking would end after 7 PM
-const wouldEndAfter7PM = computed(() => {
-  if (!bookingForm.bookingDate || !bookingForm.bookingTime || !bookingForm.duration) return false;
+// Check if selected date/time is in the past
+const isSelectedTimeInPast = computed(() => {
+  if (!bookingForm.bookingDate || !bookingForm.bookingTime) return false;
   
   // Create a proper Date object with the local date and time
-  const year = parseInt(bookingForm.bookingDate.split('-')[0], 10);
-  const month = parseInt(bookingForm.bookingDate.split('-')[1], 10) - 1; // JS months are 0-indexed
-  const day = parseInt(bookingForm.bookingDate.split('-')[2], 10);
-  
+  const [year, month, day] = bookingForm.bookingDate.split('-').map(Number);
   const [hours, minutes] = bookingForm.bookingTime.split(':').map(Number);
   
-  const startTime = new Date(year, month, day, hours, minutes, 0, 0);
-  const endTime = new Date(startTime.getTime() + bookingForm.duration * 60000);
+  const selectedDateTime = new Date(year, month - 1, day, hours, minutes, 0, 0);
   
-  // Create a reference date for 7 PM on the same day
-  const sevenPM = new Date(year, month, day, 19, 0, 0, 0);
-  
-  return endTime > sevenPM;
+  return isInPast(selectedDateTime);
 });
+
+// Comprehensive overlap check
+const isBookingOverlapping = () => {
+  return props.facilities.some(facility => {
+    // Only check the selected facility
+    if (facility.facilityId.toString() !== bookingForm.resourceId) return false;
+    
+    // Check each existing booking for this facility
+    return facility.bookings.some(existingBooking => {
+      // Parse existing booking times
+      let existingStartTime, existingEndTime;
+      
+      if (existingBooking.timeslot.includes(' - ')) {
+        [existingStartTime, existingEndTime] = existingBooking.timeslot.split(' - ');
+      } else if (existingBooking.timeslot.includes('-')) {
+        [existingStartTime, existingEndTime] = existingBooking.timeslot.split('-');
+      } else {
+        console.error('Invalid timeslot format:', existingBooking.timeslot);
+        return false;
+      }
+      
+      // Convert booking times to Date objects
+      const bookedDate = new Date(existingBooking.bookedDatetime);
+      const [existingStartHour, existingStartMinute] = existingStartTime.trim().split(':').map(Number);
+      const [existingEndHour, existingEndMinute] = existingEndTime.trim().split(':').map(Number);
+      
+      const existingStart = new Date(bookedDate);
+      existingStart.setHours(existingStartHour, existingStartMinute, 0, 0);
+      
+      const existingEnd = new Date(bookedDate);
+      existingEnd.setHours(existingEndHour, existingEndMinute, 0, 0);
+      
+      // Parse current booking times
+      const currentStart = new Date(bookingForm.start);
+      const currentEnd = new Date(bookingForm.end);
+      
+      // Check for overlap
+      return (currentStart < existingEnd && currentEnd > existingStart);
+    });
+  });
+};
 
 // Filter available durations based on credits and end time restrictions
 const availableDurationOptions = computed(() => {
@@ -307,16 +425,13 @@ const availableDurationOptions = computed(() => {
   
   // Then filter by time restrictions - only if date and time are selected
   if (bookingForm.bookingDate && bookingForm.bookingTime) {
-    const year = parseInt(bookingForm.bookingDate.split('-')[0], 10);
-    const month = parseInt(bookingForm.bookingDate.split('-')[1], 10) - 1; // JS months are 0-indexed
-    const day = parseInt(bookingForm.bookingDate.split('-')[2], 10);
-    
+    const [year, month, day] = bookingForm.bookingDate.split('-').map(Number);
     const [hours, minutes] = bookingForm.bookingTime.split(':').map(Number);
     
-    const startTime = new Date(year, month, day, hours, minutes, 0, 0);
+    const startTime = new Date(year, month - 1, day, hours, minutes, 0, 0);
     
     // Create a reference date for 7 PM on the same day
-    const sevenPM = new Date(year, month, day, 19, 0, 0, 0);
+    const sevenPM = new Date(year, month - 1, day, 19, 0, 0, 0);
     
     // Calculate maximum possible duration in minutes
     const maxDurationMinutes = Math.floor((sevenPM - startTime) / 60000);
@@ -328,106 +443,33 @@ const availableDurationOptions = computed(() => {
   return options;
 });
 
-// Create the combined start time from date and time parts
-const updateStartTime = () => {
-  if (bookingForm.bookingDate && bookingForm.bookingTime) {
-    // Important: We need to manually construct the date to avoid timezone issues
-    const year = parseInt(bookingForm.bookingDate.split('-')[0], 10);
-    const month = parseInt(bookingForm.bookingDate.split('-')[1], 10) - 1; // JS months are 0-indexed
-    const day = parseInt(bookingForm.bookingDate.split('-')[2], 10);
-    
-    const [hours, minutes] = bookingForm.bookingTime.split(':').map(Number);
-    
-    // Create date without any timezone conversion
-    const localDate = new Date(year, month, day, hours, minutes, 0, 0);
-    
-    // Set as ISO string but keep track that this is local time
-    bookingForm.start = localDate.toISOString();
-    
-    // Also update end time
-    bookingForm.end = calculateEndTime(bookingForm.start, bookingForm.duration);
-  }
-};
-
-// Initialize start time
-updateStartTime();
-
-// Create formatted display string with start AND end time + room
-const formattedTimeDisplay = computed(() => {
-  if (!bookingForm.start) return '';
-  
-  const startDate = new Date(bookingForm.start);
-  let displayStr = formatDate(startDate);
-  
-  if (bookingForm.end) {
-    const endDate = new Date(bookingForm.end);
-    // Only show time portion of end time
-    displayStr += ` - ${endDate.toLocaleTimeString('en-US', {
-      hour: 'numeric',
-      minute: '2-digit',
-      hour12: true
-    })}`;
-  }
-  
-  if (bookingForm.resourceName) {
-    displayStr += ` | ${bookingForm.resourceName}`;
-  }
-  
-  return displayStr;
-});
-
-// Check if selected date/time is in the past
-const isSelectedTimeInPast = computed(() => {
-  if (!bookingForm.bookingDate || !bookingForm.bookingTime) return false;
-  
-  // Create a proper Date object with the local date and time
-  const year = parseInt(bookingForm.bookingDate.split('-')[0], 10);
-  const month = parseInt(bookingForm.bookingDate.split('-')[1], 10) - 1; // JS months are 0-indexed
-  const day = parseInt(bookingForm.bookingDate.split('-')[2], 10);
-  
-  const [hours, minutes] = bookingForm.bookingTime.split(':').map(Number);
-  
-  const selectedDateTime = new Date(year, month, day, hours, minutes, 0, 0);
-  
-  return isInPast(selectedDateTime);
-});
-
-// Handle duration change
-const handleDurationChange = () => {
+// Watches and event handlers
+watch(() => bookingForm.duration, (newDuration, oldDuration) => {
+  // Ensure the date remains consistent when changing duration
   if (bookingForm.start) {
-    bookingForm.end = calculateEndTime(bookingForm.start, bookingForm.duration);
+    const originalStart = new Date(bookingForm.start);
+    
+    // Recalculate end time while preserving the original date
+    bookingForm.end = calculateEndTime(bookingForm.start, newDuration);
+    
+    // Verify and correct any unexpected date changes
+    const newEnd = new Date(bookingForm.end);
+    if (newEnd.getDate() !== originalStart.getDate()) {
+      // If date changed, adjust the end time to stay on the same day
+      const correctedEnd = new Date(
+        originalStart.getFullYear(), 
+        originalStart.getMonth(), 
+        originalStart.getDate(), 
+        originalStart.getHours(), 
+        originalStart.getMinutes() + newDuration
+      );
+      
+      bookingForm.end = correctedEnd.toISOString();
+    }
   }
-};
+});
 
-// Handle date change
-const handleDateChange = () => {
-  // Reset time when date changes
-  if (isFromCalendar.value) return;
-  
-  // If changing to today, ensure time is after current time
-  const now = new Date();
-  const selectedDate = new Date(bookingForm.bookingDate);
-  const isSelectedToday = selectedDate.getDate() === now.getDate() && 
-                          selectedDate.getMonth() === now.getMonth() && 
-                          selectedDate.getFullYear() === now.getFullYear();
-  
-  if (isSelectedToday) {
-    const nextHalf = getNextHalfHourFormatted();
-    bookingForm.bookingTime = nextHalf;
-  } else {
-    // If not today, default to 9:00 AM
-    bookingForm.bookingTime = '09:00';
-  }
-  
-  updateStartTime();
-};
-
-// Handle time change
-const handleTimeChange = () => {
-  updateStartTime();
-};
-
-// Watch for changes in props
+// Props watch to handle initialization
 watch(() => [props.resourceId, props.resourceName, props.startTime], 
   ([newResourceId, newResourceName, newStartTime]) => {
     // Update resource info if provided
@@ -446,89 +488,101 @@ watch(() => [props.resourceId, props.resourceName, props.startTime],
     if (newStartTime && newStartTime.includes('T')) {
       const startDate = new Date(newStartTime);
       
-      // Set date and time separately
-      bookingForm.bookingDate = startDate.toISOString().split('T')[0];
+      // Use explicit date extraction to avoid timezone issues
+      const year = startDate.getFullYear();
+      const month = String(startDate.getMonth() + 1).padStart(2, '0');
+      const day = String(startDate.getDate()).padStart(2, '0');
       
-      const hours = startDate.getHours().toString().padStart(2, '0');
-      const minutes = startDate.getMinutes().toString().padStart(2, '0');
+      bookingForm.bookingDate = `${year}-${month}-${day}`;
+      
+      const hours = String(startDate.getHours()).padStart(2, '0');
+      const minutes = String(startDate.getMinutes()).padStart(2, '0');
       bookingForm.bookingTime = `${hours}:${minutes}`;
       
       // Full ISO string for API
       bookingForm.start = newStartTime;
       
       // Update end time
-      handleDurationChange();
+      updateStartTime();
     } else if (!newStartTime) {
       // If startTime is empty (from create button), set defaults
       bookingForm.bookingDate = getTodayFormatted();
-      bookingForm.bookingTime = getNextHalfHourFormatted();
+      
+      // Use first available time slot instead of a fixed time
+      bookingForm.bookingTime = getFirstAvailableTimeSlot(bookingForm.bookingDate);
+      
       updateStartTime(); // Calculate and set start time from date/time components
     }
   },
   { immediate: true }
 );
 
-// Handle resource selection
-const handleResourceSelection = (value) => {
-  const facility = props.facilities.find(f => f.facilityId.toString() === value);
-  if (facility) {
-    bookingForm.resourceName = facility.resourceName;
-  }
-};
-
 // Watch for booking date changes
 watch(() => bookingForm.bookingDate, () => {
   // If changing date, reset time to appropriate value
-  handleDateChange();
-});
-
-// Watch for duration changes to update available time slots
-watch(() => bookingForm.duration, () => {
-  // This will trigger a recalculation of available time slots based on the new duration
+  if (isFromCalendar.value) return;
+  
+  // Use the first available time slot function
+  bookingForm.bookingTime = getFirstAvailableTimeSlot(bookingForm.bookingDate);
+  
   updateStartTime();
 });
 
-// Submit booking
-const submitBooking = () => {
+// Submit booking function
+const submitBooking = async () => {
   // Validate required fields
   if (!bookingForm.title) {
-    alert('Please enter a title for the booking');
+    toast.add({
+      title: 'Error',
+      description: 'Please enter a title for the booking',
+      color: 'red'
+    });
     return;
   }
   
   if (!isFromCalendar.value && !bookingForm.resourceId) {
-    alert('Please select a room for the booking');
+    toast.add({
+      title: 'Error',
+      description: 'Please select a room for the booking',
+      color: 'red'
+    });
     return;
   }
   
   // Check if selected time is in the past
   if (isSelectedTimeInPast.value) {
-    alert('Cannot create bookings in the past. Please select a future time.');
+    toast.add({
+      title: 'Error',
+      description: 'Cannot create bookings in the past. Please select a future time.',
+      color: 'red'
+    });
     return;
   }
   
   // Check if booking would end after 7 PM
   if (wouldEndAfter7PM.value) {
-    alert('Bookings cannot extend beyond 7:00 PM. Please select a shorter duration or an earlier start time.');
+    toast.add({
+      title: 'Error',
+      description: 'Bookings cannot extend beyond 7:00 PM. Please select a shorter duration or an earlier start time.',
+      color: 'red'
+    });
     return;
   }
   
   // Ensure start time is calculated
   updateStartTime();
   
+  // Check for booking overlaps
+  if (isBookingOverlapping()) {
+    toast.add({
+      title: 'Error',
+      description: 'This time slot is already booked for the selected room.',
+      color: 'red'
+    });
+    return;
+  }
+  
   // Create booking with local time information
-  const bookingStart = new Date(bookingForm.start);
-  
-  // Format the date and time for the API in a way that preserves the local date/time
-  // Create a new object with local YYYY-MM-DD and HH:MM fields
-  const localStartTime = {
-    date: bookingForm.bookingDate,
-    time: bookingForm.bookingTime,
-    iso: bookingForm.start
-  };
-  
-  console.log("Submitting booking with local time info:", localStartTime);
-  
   const newBooking = {
     title: bookingForm.title,
     resourceId: bookingForm.resourceId,
@@ -543,145 +597,166 @@ const submitBooking = () => {
     localTime: bookingForm.bookingTime
   };
   
-  emit('save', newBooking);
-  emit('update:modelValue', false);
+  try {
+    // Send the booking to the parent and wait for result
+    const success = await emit('save', newBooking);
+    
+    // Reset form ONLY if we're keeping the modal open (on failure)
+    if (!success) {
+      // Do not reset the form here - we want to keep the form populated
+      // if there's an error, so the user can try again
+    }
+  } catch (err) {
+    console.error('Error during booking save:', err);
+    toast.add({
+      title: 'Error',
+      description: 'Failed to create booking. Please try again.',
+      color: 'red'
+    });
+  }
 };
 
+// Close modal method
 const closeModal = () => {
   resetForm();
   emit('update:modelValue', false);
 };
+
+// Expose methods and computed properties
+defineExpose({
+  resetForm
+});
 </script>
 
 <template>
   <UModal :model-value="modelValue" @update:model-value="closeModal" prevent-close>
-      <UCard class="p-2">
-        <div class="mb-4">
-          <h2 class="text-xl font-bold mb-2">Create Booking</h2>
-          <p class="text-gray-600">
-            {{ formattedTimeDisplay }}
+    <UCard class="p-2">
+      <div class="mb-4">
+        <h2 class="text-xl font-bold mb-2">Create Booking</h2>
+        <p class="text-gray-600">
+          {{ formattedTimeDisplay }}
+        </p>
+      </div>
+      
+      <div class="space-y-4">
+        <!-- Room Selection with InputMenu for searchable dropdown -->
+        <div v-if="!props.resourceId">
+          <label class="block text-sm font-medium mb-1">Room *</label>
+          <UInputMenu
+            v-model="bookingForm.resourceId"
+            :options="facilityOptions"
+            option-attribute="label"
+            value-attribute="value"
+            placeholder="Search or select a room"
+            class="w-full"
+            required
+            @update:model-value="handleResourceSelection"
+          />
+        </div>
+        
+        <!-- Date and Time Selection (visible only when entering through button) -->
+        <div v-if="!isFromCalendar" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <!-- Date Picker -->
+          <div>
+            <label class="block text-sm font-medium mb-1">Date *</label>
+            <UInput
+              v-model="bookingForm.bookingDate"
+              type="date"
+              :min="getTodayFormatted()"
+              class="w-full"
+              @update:model-value="handleDateChange"
+              required
+            />
+          </div>
+          
+          <!-- Time Dropdown -->
+          <div>
+            <label class="block text-sm font-medium mb-1">Time *</label>
+            <USelect
+              v-model="bookingForm.bookingTime"
+              :options="availableTimeSlots"
+              placeholder="Select time"
+              class="w-full"
+              @update:model-value="handleTimeChange"
+              required
+            />
+            <p v-if="isSelectedTimeInPast" class="text-red-500 text-sm mt-1">
+              This time is in the past. Please select a future time.
+            </p>
+          </div>
+        </div>
+        
+        <!-- Title field -->
+        <div>
+          <label class="block text-sm font-medium mb-1">Title *</label>
+          <UInput 
+            v-model="bookingForm.title" 
+            placeholder="Meeting title" 
+            class="w-full"
+            required
+          />
+        </div>
+        
+        <!-- Duration dropdown -->
+        <div>
+          <label class="block text-sm font-medium mb-1">Duration</label>
+          <USelect
+            v-model="bookingForm.duration"
+            :options="availableDurationOptions"
+            placeholder="Select duration"
+            class="w-full"
+            @update:model-value="handleDurationChange"
+            :key="`duration-select-${modelValue}`"
+          />
+          <p v-if="props.availableCredits !== undefined && props.availableCredits !== null && availableDurationOptions.length === 0" class="text-red-500 text-sm mt-1">
+            You don't have enough credits for any booking. Each booking requires at least 30 minutes.
+          </p>
+          <p v-else-if="wouldEndAfter7PM" class="text-red-500 text-sm mt-1">
+            Selected duration would extend beyond 7:00 PM closing time.
           </p>
         </div>
         
-        <div class="space-y-4">
-          <!-- Room Selection with InputMenu for searchable dropdown -->
-          <div v-if="!props.resourceId">
-            <label class="block text-sm font-medium mb-1">Room *</label>
-            <UInputMenu
-              v-model="bookingForm.resourceId"
-              :options="facilityOptions"
-              option-attribute="label"
-              value-attribute="value"
-              placeholder="Search or select a room"
-              class="w-full"
-              required
-              @update:model-value="handleResourceSelection"
-            />
-          </div>
-          
-          <!-- Date and Time Selection (visible only when entering through button) -->
-          <div v-if="!isFromCalendar" class="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <!-- Date Picker -->
-            <div>
-              <label class="block text-sm font-medium mb-1">Date *</label>
-              <UInput
-                v-model="bookingForm.bookingDate"
-                type="date"
-                :min="getTodayFormatted()"
-                class="w-full"
-                @update:model-value="handleDateChange"
-                required
-              />
-            </div>
-            
-            <!-- Time Dropdown -->
-            <div>
-              <label class="block text-sm font-medium mb-1">Time *</label>
-              <USelect
-                v-model="bookingForm.bookingTime"
-                :options="availableTimeSlots"
-                placeholder="Select time"
-                class="w-full"
-                @update:model-value="handleTimeChange"
-                required
-              />
-              <p v-if="isSelectedTimeInPast" class="text-red-500 text-sm mt-1">
-                This time is in the past. Please select a future time.
-              </p>
-            </div>
-          </div>
-          
-          <!-- Title field -->
-          <div>
-            <label class="block text-sm font-medium mb-1">Title *</label>
-            <UInput 
-              v-model="bookingForm.title" 
-              placeholder="Meeting title" 
-              class="w-full"
-              required
-            />
-          </div>
-          
-          <!-- Duration dropdown -->
-          <div>
-            <label class="block text-sm font-medium mb-1">Duration</label>
-            <USelect
-              v-model="bookingForm.duration"
-              :options="availableDurationOptions"
-              placeholder="Select duration"
-              class="w-full"
-              @update:model-value="handleDurationChange"
-              :key="`duration-select-${modelValue}`"
-            />
-            <p v-if="props.availableCredits !== undefined && props.availableCredits !== null && availableDurationOptions.length === 0" class="text-red-500 text-sm mt-1">
-              You don't have enough credits for any booking. Each booking requires at least 30 minutes.
-            </p>
-            <p v-else-if="wouldEndAfter7PM" class="text-red-500 text-sm mt-1">
-              Selected duration would extend beyond 7:00 PM closing time.
-            </p>
-          </div>
-          
-          <!-- Description field -->
-          <div>
-            <label class="block text-sm font-medium mb-1">Description</label>
-            <UTextarea
-              v-model="bookingForm.description"
-              placeholder="Add details about this booking"
-              class="w-full"
-              rows="3"
-            />
-          </div>
-          
-          <!-- Attendees field -->
-          <div>
-            <label class="block text-sm font-medium mb-1">Attendees</label>
-            <UTextarea
-              v-model="bookingForm.attendees"
-              placeholder="Add attendees (one per line)"
-              class="w-full"
-              rows="2"
-            />
-          </div>
+        <!-- Description field -->
+        <div>
+          <label class="block text-sm font-medium mb-1">Description</label>
+          <UTextarea
+            v-model="bookingForm.description"
+            placeholder="Add details about this booking"
+            class="w-full"
+            rows="3"
+          />
         </div>
         
-        <div class="flex justify-end gap-3 mt-6">
-          <UButton 
-            color="gray" 
-            variant="ghost" 
-            @click="closeModal"
-          >
-            Cancel
-          </UButton>
-          
-          <UButton 
-            color="primary" 
-            @click="submitBooking"
-            :loading="props.loading"
-            :disabled="!bookingForm.title || (!bookingForm.resourceId && !isFromCalendar)"
-          >
-            Create Booking
-          </UButton>
+        <!-- Attendees field -->
+        <div>
+          <label class="block text-sm font-medium mb-1">Attendees</label>
+          <UTextarea
+            v-model="bookingForm.attendees"
+            placeholder="Add attendees (one per line)"
+            class="w-full"
+            rows="2"
+          />
         </div>
-      </UCard>
+      </div>
+      
+      <div class="flex justify-end gap-3 mt-6">
+        <UButton 
+          color="gray" 
+          variant="ghost" 
+          @click="closeModal"
+        >
+          Cancel
+        </UButton>
+        
+        <UButton 
+          color="primary" 
+          @click="submitBooking"
+          :loading="props.loading"
+          :disabled="!bookingForm.title || (!bookingForm.resourceId && !isFromCalendar)"
+        >
+          Create Booking
+        </UButton>
+      </div>
+    </UCard>
   </UModal>
 </template>

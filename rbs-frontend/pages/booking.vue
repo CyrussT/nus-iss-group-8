@@ -1,6 +1,7 @@
 <script setup>
 import { ref, reactive, onMounted, computed, watch } from 'vue';
 import { useApi } from '~/composables/useApi';
+import { useToast } from '#imports'; // Updated import
 import BookingCalendar from '~/components/booking/BookingCalendar.vue';
 import BookingSearchBar from '~/components/booking/BookingSearchBar.vue';
 import BookingCreateModal from '~/components/booking/BookingCreateModal.vue';
@@ -9,6 +10,7 @@ import { useBooking } from '#imports';
 
 const auth = useAuthStore();
 const { apiUrl } = useApi();
+const toast = useToast(); // Updated initialization
 const {availableCredits, fetchAvailableCredits} = useBooking();
 
 // State variables
@@ -88,6 +90,26 @@ const isViewModalOpen = ref(false);
 // Refs for components
 const calendarRef = ref(null);
 
+// Check if current time is end of day (after 5 PM)
+const isEndOfDay = () => {
+  const now = new Date();
+  return now.getHours() >= 17; // 5 PM or later
+};
+
+// Get the next business day (skip to Monday if it's Friday)
+const getNextBusinessDay = () => {
+  const now = new Date();
+  const nextDay = new Date(now);
+  nextDay.setDate(now.getDate() + 1);
+  
+  // If it's Friday, skip to Monday
+  if (now.getDay() === 5) { // Friday
+    nextDay.setDate(now.getDate() + 3);
+  }
+  
+  return nextDay;
+};
+
 // Get the next half hour
 const getNextHalfHour = () => {
   const now = new Date();
@@ -112,13 +134,69 @@ const formatDateForApi = (date) => {
 
 // Open create booking modal from button
 const openCreateBookingModal = () => {
-  // Reset selections to empty when using the create button
+  // Reset selections except for the date
   selectedBookingInfo.resourceId = '';
   selectedBookingInfo.resourceName = '';
-  selectedBookingInfo.startTime = ''; // Set to empty instead of current time
+  
+  // Get the calendar's current date instead of clearing it
+  if (calendarRef.value) {
+    const currentCalendarDate = calendarRef.value.getCurrentCalendarDate();
+    if (currentCalendarDate) {
+      // Get the current date from the calendar
+      const date = new Date(currentCalendarDate);
+      
+      // Get the current time
+      const now = new Date();
+      const currentHour = now.getHours();
+      const currentMinute = now.getMinutes();
+      
+      // Check if the selected date is today
+      const isToday = date.getDate() === now.getDate() && 
+                     date.getMonth() === now.getMonth() && 
+                     date.getFullYear() === now.getFullYear();
+      
+      let startHour, startMinute;
+      
+      if (isToday) {
+        // If it's today, use the next half-hour slot
+        if (currentMinute < 30) {
+          // Use current hour and 30 minutes
+          startHour = currentHour;
+          startMinute = 30;
+        } else {
+          // Use next hour and 0 minutes
+          startHour = currentHour + 1;
+          startMinute = 0;
+        }
+        
+        // Check if we're past business hours
+        if (startHour >= 19) {
+          // Default to start of next day
+          date.setDate(date.getDate() + 1);
+          startHour = 7; // First slot of the day
+          startMinute = 0;
+        }
+      } else {
+        // If it's a future date, use first time slot (7:00 AM)
+        startHour = 7;
+        startMinute = 0;
+      }
+      
+      // Set the time
+      date.setHours(startHour, startMinute, 0, 0);
+      
+      // Update startTime ISO string
+      selectedBookingInfo.startTime = date.toISOString();
+    } else {
+      selectedBookingInfo.startTime = ''; // Fallback to empty if no date found
+    }
+  } else {
+    selectedBookingInfo.startTime = ''; // Fallback to empty if no calendar ref
+  }
+  
   selectedBookingInfo.duration = 30; // Ensure duration is set to 0.5 hours
   
-  // Show the create modal directly
+  // Show the create modal
   isCreateModalOpen.value = true;
 };
 
@@ -127,21 +205,31 @@ const addPointerCursorToEvents = () => {
   if (!calendarRef.value) return;
   
   setTimeout(() => {
-    const calendarEl = calendarRef.value.getApi().el;
-    
-    // Add a style element with our custom CSS
-    const styleEl = document.createElement('style');
-    styleEl.textContent = `
-      .fc-event,
-      .fc-event-main,
-      .fc-event-draggable,
-      .fc-event-resizable,
-      .fc-timegrid-event {
-        cursor: pointer !important;
+    try {
+      // Check if the calendar element exists directly
+      const calendarEl = calendarRef.value.$el || calendarRef.value.el;
+      
+      if (!calendarEl) {
+        console.warn('Calendar element not found');
+        return;
       }
-    `;
-    
-    calendarEl.appendChild(styleEl);
+      
+      // Add a style element with our custom CSS
+      const styleEl = document.createElement('style');
+      styleEl.textContent = `
+        .fc-event,
+        .fc-event-main,
+        .fc-event-draggable,
+        .fc-event-resizable,
+        .fc-timegrid-event {
+          cursor: pointer !important;
+        }
+      `;
+      
+      calendarEl.appendChild(styleEl);
+    } catch (error) {
+      console.error('Error adding pointer cursor to events:', error);
+    }
   }, 200);
 };
 
@@ -189,7 +277,11 @@ const handleTimeslotSelect = (info) => {
   
   // Only check for past time if it's the same day
   if (isPastDate || isPastTime) {
-    alert('Cannot create bookings in the past');
+    toast.add({
+      title: 'Error',
+      description: 'Cannot create bookings in the past',
+      color: 'red'
+    });
     return;
   }
   
@@ -258,7 +350,7 @@ const handleEventResize = ({ eventId, newStart, newEnd }) => {
   // updateBookingOnBackend(eventId, newStart, newEnd);
 };
 
-// Update the handleCreateBooking function
+// Update the handleCreateBooking function - now returns a Promise for modal handling
 const handleCreateBooking = async (booking) => {
   try {
     // Show loading state
@@ -340,8 +432,12 @@ const handleCreateBooking = async (booking) => {
     // Get the created booking data
     const createdBooking = await response.json();
     
-    // Show success message
-    alert('Booking created successfully!');
+    // Show success message using toast
+    toast.add({
+      title: 'Success',
+      description: 'Booking created successfully!',
+      color: 'green'
+    });
     
     // Refresh the calendar to show the new booking
     searchFacilities({});
@@ -349,19 +445,25 @@ const handleCreateBooking = async (booking) => {
     // Refresh available credits since we just used some
     fetchAvailableCredits(auth.user.value.email);
     
+    // Close the modal only on success
+    isCreateModalOpen.value = false;
+    
+    // Return success for the modal component
+    return true;
+    
   } catch (error) {
     console.error('Error creating booking:', error);
-    alert('Failed to create booking. Please try again.');
+    toast.add({
+      title: 'Error',
+      description: 'Failed to create booking. Please try again.',
+      color: 'red'
+    });
+    
+    // Return failure to keep modal open
+    return false;
   } finally {
     searchLoading.value = false;
   }
-};
-
-// Handle edit booking
-const handleEditBooking = (booking) => {
-  // Placeholder for future implementation
-  console.log('Edit booking:', booking);
-  alert('Edit functionality will be implemented in a future update');
 };
 
 // Search facilities with date filtering
@@ -476,7 +578,7 @@ async function searchFacilities(criteria = {}) {
               
               // Check if this booking is in the past
               const isPastBooking = endDateTime < now;
-              console.log("Auth: ", auth.user.value);
+              
               // Check if this booking belongs to the current user
               const isMyBooking = booking.studentId === currentUserId.value || 
                                  booking.studentId === auth.user.value?.studentId;
@@ -528,7 +630,11 @@ async function searchFacilities(criteria = {}) {
   } catch (error) {
     console.error('Error in searchFacilities:', error);
     if (!isInitialLoad) {
-      alert('An error occurred while searching. Please try again.');
+      toast.add({
+        title: 'Error',
+        description: 'An error occurred while searching. Please try again.',
+        color: 'red'
+      });
     }
   } finally {
     loading.value = false;
@@ -595,6 +701,11 @@ onMounted(() => {
     .catch(error => {
       console.error('Error during initialization:', error);
       loading.value = false;
+      toast.add({
+        title: 'Error',
+        description: 'Failed to initialize booking system. Please try refreshing the page.',
+        color: 'red'
+      });
     });
 });
 
