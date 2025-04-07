@@ -1,7 +1,7 @@
 <script setup>
 import { ref, reactive, onMounted, computed, watch } from 'vue';
 import { useApi } from '~/composables/useApi';
-import { useToast } from '#imports'; // Updated import
+import { useToast } from '#imports';
 import BookingCalendar from '~/components/booking/BookingCalendar.vue';
 import BookingSearchBar from '~/components/booking/BookingSearchBar.vue';
 import BookingCreateModal from '~/components/booking/BookingCreateModal.vue';
@@ -10,14 +10,12 @@ import { useBooking } from '#imports';
 
 const auth = useAuthStore();
 const { apiUrl } = useApi();
-const toast = useToast(); // Updated initialization
-const {availableCredits, fetchAvailableCredits} = useBooking();
+const toast = useToast();
+const { availableCredits, fetchAvailableCredits, searchFacilities, fetchDropdownOptions, createBooking, facilities, searchLoading } = useBooking();
 
 // State variables
-const facilities = ref([]);
 const bookings = ref([]);
 const loading = ref(true);
-const searchLoading = ref(false);
 const optionsLoading = ref(false);
 
 // Dropdown options
@@ -89,41 +87,6 @@ const isViewModalOpen = ref(false);
 
 // Refs for components
 const calendarRef = ref(null);
-
-// Check if current time is end of day (after 5 PM)
-const isEndOfDay = () => {
-  const now = new Date();
-  return now.getHours() >= 17; // 5 PM or later
-};
-
-// Get the next business day (skip to Monday if it's Friday)
-const getNextBusinessDay = () => {
-  const now = new Date();
-  const nextDay = new Date(now);
-  nextDay.setDate(now.getDate() + 1);
-  
-  // If it's Friday, skip to Monday
-  if (now.getDay() === 5) { // Friday
-    nextDay.setDate(now.getDate() + 3);
-  }
-  
-  return nextDay;
-};
-
-// Get the next half hour
-const getNextHalfHour = () => {
-  const now = new Date();
-  const minutes = now.getMinutes();
-  const newMinutes = minutes < 30 ? 30 : 0;
-  const hoursToAdd = minutes < 30 ? 0 : 1;
-  
-  now.setMinutes(newMinutes);
-  now.setSeconds(0);
-  now.setMilliseconds(0);
-  now.setHours(now.getHours() + hoursToAdd);
-  
-  return now;
-};
 
 // Format date for API (YYYY-MM-DD)
 const formatDateForApi = (date) => {
@@ -234,19 +197,34 @@ const addPointerCursorToEvents = () => {
 };
 
 // Handle search with criteria
-const handleSearch = (searchCriteria) => {
-  searchLoading.value = true;
-  searchFacilities(searchCriteria);
+const handleSearch = async (searchCriteria) => {
+  try {
+    // Get the current date from the calendar if available
+    let currentDate = '';
+    if (calendarRef.value) {
+      currentDate = calendarRef.value.getCurrentCalendarDate();
+    }
+    
+    await searchFacilities(apiUrl, auth.token.value, searchCriteria, currentDate);
+    processBookings();
+  } catch (error) {
+    console.error('Error handling search:', error);
+    toast.add({
+      title: 'Error',
+      description: 'An error occurred while searching. Please try again.',
+      color: 'red'
+    });
+  }
 };
 
 // Handle reset search
 const handleReset = () => {
-  searchFacilities({});
+  handleSearch({});
 };
 
 // Handle calendar date change
-const handleDateChange = (dateInfo) => {
-  searchFacilities({});
+const handleDateChange = () => {
+  handleSearch({});
 };
 
 // Handle timeslot selection
@@ -317,221 +295,14 @@ const handleEventClick = (event) => {
   isViewModalOpen.value = true;
 };
 
-// Handle event drop
-const handleEventDrop = ({ eventId, newStart, newEnd, newResourceId }) => {
-  // Update the event in our reactive bookings array
-  const bookingIndex = bookings.value.findIndex(b => b.id === eventId);
-  if (bookingIndex !== -1) {
-    bookings.value[bookingIndex] = {
-      ...bookings.value[bookingIndex],
-      start: newStart.toISOString(),
-      end: newEnd.toISOString(),
-      resourceId: newResourceId
-    };
-  }
+// Process bookings from facilities
+const processBookings = () => {
+  const allBookings = [];
+  const now = new Date();
   
-  // TODO: API call to update booking on backend
-  // updateBookingOnBackend(eventId, newStart, newEnd, newResourceId);
-};
-
-// Handle event resize
-const handleEventResize = ({ eventId, newStart, newEnd }) => {
-  // Update the event in our reactive bookings array
-  const bookingIndex = bookings.value.findIndex(b => b.id === eventId);
-  if (bookingIndex !== -1) {
-    bookings.value[bookingIndex] = {
-      ...bookings.value[bookingIndex],
-      start: newStart.toISOString(),
-      end: newEnd.toISOString()
-    };
-  }
-  
-  // TODO: API call to update booking on backend
-  // updateBookingOnBackend(eventId, newStart, newEnd);
-};
-
-// Update the handleCreateBooking function - now returns a Promise for modal handling
-const handleCreateBooking = async (booking) => {
-  try {
-    // Show loading state
-    searchLoading.value = true;
-    
-    // Get the current user email from auth store
-    const accountEmail = auth.user.value.email;
-    
-    // Create a proper local date from the booking date/time information
-    let bookedDateTime;
-    
-    if (booking.localDate && booking.localTime) {
-      // Use the local date/time if available
-      const [year, month, day] = booking.localDate.split('-').map(Number);
-      const [hours, minutes] = booking.localTime.split(':').map(Number);
-      
-      // Month is 0-indexed in JavaScript Date
-      bookedDateTime = new Date(year, month - 1, day, hours, minutes, 0, 0);
-    } else {
-      // Fallback to using the ISO string (which might have timezone issues)
-      bookedDateTime = new Date(booking.start);
-    }
-    
-    // Format the timeslot
-    const startTime = bookedDateTime.toLocaleTimeString('en-US', { 
-      hour: '2-digit', 
-      minute: '2-digit',
-      hour12: false 
-    });
-    
-    // Calculate end time (add duration minutes to start time)
-    const durationMinutes = parseInt(booking.creditsUsed, 10);
-    const endDateTime = new Date(bookedDateTime.getTime() + durationMinutes * 60000);
-    
-    const endTime = endDateTime.toLocaleTimeString('en-US', {
-      hour: '2-digit', 
-      minute: '2-digit',
-      hour12: false
-    });
-    
-    const timeSlot = `${startTime} - ${endTime}`;
-    
-    console.log("Booking datetime:", {
-      originalStart: booking.start,
-      localDateString: booking.localDate,
-      localTimeString: booking.localTime,
-      bookedDateTime: bookedDateTime.toISOString(),
-      timeSlot
-    });
-    
-    // Create the request body
-    const requestBody = {
-      facilityId: parseInt(booking.resourceId),
-      accountEmail: accountEmail,
-      bookedDateTime: bookedDateTime.toISOString(),
-      timeSlot: timeSlot,
-      title: booking.title,
-      description: booking.description,
-      attendees: booking.attendees,
-      creditsUsed: booking.creditsUsed
-    };
-    
-    console.log("Full booking request body:", requestBody);
-    
-    // Make the API call
-    const response = await fetch(`${apiUrl}/api/bookings`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${auth.token.value}`
-      },
-      body: JSON.stringify(requestBody)
-    });
-    
-    if (!response.ok) {
-      throw new Error(`Failed to create booking: ${response.status}`);
-    }
-    
-    // Get the created booking data
-    const createdBooking = await response.json();
-    
-    // Show success message using toast
-    toast.add({
-      title: 'Success',
-      description: 'Booking created successfully!',
-      color: 'green'
-    });
-    
-    // Refresh the calendar to show the new booking
-    searchFacilities({});
-    
-    // Refresh available credits since we just used some
-    fetchAvailableCredits(auth.user.value.email);
-    
-    // Close the modal only on success
-    isCreateModalOpen.value = false;
-    
-    // Return success for the modal component
-    return true;
-    
-  } catch (error) {
-    console.error('Error creating booking:', error);
-    toast.add({
-      title: 'Error',
-      description: 'Failed to create booking. Please try again.',
-      color: 'red'
-    });
-    
-    // Return failure to keep modal open
-    return false;
-  } finally {
-    searchLoading.value = false;
-  }
-};
-
-// Search facilities with date filtering
-async function searchFacilities(criteria = {}) {
-  try {
-    // Determine which loading state to use
-    const isInitialLoad = loading.value;
-    
-    // Ensure loading state is set appropriately
-    if (isInitialLoad) {
-      loading.value = true;
-    } else {
-      searchLoading.value = true;
-    }
-    
-    // Get the current date from the calendar
-    let currentDate;
-    if (calendarRef.value) {
-      currentDate = calendarRef.value.getCurrentCalendarDate();
-    } else {
-      // Fallback to today's date if calendar not initialized
-      currentDate = formatDateForApi(new Date());
-    }
-    
-    // Build query parameters from search criteria
-    const params = new URLSearchParams();
-    if (criteria.resourceType) {
-      params.append('resourceType', criteria.resourceType);
-    }
-    if (criteria.resourceName) {
-      params.append('resourceName', criteria.resourceName);
-    }
-    if (criteria.location) {
-      params.append('location', criteria.location);
-    }
-    if (criteria.capacity) {
-      params.append('capacity', criteria.capacity);
-    }
-    
-    // Always include the current calendar date
-    params.append('date', currentDate);
-    console.log('Searching facilities for date:', currentDate);
-    
-    console.log('Searching facilities with params:', params.toString());
-    
-    const response = await fetch(`${apiUrl}/api/bookings/facilities/search?${params.toString()}`, {
-      headers: {
-        Authorization: "Bearer " + auth.token.value
-      }
-    });
-    
-    if (!response.ok) {
-      throw new Error(`Failed to fetch facilities: ${response.status}`);
-    }
-    
-    // Process the filtered facilities from backend
-    const filteredFacilities = await response.json();
-    console.log('Received facilities:', filteredFacilities);
-    facilities.value = filteredFacilities;
-    
-    // Process all bookings
-    const allBookings = [];
-    const now = new Date();
-    
+  if (facilities.value && facilities.value.length > 0) {
     facilities.value.forEach(facility => {
       if (facility.bookings && facility.bookings.length > 0) {
-        console.log(`Processing ${facility.bookings.length} bookings for facility ${facility.resourceName}`);
-        
         facility.bookings.forEach(booking => {
           try {
             // Get the date from bookedDatetime
@@ -558,9 +329,14 @@ async function searchFacilities(criteria = {}) {
               // Parse start time (HH:MM)
               const [startHour, startMinute] = startTime.trim().split(":").map(Number);
               
-              // Create a new date object with the booked date and start time
-              const startDateTime = new Date(bookedDate);
-              startDateTime.setHours(startHour || 0, startMinute || 0, 0, 0);
+              // Create local date using the timeslot information rather than ISO date
+              // Extract the local date from the bookedDatetime
+              const year = bookedDate.getFullYear();
+              const month = bookedDate.getMonth();
+              const day = bookedDate.getDate();
+              
+              // Create a new date object with the local date and time from timeslot
+              const startDateTime = new Date(year, month, day, startHour || 0, startMinute || 0, 0, 0);
               
               // Handle end time if it exists
               let endDateTime;
@@ -568,8 +344,7 @@ async function searchFacilities(criteria = {}) {
               if (endTime) {
                 const [endHour, endMinute] = endTime.trim().split(":").map(Number);
                 
-                endDateTime = new Date(bookedDate);
-                endDateTime.setHours(endHour || 0, endMinute || 0, 0, 0);
+                endDateTime = new Date(year, month, day, endHour || 0, endMinute || 0, 0, 0);
               } else {
                 // Default to 30 minutes duration if no end time
                 endDateTime = new Date(startDateTime);
@@ -621,66 +396,82 @@ async function searchFacilities(criteria = {}) {
         });
       }
     });
-    
-    console.log('Processed bookings:', allBookings.length);
-    
-    // Set the bookings array
-    bookings.value = [...allBookings];
-    
-  } catch (error) {
-    console.error('Error in searchFacilities:', error);
-    if (!isInitialLoad) {
-      toast.add({
-        title: 'Error',
-        description: 'An error occurred while searching. Please try again.',
-        color: 'red'
-      });
-    }
-  } finally {
-    loading.value = false;
-    searchLoading.value = false;
   }
-}
+  
+  // Set the bookings array
+  bookings.value = [...allBookings];
+};
 
-// Function to fetch dropdown options from backend
-async function fetchDropdownOptions() {
+// Update the handleCreateBooking function - now returns a Promise for modal handling
+const handleCreateBooking = async (booking) => {
   try {
-    console.log('Fetching dropdown options');
-    optionsLoading.value = true;
+    // Add user email to the booking
+    booking.accountEmail = auth.user.value.email;
     
-    // Make a single API call to get all dropdown options
-    const response = await fetch(`${apiUrl}/api/bookings/dropdown-options`, {
-      headers: {
-        Authorization: "Bearer " + auth.token.value
-      }
+    // Create the booking using the composable function
+    await createBooking(apiUrl, auth.token.value, booking);
+    
+    // Show success message using toast
+    toast.add({
+      title: 'Success',
+      description: 'Booking created successfully!',
+      color: 'green'
     });
     
-    if (response.ok) {
-      const options = await response.json();
-      console.log('Received dropdown options:', options);
-      
-      // Extract each type of option from the map
-      if (options.resourceTypes) {
-        resourceTypeOptions.value = options.resourceTypes;
-      }
-      
-      if (options.locations) {
-        locationOptions.value = options.locations;
-      }
-      
-      if (options.resourceNames) {
-        resourceNameOptions.value = options.resourceNames;
-      }
-    } else {
-      console.error('Failed to fetch dropdown options:', response.status);
-    }
+    // Refresh the calendar to show the new booking
+    await handleSearch({});
+    
+    // Refresh available credits since we just used some
+    await fetchAvailableCredits(auth.user.value.email);
+    
+    // Close the modal only on success
+    isCreateModalOpen.value = false;
+    
+    // Return success for the modal component
+    return true;
     
   } catch (error) {
-    console.error('Error fetching dropdown options:', error);
+    console.error('Error creating booking:', error);
+    toast.add({
+      title: 'Error',
+      description: 'Failed to create booking. Please try again.',
+      color: 'red'
+    });
+    
+    // Return failure to keep modal open
+    return false;
+  }
+};
+
+// Load dropdown options
+const loadDropdownOptions = async () => {
+  try {
+    optionsLoading.value = true;
+    const options = await fetchDropdownOptions(apiUrl, auth.token.value);
+    
+    // Extract each type of option from the map
+    if (options.resourceTypes) {
+      resourceTypeOptions.value = options.resourceTypes;
+    }
+    
+    if (options.locations) {
+      locationOptions.value = options.locations;
+    }
+    
+    if (options.resourceNames) {
+      resourceNameOptions.value = options.resourceNames;
+    }
+  } catch (error) {
+    console.error('Error loading dropdown options:', error);
+    toast.add({
+      title: 'Error',
+      description: 'Failed to load dropdown options. Please try refreshing the page.',
+      color: 'red'
+    });
   } finally {
     optionsLoading.value = false;
   }
-}
+};
 
 onMounted(() => {
   console.log('Component mounted, initializing');
@@ -689,14 +480,15 @@ onMounted(() => {
   fetchAvailableCredits(auth.user.value.email);
   
   // First fetch dropdown options
-  fetchDropdownOptions()
+  loadDropdownOptions()
     .then(() => {
       // Then search for facilities
-      return searchFacilities({});
+      return handleSearch({});
     })
     .then(() => {
       // Apply cursor styles
       addPointerCursorToEvents();
+      loading.value = false;
     })
     .catch(error => {
       console.error('Error during initialization:', error);
@@ -708,19 +500,6 @@ onMounted(() => {
       });
     });
 });
-
-// Expose methods to parent components that might need them
-const updateCalendarResources = (resources) => {
-  if (calendarRef.value) {
-    calendarRef.value.updateCalendarResources(resources);
-  }
-};
-
-const updateCalendarEvents = (events) => {
-  if (calendarRef.value) {
-    calendarRef.value.updateCalendarEvents(events);
-  }
-};
 
 // Watch for bookings changes if needed
 watch(() => bookings.value, (newBookings) => {
@@ -790,8 +569,6 @@ watch(() => bookings.value, (newBookings) => {
       :loading="loading"
       @select-timeslot="handleTimeslotSelect"
       @click-event="handleEventClick"
-      @drop-event="handleEventDrop"
-      @resize-event="handleEventResize"
       @date-change="handleDateChange"
     />
     

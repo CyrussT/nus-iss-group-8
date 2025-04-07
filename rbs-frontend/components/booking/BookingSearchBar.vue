@@ -1,5 +1,4 @@
 <script setup>
-import { options } from '@fullcalendar/core/preact.js';
 import { ref, defineEmits } from 'vue';
 
 const props = defineProps({

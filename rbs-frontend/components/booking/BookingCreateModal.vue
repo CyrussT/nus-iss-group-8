@@ -60,10 +60,58 @@ const formattedTimeDisplay = computed(() => {
       hour12: true
     })}` : '';
     
-    return [resourceText, startTimeText].filter(Boolean).join(' • ');
+    // Add end time based on duration
+    let endTimeText = '';
+    if (props.startTime && bookingForm.duration) {
+      const startDate = new Date(props.startTime);
+      const endDate = new Date(startDate.getTime() + bookingForm.duration * 60000);
+      endTimeText = ` - ${endDate.toLocaleTimeString('en-US', {
+        hour: 'numeric',
+        minute: '2-digit',
+        hour12: true
+      })}`;
+    }
+    
+    return [resourceText, startTimeText + endTimeText].filter(Boolean).join(' • ');
   } else {
-    // Otherwise, show a generic message
-    return 'Select a room and time for your booking';
+    // For button-initiated bookings, show selected date, time and duration if available
+    const parts = [];
+    
+    if (bookingForm.resourceName) {
+      parts.push(`Room: ${bookingForm.resourceName}`);
+    }
+    
+    if (bookingForm.bookingDate && bookingForm.bookingTime) {
+      // Format the date
+      const dateObj = new Date(bookingForm.bookingDate);
+      const formattedDate = dateObj.toLocaleDateString('en-US', {
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric'
+      });
+      
+      // Get start time
+      const [hours, minutes] = bookingForm.bookingTime.split(':').map(Number);
+      const startTime = new Date(dateObj);
+      startTime.setHours(hours, minutes, 0, 0);
+      const formattedStartTime = startTime.toLocaleTimeString('en-US', {
+        hour: 'numeric',
+        minute: '2-digit',
+        hour12: true
+      });
+      
+      // Calculate end time based on duration
+      const endTime = new Date(startTime.getTime() + bookingForm.duration * 60000);
+      const formattedEndTime = endTime.toLocaleTimeString('en-US', {
+        hour: 'numeric',
+        minute: '2-digit',
+        hour12: true
+      });
+      
+      parts.push(`${formattedDate} • ${formattedStartTime} - ${formattedEndTime}`);
+    }
+    
+    return parts.length > 0 ? parts.join(' • ') : 'Select a room and time for your booking';
   }
 });
 
@@ -100,8 +148,6 @@ const getFirstAvailableTimeSlot = (date) => {
       startMinute = 0;
     } else if (startHour >= 19) {
       // If after business hours, return the first slot of the next day
-      // (this case should be handled by the calendar's end of day logic,
-      // but included here for completeness)
       startHour = 7;
       startMinute = 0;
     }
@@ -195,11 +241,6 @@ const handleTimeChange = () => {
   updateStartTime();
 };
 
-// Handle duration change
-const handleDurationChange = () => {
-  // The watcher for duration should handle this, but we can add extra logic here if needed
-};
-
 // Helper function to check if a date is in the past
 const isInPast = (date) => {
   if (!date) return false;
@@ -208,7 +249,6 @@ const isInPast = (date) => {
   const checkDate = date instanceof Date ? date : new Date(date);
   
   // Compare just the date parts for dates in the future
-  // This avoids timezone issues with future dates
   if (checkDate.getFullYear() > now.getFullYear()) {
     return false; // Future year
   }
@@ -337,6 +377,15 @@ const updateStartTime = () => {
     // Create date with explicit components to avoid timezone shifts
     const localDate = new Date(year, month - 1, day, hours, minutes, 0, 0);
     
+    // Log the constructed date for debugging
+    console.log('Constructed date:', {
+      date: bookingForm.bookingDate,
+      time: bookingForm.bookingTime,
+      localDate: localDate,
+      localDateISO: localDate.toISOString(),
+      localOffset: localDate.getTimezoneOffset()
+    });
+    
     // Set as ISO string, keeping the local time
     bookingForm.start = localDate.toISOString();
     
@@ -444,29 +493,15 @@ const availableDurationOptions = computed(() => {
 });
 
 // Watches and event handlers
-watch(() => bookingForm.duration, (newDuration, oldDuration) => {
+watch(() => bookingForm.duration, (newDuration) => {
   // Ensure the date remains consistent when changing duration
   if (bookingForm.start) {
-    const originalStart = new Date(bookingForm.start);
-    
     // Recalculate end time while preserving the original date
     bookingForm.end = calculateEndTime(bookingForm.start, newDuration);
-    
-    // Verify and correct any unexpected date changes
-    const newEnd = new Date(bookingForm.end);
-    if (newEnd.getDate() !== originalStart.getDate()) {
-      // If date changed, adjust the end time to stay on the same day
-      const correctedEnd = new Date(
-        originalStart.getFullYear(), 
-        originalStart.getMonth(), 
-        originalStart.getDate(), 
-        originalStart.getHours(), 
-        originalStart.getMinutes() + newDuration
-      );
-      
-      bookingForm.end = correctedEnd.toISOString();
-    }
   }
+  
+  // No need to force a rerender of formattedTimeDisplay as it's a computed property
+  // that will automatically update when bookingForm.duration changes
 });
 
 // Props watch to handle initialization
@@ -633,7 +668,7 @@ defineExpose({
     <UCard class="p-2">
       <div class="mb-4">
         <h2 class="text-xl font-bold mb-2">Create Booking</h2>
-        <p class="text-gray-600">
+        <p class="text-gray-600 whitespace-normal break-words">
           {{ formattedTimeDisplay }}
         </p>
       </div>
@@ -705,7 +740,6 @@ defineExpose({
             :options="availableDurationOptions"
             placeholder="Select duration"
             class="w-full"
-            @update:model-value="handleDurationChange"
             :key="`duration-select-${modelValue}`"
           />
           <p v-if="props.availableCredits !== undefined && props.availableCredits !== null && availableDurationOptions.length === 0" class="text-red-500 text-sm mt-1">

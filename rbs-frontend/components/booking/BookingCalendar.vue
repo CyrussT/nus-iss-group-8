@@ -22,8 +22,6 @@ const props = defineProps({
 const emit = defineEmits([
   'select-timeslot', 
   'click-event', 
-  'drop-event', 
-  'resize-event',
   'date-change'
 ]);
 
@@ -123,28 +121,6 @@ const resources = computed(() => {
     };
   });
 });
-
-// Function to check if a time slot is available
-const isSlotAvailable = (startTime, endTime, resourceId, excludeEventId = null) => {
-  if (!calendarRef.value) return true;
-  
-  const calendarApi = calendarRef.value.getApi();
-  const events = calendarApi.getEvents();
-  
-  return !events.some(event => {
-    // Skip the event being dragged
-    if (event.id === excludeEventId) return false;
-    
-    // Only check events in the same resource
-    if (event.getResources()[0]?.id !== resourceId) return false;
-    
-    // Check for overlap
-    const eventStart = event.start;
-    const eventEnd = event.end;
-    
-    return (startTime < eventEnd && endTime > eventStart);
-  });
-};
 
 // Function to check if a cell is already booked (used for selection validation)
 const isCellBooked = (selectInfo) => {
@@ -269,11 +245,6 @@ const calendarOptions = ref({
     
     return true;
   },
-  eventAllow: (dropInfo, draggedEvent) => {
-    // Only allow events with editable=true to be dragged
-    // This is checked at the event level now
-    return !isInPast(dropInfo.start);
-  },
   slotDuration: '00:30:00',
   slotMinTime: '07:00:00',
   slotMaxTime: '19:00:00',
@@ -359,54 +330,6 @@ const calendarOptions = ref({
     emit('select-timeslot', info);
   },
   
-  eventDrop: (info) => {
-    const { event } = info;
-    const newStart = event.start;
-    const newEnd = event.end;
-    const newResourceId = event.getResources()[0].id;
-    
-    // Check if the new time is in the past
-    if (isInPast(newStart)) {
-      info.revert();
-      alert('Cannot move bookings to times in the past');
-      return;
-    }
-    
-    if (!isSlotAvailable(newStart, newEnd, newResourceId, event.id)) {
-      info.revert();
-      alert('This time slot is already booked for this room');
-    } else {
-      emit('drop-event', {
-        eventId: event.id,
-        newStart,
-        newEnd,
-        newResourceId
-      });
-    }
-  },
-  
-  eventResize: (info) => {
-    const { event } = info;
-    
-    // Check if the new start time would be in the past
-    if (isInPast(event.start)) {
-      info.revert();
-      alert('Cannot resize bookings to start in the past');
-      return;
-    }
-    
-    if (!isSlotAvailable(event.start, event.end, event.getResources()[0].id, event.id)) {
-      info.revert();
-      alert('Cannot resize: This would overlap with another booking');
-    } else {
-      emit('resize-event', {
-        eventId: event.id,
-        newStart: event.start,
-        newEnd: event.end
-      });
-    }
-  },
-  
   eventClick: (info) => {
     emit('click-event', info.event);
   },
@@ -436,30 +359,6 @@ const calendarOptions = ref({
   viewDidMount: () => {
     // Update button states when the view is mounted
     forceDisablePrevButton();
-  },
-  
-  // Add tooltips to show "Already Booked" on booked slots
-  eventRender: (info) => {
-    // Add tooltip
-    const tooltip = document.createElement('div');
-    tooltip.classList.add('event-tooltip');
-    tooltip.innerHTML = `<strong>${info.event.title}</strong><br>
-                         ${formatDate(info.event.start)} - ${formatDate(info.event.end)}`;
-    
-    info.el.addEventListener('mouseover', () => {
-      document.body.appendChild(tooltip);
-    });
-    
-    info.el.addEventListener('mousemove', (evt) => {
-      tooltip.style.top = (evt.pageY + 10) + 'px';
-      tooltip.style.left = (evt.pageX + 10) + 'px';
-    });
-    
-    info.el.addEventListener('mouseout', () => {
-      if (tooltip.parentNode) {
-        tooltip.parentNode.removeChild(tooltip);
-      }
-    });
   }
 });
 
@@ -543,7 +442,6 @@ const addPointerCursorToEvents = () => {
 // Expose methods to parent
 defineExpose({
   getCurrentCalendarDate,
-  isSlotAvailable,
   updateCalendarResources,
   updateCalendarEvents,
   addPointerCursorToEvents
@@ -683,16 +581,5 @@ onMounted(() => {
   opacity: 0.4 !important;
   cursor: not-allowed !important;
   pointer-events: none !important;
-}
-
-/* Tooltip styles */
-.event-tooltip {
-  position: absolute;
-  background-color: rgba(0, 0, 0, 0.8);
-  color: white;
-  padding: 5px 8px;
-  border-radius: 4px;
-  z-index: 10000;
-  font-size: 12px;
 }
 </style>
