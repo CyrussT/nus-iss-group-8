@@ -22,8 +22,6 @@ const props = defineProps({
 const emit = defineEmits([
   'select-timeslot', 
   'click-event', 
-  'drop-event', 
-  'resize-event',
   'date-change'
 ]);
 
@@ -31,9 +29,72 @@ const calendarRef = ref(null);
 
 // Helper function to check if a date is in the past
 const isInPast = (date) => {
+  if (!date) return false;
+  
   const now = new Date();
   const checkDate = date instanceof Date ? date : new Date(date);
-  return checkDate < now;
+  
+  // Compare just the date parts for dates in the future
+  // This avoids timezone issues with future dates
+  if (checkDate.getFullYear() > now.getFullYear()) {
+    return false; // Future year
+  }
+  
+  if (checkDate.getFullYear() === now.getFullYear() && 
+      checkDate.getMonth() > now.getMonth()) {
+    return false; // Future month in same year
+  }
+  
+  if (checkDate.getFullYear() === now.getFullYear() && 
+      checkDate.getMonth() === now.getMonth() && 
+      checkDate.getDate() > now.getDate()) {
+    return false; // Future day in same month and year
+  }
+  
+  // For today, compare with time
+  if (checkDate.getFullYear() === now.getFullYear() && 
+      checkDate.getMonth() === now.getMonth() && 
+      checkDate.getDate() === now.getDate()) {
+    // Same day - compare time
+    return (checkDate.getHours() < now.getHours() || 
+            (checkDate.getHours() === now.getHours() && 
+             checkDate.getMinutes() < now.getMinutes()));
+  }
+  
+  // If we get here, it's a date in the past
+  return true;
+};
+
+// Check if current time is end of day (after 5 PM)
+const isEndOfDay = () => {
+  const now = new Date();
+  return now.getHours() >= 17; // 5 PM or later
+};
+
+// Get the next business day (skip to Monday if it's Friday)
+const getNextBusinessDay = () => {
+  const now = new Date();
+  const nextDay = new Date(now);
+  nextDay.setDate(now.getDate() + 1);
+  
+  // If it's Friday, skip to Monday
+  if (now.getDay() === 5) { // Friday
+    nextDay.setDate(now.getDate() + 3);
+  }
+  
+  return nextDay;
+};
+
+// Function to check if a time slot would end after 7 PM
+const wouldEndAfter7PM = (startTime, duration) => {
+  const start = new Date(startTime);
+  const end = new Date(start.getTime() + duration);
+  
+  // Create a 7 PM reference for the same day
+  const sevenPM = new Date(start);
+  sevenPM.setHours(19, 0, 0, 0);
+  
+  return end > sevenPM;
 };
 
 // Format date for API (YYYY-MM-DD)
@@ -61,25 +122,25 @@ const resources = computed(() => {
   });
 });
 
-// Function to check if a time slot is available
-const isSlotAvailable = (startTime, endTime, resourceId, excludeEventId = null) => {
-  if (!calendarRef.value) return true;
+// Function to check if a cell is already booked (used for selection validation)
+const isCellBooked = (selectInfo) => {
+  if (!calendarRef.value) return false;
   
   const calendarApi = calendarRef.value.getApi();
   const events = calendarApi.getEvents();
+  const resourceId = selectInfo.resource.id;
   
-  return !events.some(event => {
-    // Skip the event being dragged
-    if (event.id === excludeEventId) return false;
-    
+  return events.some(event => {
     // Only check events in the same resource
     if (event.getResources()[0]?.id !== resourceId) return false;
     
     // Check for overlap
+    const selectStart = selectInfo.start;
+    const selectEnd = selectInfo.end;
     const eventStart = event.start;
     const eventEnd = event.end;
     
-    return (startTime < eventEnd && endTime > eventStart);
+    return (selectStart < eventEnd && selectEnd > eventStart);
   });
 };
 
@@ -122,11 +183,23 @@ const forceDisablePrevButton = () => {
   }
 };
 
+// Determine initial date based on time of day
+const getInitialDate = () => {
+  // If it's late in the day (after 5 PM), default to tomorrow
+  if (isEndOfDay()) {
+    const nextDay = getNextBusinessDay();
+    return nextDay.toISOString().split('T')[0]; // Format as YYYY-MM-DD
+  }
+  
+  // Otherwise, use today's date
+  return new Date().toISOString().split('T')[0];
+};
+
 // Calendar options
 const calendarOptions = ref({
   plugins: [resourceTimelinePlugin, interactionPlugin],
   initialView: 'resourceTimelineDay',
-  initialDate: new Date().toISOString().split('T')[0], // Format as YYYY-MM-DD string
+  initialDate: getInitialDate(), // Use the function to determine initial date
   schedulerLicenseKey: 'GPL-My-Project-Is-Open-Source',
   headerToolbar: {
     left: 'prev',
@@ -157,15 +230,20 @@ const calendarOptions = ref({
   resources: [],
   resourceGroupField: 'building',
   events: [],
-  editable: true,
+  editable: false, // Set to false to disable all drag/resize by default
   selectable: true,
   selectAllow: (selectInfo) => {
     // Prevent selecting time slots in the past
-    return !isInPast(selectInfo.start);
-  },
-  eventAllow: (dropInfo, draggedEvent) => {
-    // Prevent dragging events to time slots in the past
-    return !isInPast(dropInfo.start);
+    if (isInPast(selectInfo.start)) return false;
+    
+    // Prevent selecting time slots that are already booked
+    if (isCellBooked(selectInfo)) return false;
+    
+    // Prevent selecting if end time would be after 7 PM
+    // Default selection is usually 30 minutes
+    if (wouldEndAfter7PM(selectInfo.start, 30 * 60000)) return false;
+    
+    return true;
   },
   slotDuration: '00:30:00',
   slotMinTime: '07:00:00',
@@ -206,61 +284,50 @@ const calendarOptions = ref({
   
   // Override default booking modal
   select: (info) => {
-    // Double-check that the selected time slot is not in the past
-    if (isInPast(info.start)) {
+    // Get the selected date and time
+    const selectedDateTime = new Date(info.startStr);
+    const now = new Date();
+    
+    // Improved past date check
+    const isPastDate = 
+      (selectedDateTime.getFullYear() < now.getFullYear()) ||
+      (selectedDateTime.getFullYear() === now.getFullYear() && 
+      selectedDateTime.getMonth() < now.getMonth()) ||
+      (selectedDateTime.getFullYear() === now.getFullYear() && 
+      selectedDateTime.getMonth() === now.getMonth() && 
+      selectedDateTime.getDate() < now.getDate());
+    
+    // Improved same-day past time check
+    const isSameDay = 
+      selectedDateTime.getFullYear() === now.getFullYear() &&
+      selectedDateTime.getMonth() === now.getMonth() &&
+      selectedDateTime.getDate() === now.getDate();
+    
+    const isPastTime = isSameDay && 
+      (selectedDateTime.getHours() < now.getHours() ||
+      (selectedDateTime.getHours() === now.getHours() && 
+      selectedDateTime.getMinutes() < now.getMinutes()));
+    
+    // Only check for past time if it's the same day
+    if (isPastDate || isPastTime) {
       alert('Cannot create bookings in the past');
       return;
     }
     
+    // Double-check that the selected time slot is not already booked
+    if (isCellBooked(info)) {
+      alert('This time slot is already booked');
+      return;
+    }
+    
+    // Check if selected time would result in booking ending after 7 PM
+    // Using default duration of 30 minutes
+    if (wouldEndAfter7PM(info.start, 30 * 60000)) {
+      alert('Bookings cannot extend beyond 7:00 PM');
+      return;
+    }
+    
     emit('select-timeslot', info);
-  },
-  
-  eventDrop: (info) => {
-    const { event } = info;
-    const newStart = event.start;
-    const newEnd = event.end;
-    const newResourceId = event.getResources()[0].id;
-    
-    // Check if the new time is in the past
-    if (isInPast(newStart)) {
-      info.revert();
-      alert('Cannot move bookings to times in the past');
-      return;
-    }
-    
-    if (!isSlotAvailable(newStart, newEnd, newResourceId, event.id)) {
-      info.revert();
-      alert('This time slot is already booked for this room');
-    } else {
-      emit('drop-event', {
-        eventId: event.id,
-        newStart,
-        newEnd,
-        newResourceId
-      });
-    }
-  },
-  
-  eventResize: (info) => {
-    const { event } = info;
-    
-    // Check if the new start time would be in the past
-    if (isInPast(event.start)) {
-      info.revert();
-      alert('Cannot resize bookings to start in the past');
-      return;
-    }
-    
-    if (!isSlotAvailable(event.start, event.end, event.getResources()[0].id, event.id)) {
-      info.revert();
-      alert('Cannot resize: This would overlap with another booking');
-    } else {
-      emit('resize-event', {
-        eventId: event.id,
-        newStart: event.start,
-        newEnd: event.end
-      });
-    }
   },
   
   eventClick: (info) => {
@@ -349,10 +416,35 @@ const updateCalendarEvents = (eventsList) => {
   }
 };
 
+// Add CSS to override FullCalendar's default cursor behavior
+const addPointerCursorToEvents = () => {
+  if (!calendarRef.value) return;
+  
+  setTimeout(() => {
+    const calendarEl = calendarRef.value.getApi().el;
+    
+    // Add a style element with our custom CSS
+    const styleEl = document.createElement('style');
+    styleEl.textContent = `
+      .fc-event,
+      .fc-event-main,
+      .fc-event-draggable,
+      .fc-event-resizable,
+      .fc-timegrid-event {
+        cursor: pointer !important;
+      }
+    `;
+    
+    calendarEl.appendChild(styleEl);
+  }, 200);
+};
+
 // Expose methods to parent
 defineExpose({
   getCurrentCalendarDate,
-  isSlotAvailable
+  updateCalendarResources,
+  updateCalendarEvents,
+  addPointerCursorToEvents
 });
 
 onMounted(() => {
@@ -367,12 +459,14 @@ onMounted(() => {
   setTimeout(() => {
     if (calendarRef.value) {
       forceDisablePrevButton();
+      addPointerCursorToEvents();
     }
   }, 100);
   
   setTimeout(() => {
     if (calendarRef.value) {
       forceDisablePrevButton();
+      addPointerCursorToEvents();
     }
   }, 300);
 });
@@ -439,6 +533,18 @@ onMounted(() => {
 :deep(.fc-resource-group) {
   font-weight: bold;
   background-color: #f0f0f0;
+}
+
+/* Make booked slots show pointer cursor - even for future events */
+:deep(.fc-event),
+:deep(.fc-event-main) {
+  cursor: pointer !important;
+}
+
+/* Override any potential highlighting cursor for future events */
+:deep(.fc-event-draggable),
+:deep(.fc-event-resizable) {
+  cursor: pointer !important;
 }
 
 /* Styles for past events */

@@ -26,7 +26,7 @@ const props = defineProps({
   }
 });
 
-const emit = defineEmits(['update:modelValue', 'edit']);
+const emit = defineEmits(['update:modelValue']);
 
 // Format date for display
 const formatDate = (date) => {
@@ -75,11 +75,6 @@ const getStatusColor = (status) => {
 
 const closeModal = () => {
   emit('update:modelValue', false);
-};
-
-const editBooking = () => {
-  emit('edit', props.booking);
-  closeModal();
 };
 </script>
 
@@ -163,15 +158,6 @@ const editBooking = () => {
             @click="closeModal"
           >
             Close
-          </UButton>
-          
-          <UButton 
-            v-if="!booking.isPast"
-            color="primary"
-            icon="i-heroicons-pencil"
-            @click="editBooking"
-          >
-            Edit
           </UButton>
         </div>
       </template>

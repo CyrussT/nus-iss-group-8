@@ -3,6 +3,7 @@ package com.group8.rbs.service.booking;
 import com.group8.rbs.dto.booking.BookingDTO;
 import com.group8.rbs.dto.booking.BookingResponseDTO;
 import com.group8.rbs.dto.booking.FacilitySearchDTO;
+import com.group8.rbs.dto.facility.FacilityNameOptionsResponse;
 import com.group8.rbs.entities.Account;
 import com.group8.rbs.entities.Booking;
 import com.group8.rbs.entities.Facility;
@@ -13,6 +14,7 @@ import com.group8.rbs.repository.AccountRepository;
 import com.group8.rbs.repository.BookingRepository;
 import com.group8.rbs.repository.CreditRepository;
 import com.group8.rbs.repository.FacilityRepository;
+import com.group8.rbs.repository.FacilityTypeRepository;
 
 import jakarta.transaction.Transactional;
 
@@ -34,6 +36,7 @@ public class BookingService {
     private final BookingRepository bookingRepository;
     private final BookingMapper bookingMapper;
     private final FacilityRepository facilityRepository;
+    private final FacilityTypeRepository facilityTypeRepository;
     private final BookingFacilityMapper bookingFacilityMapper;
     private final AccountRepository accountRepository;
     private final CreditRepository creditRepository;
@@ -42,6 +45,7 @@ public class BookingService {
         BookingRepository bookingRepository, 
         BookingMapper bookingMapper, 
         FacilityRepository facilityRepository, 
+        FacilityTypeRepository facilityTypeRepository,
         BookingFacilityMapper bookingFacilityMapper,
         AccountRepository accountRepository,
         CreditRepository creditRepository
@@ -49,6 +53,7 @@ public class BookingService {
         this.bookingRepository = bookingRepository;
         this.bookingMapper = bookingMapper;
         this.facilityRepository = facilityRepository;
+        this.facilityTypeRepository = facilityTypeRepository;
         this.bookingFacilityMapper = bookingFacilityMapper;
         this.accountRepository = accountRepository;
         this.creditRepository = creditRepository;
@@ -120,8 +125,8 @@ public class BookingService {
                 .collect(Collectors.toList());
     }
 
-    public Map<String, List<String>> getDropdownOptions() {
-        Map<String, List<String>> options = new HashMap<>();
+    public Map<String, Object> getDropdownOptions() {
+        Map<String, Object> options = new HashMap<>();
 
         // Convert Lists to List<Object> for the Map
         options.put("resourceTypes", getResourceTypes());
@@ -131,8 +136,16 @@ public class BookingService {
         return options;
     }
 
-    public List<String> getResourceTypes() {
-        return facilityRepository.findAllResourceTypes();
+    public List<FacilityNameOptionsResponse> getResourceTypes() {
+        List<Object[]> results = facilityTypeRepository.findAllFacilityTypeOptions();
+        
+        return results.stream()
+            .map(result -> {
+                Long id = (Long) result[0];
+                String name = (String) result[1];
+                return new FacilityNameOptionsResponse(id, name);
+            })
+            .collect(Collectors.toList());
     }
 
     public List<String> getLocations() {
