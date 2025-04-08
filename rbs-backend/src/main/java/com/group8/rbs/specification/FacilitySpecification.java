@@ -17,7 +17,7 @@ public class FacilitySpecification {
             List<Predicate> predicates = new ArrayList<>();
 
             if (searchDTO.getResourceTypeId() != null) {
-                predicates.add(criteriaBuilder.equal(root.get("resourceTypeID"), searchDTO.getResourceTypeId()));
+                predicates.add(criteriaBuilder.equal(root.get("resourceTypeId"), searchDTO.getResourceTypeId()));
             }
             
 

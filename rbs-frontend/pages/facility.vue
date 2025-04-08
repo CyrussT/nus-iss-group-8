@@ -99,20 +99,10 @@ onMounted(async () => {
 
     <div class="grid grid-cols-2 gap-4">
 
-      <USelect v-model="searchQuery.resourceTypeId" :items="resourceTypeOptions" value-key="id" option-attribute="name"
-        placeholder="Select Resource Type" />
 
-    
-
-  <USelect
-    v-if="resourceTypeOptions.length > 0"
-    v-model="searchQuery.resourceTypeId"
-    :items="resourceTypeOptions"
-    value-key="id"
-    option-attribute="name"
-    placeholder="Select Resource Type"
-  />
-  <div v-else>Loading...</div>
+      <UInputMenu v-model="searchQuery.resourceTypeId" :options="resourceTypeOptions" option-attribute="name"
+        value-attribute="id" placeholder="Type or select resource type" size="md" class="w-full"
+        clearable />
 
       <UInput v-model="searchQuery.resourceName" placeholder="Resource Name" />
       <UInput v-model="searchQuery.location" placeholder="Location" />
@@ -182,8 +172,11 @@ onMounted(async () => {
       </h2>
       <div class="grid grid-cols-3 gap-4 items-center">
         <label class="text-gray-700 font-medium col-span-1">Resource Type:</label>
-        <USelect v-model="facility.resourceTypeId" :items="resourceTypeOptions" value-key="id" option-attribute="name"
-          placeholder="Select Resource Type" class="col-span-2 w-full" />
+
+          
+      <UInputMenu v-model="facility.resourceTypeId" :options="resourceTypeOptions" option-attribute="name"
+        value-attribute="id" placeholder="Type or select resource type" size="md" class="col-span-2 w-full"
+        clearable />
 
 
         <label class="text-gray-700 font-medium col-span-1">Resource Name:</label>
