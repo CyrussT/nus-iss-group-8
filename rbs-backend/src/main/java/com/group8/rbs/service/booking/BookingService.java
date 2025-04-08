@@ -36,6 +36,7 @@ public class BookingService {
     private final BookingRepository bookingRepository;
     private final BookingMapper bookingMapper;
     private final FacilityRepository facilityRepository;
+    private final FacilityTypeRepository facilityTypeRepository;
     private final BookingFacilityMapper bookingFacilityMapper;
     private final AccountRepository accountRepository;
     private final FacilityTypeRepository facilityTypeRepository;
@@ -46,6 +47,7 @@ public class BookingService {
         BookingMapper bookingMapper, 
         FacilityTypeRepository facilityTypeRepository,
         FacilityRepository facilityRepository, 
+        FacilityTypeRepository facilityTypeRepository,
         BookingFacilityMapper bookingFacilityMapper,
         AccountRepository accountRepository,
         CreditRepository creditRepository
@@ -54,6 +56,7 @@ public class BookingService {
         this.bookingMapper = bookingMapper;
         this.facilityTypeRepository = facilityTypeRepository;
         this.facilityRepository = facilityRepository;
+        this.facilityTypeRepository = facilityTypeRepository;
         this.bookingFacilityMapper = bookingFacilityMapper;
         this.accountRepository = accountRepository;
         this.creditRepository = creditRepository;
@@ -135,11 +138,6 @@ public class BookingService {
         return options;
     }
 
-    public List<String> getResourceTypesResponse() {
-        return facilityTypeRepository.findDistinctNames();
-
-    }
-        
     public List<FacilityNameOptionsResponse> getResourceTypes() {
         List<Object[]> results = facilityTypeRepository.findAllFacilityTypeOptions();
         

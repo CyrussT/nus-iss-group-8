@@ -30,6 +30,7 @@
     "@fullcalendar/resource-timeline": "^6.1.15",
     "@fullcalendar/vue3": "^6.1.15",
     "axios": "^1.7.9",
+    "nuxt-app": "file:",
     "zod": "^3.24.2"
   }
 }
