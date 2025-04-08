@@ -19,7 +19,7 @@ import lombok.Setter;
 public class FacilityRequestDTO {
 
     @NotBlank(message = "Resource type cannot be empty")
-    private String resourceType;
+    private Long resourceTypeId;
 
     @NotBlank(message = "Resource name cannot be empty")
     private String resourceName;

@@ -32,7 +32,7 @@ public class BookingController {
     @GetMapping("/facilities/search")
     public ResponseEntity<List<FacilitySearchDTO>> searchFacilities(
             @RequestParam(required = false) Long facilityId,
-            @RequestParam(required = false) String resourceType,
+            @RequestParam(required = false) Long resourceTypeId,
             @RequestParam(required = false) String resourceName,
             @RequestParam(required = false) String location,
             @RequestParam(required = false) Integer capacity,
@@ -40,7 +40,7 @@ public class BookingController {
 
         FacilitySearchDTO searchCriteria = FacilitySearchDTO.builder()
                 .facilityId(facilityId)
-                .resourceType(resourceType)
+                .resourceTypeId(resourceTypeId)
                 .resourceName(resourceName)
                 .location(location)
                 .capacity(capacity)

@@ -50,7 +50,7 @@ public class BookingFacilityMapper {
         
         return FacilitySearchDTO.builder()
                 .facilityId(facility.getFacilityId())
-                .resourceType(facility.getResourceType())
+                .resourceTypeId(facility.getResourceTypeId())
                 .resourceName(facility.getResourceName())
                 .location(facility.getLocation())
                 .capacity(facility.getCapacity())

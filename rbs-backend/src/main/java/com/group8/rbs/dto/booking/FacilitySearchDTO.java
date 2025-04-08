@@ -14,7 +14,7 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class FacilitySearchDTO {
     private Long facilityId;
-    private String resourceType;
+    private Long resourceTypeId;
     private String resourceName;
     private String location;
     private Integer capacity;

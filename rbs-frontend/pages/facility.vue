@@ -3,14 +3,13 @@ definePageMeta({
   middleware: ['auth', 'admin']
 });
 
-
 import { useRouter } from "vue-router";
 import { computed, onMounted, ref } from "vue";
 import type { Facility } from "@/composables/useFacility";
 import { useFacility } from "@/composables/useFacility";
 import axios from "axios";
 
-const auth = useAuthStore();
+
 const router = useRouter();
 const isModalOpen = ref(false);
 const isEditing = ref(false);
@@ -30,6 +29,8 @@ const {
   currentPage,
   totalItems,
   pageSize,
+  fetchResourceTypes,
+  resourceTypeOptions,
 } = useFacility();
 
 
@@ -37,7 +38,7 @@ const openModal = (facilityData: Partial<Facility> | null = null) => {
   if (facilityData && typeof facilityData === "object") {
     facility.value = {
       facilityId: facilityData.facilityId ?? undefined,
-      resourceType: facilityData.resourceType ?? "",
+      resourceTypeId: facilityData.resourceTypeId ?? undefined,
       resourceName: facilityData.resourceName ?? "",
       location: facilityData.location ?? "",
       capacity: facilityData.capacity ?? 1,
@@ -65,7 +66,6 @@ const viewFacility = (facilityId: number) => {
   router.push(`/facility-details/${facilityId}`);
 };
 
-
 const saveFacility = async () => {
   try {
     if (isEditing.value) {
@@ -83,7 +83,14 @@ const saveFacility = async () => {
   }
 };
 
-onMounted(fetchFacilities);
+
+
+onMounted(async () => {
+  await fetchResourceTypes();
+  console.log("resourceTypeOptions:", resourceTypeOptions.value); // Add this line
+  fetchFacilities();
+});
+
 </script>
 
 <template>
@@ -91,15 +98,21 @@ onMounted(fetchFacilities);
     <h1 class="text-2xl font-bold mb-4">Facility Management</h1>
 
     <div class="grid grid-cols-2 gap-4">
-      <UInput v-model="searchQuery.resourceType" placeholder="Resource Type" />
+
+
+      <UInputMenu v-model="searchQuery.resourceTypeId" :options="resourceTypeOptions" option-attribute="name"
+        value-attribute="id" placeholder="Type or select resource type" size="md" class="w-full"
+        clearable />
+
       <UInput v-model="searchQuery.resourceName" placeholder="Resource Name" />
       <UInput v-model="searchQuery.location" placeholder="Location" />
       <UInput v-model="searchQuery.capacity" type="number" placeholder="Capacity" />
 
       <div class="col-span-2 flex justify-end gap-2">
 
-        <UButton @click="fetchFacilities" color="blue" variant="solid" icon="i-ic:baseline-search" label="Search"
-          class="px-4 py-2 gap-2" />
+        <UButton @click="() => { currentPage = 1; fetchFacilities(); }" color="blue" variant="solid"
+          icon="i-ic:baseline-search" label="Search" class="px-4 py-2 gap-2" />
+
 
         <UButton @click="resetSearch" color="gray" variant="solid" icon="i-ic:round-restart-alt" label="Reset"
           class="px-4 py-2 gap-2 hover:bg-red-500" />
@@ -114,7 +127,7 @@ onMounted(fetchFacilities);
       <div class="mt-6 overflow-x-auto">
         <UTable :rows="facilities" :loading="loading" :columns="[
           { key: 'sn', label: 'SN', sortable: false },
-          { key: 'resourceType', label: 'Type', sortable: true },
+          { key: 'resourceTypeName', label: 'Resource Type', sortable: true },
           { key: 'resourceName', label: 'Name', sortable: true },
           { key: 'location', label: 'Location', sortable: true },
           { key: 'capacity', label: 'Capacity', sortable: true },
@@ -127,8 +140,9 @@ onMounted(fetchFacilities);
           <template #actions-data="{ row }">
             <div class="flex justify-center gap-2">
 
-              <UButton @click="viewFacility(row.facilityId)" color="blue" variant="solid" icon="i-heroicons-eye" label="View" />
-              
+              <UButton @click="viewFacility(row.facilityId)" color="blue" variant="solid" icon="i-heroicons-eye"
+                label="View" />
+
               <UButton @click="openModal(row)" color="yellow" variant="solid" icon="i-heroicons-pencil" label="Edit"
                 class="px-3 py-1 gap-2" />
 
@@ -158,7 +172,12 @@ onMounted(fetchFacilities);
       </h2>
       <div class="grid grid-cols-3 gap-4 items-center">
         <label class="text-gray-700 font-medium col-span-1">Resource Type:</label>
-        <UInput v-model="facility.resourceType" class="col-span-2 w-full" />
+
+          
+      <UInputMenu v-model="facility.resourceTypeId" :options="resourceTypeOptions" option-attribute="name"
+        value-attribute="id" placeholder="Type or select resource type" size="md" class="col-span-2 w-full"
+        clearable />
+
 
         <label class="text-gray-700 font-medium col-span-1">Resource Name:</label>
         <UInput v-model="facility.resourceName" class="col-span-2 w-full" />

@@ -36,24 +36,24 @@ public class BookingService {
     private final BookingRepository bookingRepository;
     private final BookingMapper bookingMapper;
     private final FacilityRepository facilityRepository;
-    private final FacilityTypeRepository facilityTypeRepository;
     private final BookingFacilityMapper bookingFacilityMapper;
     private final AccountRepository accountRepository;
+    private final FacilityTypeRepository facilityTypeRepository;
     private final CreditRepository creditRepository;
 
     public BookingService(
         BookingRepository bookingRepository, 
         BookingMapper bookingMapper, 
-        FacilityRepository facilityRepository, 
         FacilityTypeRepository facilityTypeRepository,
+        FacilityRepository facilityRepository, 
         BookingFacilityMapper bookingFacilityMapper,
         AccountRepository accountRepository,
         CreditRepository creditRepository
         ) {
         this.bookingRepository = bookingRepository;
         this.bookingMapper = bookingMapper;
-        this.facilityRepository = facilityRepository;
         this.facilityTypeRepository = facilityTypeRepository;
+        this.facilityRepository = facilityRepository;
         this.bookingFacilityMapper = bookingFacilityMapper;
         this.accountRepository = accountRepository;
         this.creditRepository = creditRepository;
@@ -62,14 +62,13 @@ public class BookingService {
     public List<FacilitySearchDTO> searchFacilities(FacilitySearchDTO searchCriteria) {
         // Filter the facilities based on search criteria
         List<Facility> filteredFacilities = facilityRepository.findAll().stream()
-                .filter(facility -> {
-                    // Resource Type filter
-                    if (StringUtils.hasText(searchCriteria.getResourceType()) &&
-                            !facility.getResourceType().toLowerCase().contains(
-                                    searchCriteria.getResourceType().toLowerCase())) {
-                        return false;
-                    }
-
+        .filter(facility -> {
+            // Resource Type filter
+            if (searchCriteria.getResourceTypeId() != null && 
+            !searchCriteria.getResourceTypeId().equals(facility.getResourceTypeId())) {
+            return false;
+        }
+        
                     // Resource Name filter
                     if (StringUtils.hasText(searchCriteria.getResourceName()) &&
                             !facility.getResourceName().toLowerCase().contains(
@@ -191,9 +190,10 @@ public class BookingService {
     }
 
     // To set to pending or instant approve based on facility type
-      BookingStatus bookingStatus = facility.getResourceType().equals("5")
-              ? BookingStatus.PENDING // Sports & Recreation requires approval
-              : BookingStatus.APPROVED;
+    BookingStatus bookingStatus = facility.getResourceTypeId().equals(5L)
+    ? BookingStatus.PENDING
+    : BookingStatus.APPROVED;
+
 
       // Create the booking entity
       Booking booking = Booking.builder()

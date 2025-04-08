@@ -31,7 +31,7 @@ public class Facility {
     private Long facilityId;
 
     @Column(name = "RESOURCE_TYPE", nullable = false)
-    private String resourceType;
+    private Long resourceTypeId;
 
     @Column(name = "RESOURCE_NAME", nullable = false)
     private String resourceName;

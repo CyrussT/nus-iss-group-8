@@ -11,7 +11,7 @@ public class FacilityMapper {
     public FacilityResponseDTO toDTO(Facility facility) {
         FacilityResponseDTO dto = new FacilityResponseDTO();
         dto.setFacilityId(facility.getFacilityId());
-        dto.setResourceType(facility.getResourceType());
+        dto.setResourceTypeId(facility.getResourceTypeId());
         dto.setResourceName(facility.getResourceName());
         dto.setLocation(facility.getLocation());
         dto.setCapacity(facility.getCapacity());
@@ -20,7 +20,7 @@ public class FacilityMapper {
 
     public Facility toEntity(FacilityRequestDTO dto) {
         return Facility.builder()
-                .resourceType(dto.getResourceType())
+                .resourceTypeId(dto.getResourceTypeId())
                 .resourceName(dto.getResourceName())
                 .location(dto.getLocation())
                 .capacity(dto.getCapacity())
