@@ -15,4 +15,7 @@ public interface FacilityTypeRepository extends JpaRepository<FacilityType, Long
     // Custom query to fetch distinct names
     @Query("SELECT DISTINCT ft.name FROM FacilityType ft")
     List<String> findDistinctNames();
+    // query to fetch dropdown options
+    @Query("SELECT DISTINCT ft.id, ft.name FROM FacilityType ft ORDER BY ft.id")
+    List<Object[]> findAllFacilityTypeOptions();
 }

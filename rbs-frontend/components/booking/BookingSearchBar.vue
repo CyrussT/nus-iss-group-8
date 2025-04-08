@@ -64,6 +64,8 @@ const handleReset = () => {
         <UInputMenu
           v-model="searchQuery.resourceType"
           :options="resourceTypeOptions"
+          option-attribute="facilityType"
+          value-attribute="facilityTypeId"
           placeholder="Type or select resource type"
           size="md"
           class="w-full"

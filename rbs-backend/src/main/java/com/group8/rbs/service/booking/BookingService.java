@@ -3,6 +3,7 @@ package com.group8.rbs.service.booking;
 import com.group8.rbs.dto.booking.BookingDTO;
 import com.group8.rbs.dto.booking.BookingResponseDTO;
 import com.group8.rbs.dto.booking.FacilitySearchDTO;
+import com.group8.rbs.dto.facility.FacilityNameOptionsResponse;
 import com.group8.rbs.entities.Account;
 import com.group8.rbs.entities.Booking;
 import com.group8.rbs.entities.Facility;
@@ -53,6 +54,7 @@ public class BookingService {
         this.bookingMapper = bookingMapper;
         this.facilityTypeRepository = facilityTypeRepository;
         this.facilityRepository = facilityRepository;
+        this.facilityTypeRepository = facilityTypeRepository;
         this.bookingFacilityMapper = bookingFacilityMapper;
         this.accountRepository = accountRepository;
         this.creditRepository = creditRepository;
@@ -123,8 +125,8 @@ public class BookingService {
                 .collect(Collectors.toList());
     }
 
-    public Map<String, List<String>> getDropdownOptions() {
-        Map<String, List<String>> options = new HashMap<>();
+    public Map<String, Object> getDropdownOptions() {
+        Map<String, Object> options = new HashMap<>();
 
         // Convert Lists to List<Object> for the Map
         options.put("resourceTypes", getResourceTypes());
@@ -134,8 +136,21 @@ public class BookingService {
         return options;
     }
 
-    public List<String> getResourceTypes() {
+    public List<String> getResourceTypesResponse() {
         return facilityTypeRepository.findDistinctNames();
+
+    }
+        
+    public List<FacilityNameOptionsResponse> getResourceTypes() {
+        List<Object[]> results = facilityTypeRepository.findAllFacilityTypeOptions();
+        
+        return results.stream()
+            .map(result -> {
+                Long id = (Long) result[0];
+                String name = (String) result[1];
+                return new FacilityNameOptionsResponse(id, name);
+            })
+            .collect(Collectors.toList());
     }
 
     public List<String> getLocations() {
