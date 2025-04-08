@@ -54,7 +54,6 @@ public class BookingService {
         this.bookingMapper = bookingMapper;
         this.facilityTypeRepository = facilityTypeRepository;
         this.facilityRepository = facilityRepository;
-        this.facilityTypeRepository = facilityTypeRepository;
         this.bookingFacilityMapper = bookingFacilityMapper;
         this.accountRepository = accountRepository;
         this.creditRepository = creditRepository;
