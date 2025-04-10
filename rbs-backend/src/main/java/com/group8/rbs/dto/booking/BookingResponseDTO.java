@@ -19,4 +19,6 @@ public class BookingResponseDTO {
     private String timeslot;
     private String status;
     private String email;
+    private String title;
+    private String description;
 }

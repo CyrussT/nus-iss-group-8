@@ -47,6 +47,12 @@ public class Booking {
     @Column(name = "TIMESLOT", nullable = false)
     private String timeSlot;
 
+    @Column(name = "TITLE", nullable = false)
+    private String title;
+
+    @Column(name = "DESCRIPTION", nullable = true)
+    private String description;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "STATUS", nullable = false)
     private BookingStatus status;

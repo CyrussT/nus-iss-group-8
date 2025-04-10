@@ -1,24 +1,6 @@
 import { ref } from "vue";
 import axios from "axios";
-
-// Define interfaces
-export interface Booking {
-  bookingId: number;
-  facilityName: string;
-  location: string;
-  bookedDatetime: string;
-  timeslot: string;
-  status: string;
-}
-
-export interface Facility {
-  facilityId: number;
-  resourceName: string;
-  location: string;
-  resourceType: string;
-  capacity: number;
-  bookings: Array<any>;
-}
+import type { Booking, Facility } from "./useFacility"; // Import interfaces from useFacility.ts
 
 export interface SearchCriteria {
   resourceType?: string;
@@ -36,7 +18,6 @@ export interface BookingRequest {
   timeSlot: string;
   title: string;
   description: string;
-  attendees: string;
   creditsUsed: string | number;
 }
 
@@ -244,7 +225,6 @@ export function useBooking() {
         timeSlot: timeSlot,
         title: booking.title,
         description: booking.description,
-        attendees: booking.attendees,
         creditsUsed: booking.creditsUsed
       };
       

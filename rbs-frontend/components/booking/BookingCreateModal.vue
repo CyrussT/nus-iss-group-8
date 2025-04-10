@@ -362,7 +362,6 @@ const bookingForm = reactive({
     ? `${new Date(props.startTime).getHours().toString().padStart(2, '0')}:${new Date(props.startTime).getMinutes().toString().padStart(2, '0')}` 
     : getNextHalfHourFormatted(),
   duration: 30, // Default to 0.5 hours
-  attendees: '',
   start: props.startTime || '',
   end: ''
 });
@@ -403,7 +402,6 @@ const resetForm = () => {
   bookingForm.bookingDate = getTodayFormatted();
   bookingForm.bookingTime = getNextHalfHourFormatted();
   bookingForm.duration = 30;
-  bookingForm.attendees = '';
   bookingForm.start = '';
   bookingForm.end = '';
 };
@@ -499,9 +497,6 @@ watch(() => bookingForm.duration, (newDuration) => {
     // Recalculate end time while preserving the original date
     bookingForm.end = calculateEndTime(bookingForm.start, newDuration);
   }
-  
-  // No need to force a rerender of formattedTimeDisplay as it's a computed property
-  // that will automatically update when bookingForm.duration changes
 });
 
 // Props watch to handle initialization
@@ -624,7 +619,6 @@ const submitBooking = async () => {
     start: bookingForm.start,
     end: bookingForm.end,
     description: bookingForm.description,
-    attendees: bookingForm.attendees,
     creditsUsed: bookingForm.duration.toString(), // Convert duration to string for creditsUsed
     
     // Add these for debugging or potential API use
@@ -758,17 +752,6 @@ defineExpose({
             placeholder="Add details about this booking"
             class="w-full"
             rows="3"
-          />
-        </div>
-        
-        <!-- Attendees field -->
-        <div>
-          <label class="block text-sm font-medium mb-1">Attendees</label>
-          <UTextarea
-            v-model="bookingForm.attendees"
-            placeholder="Add attendees (one per line)"
-            class="w-full"
-            rows="2"
           />
         </div>
       </div>

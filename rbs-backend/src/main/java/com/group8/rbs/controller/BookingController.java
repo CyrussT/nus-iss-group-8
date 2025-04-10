@@ -231,7 +231,7 @@ public class BookingController {
             if (emailSent) {
                 return ResponseEntity.ok("Booking approved successfully and approval email sent.");
             } else {
-                return ResponseEntity.ok("Booking approved successfully, but failed to send rejection email.");
+                return ResponseEntity.ok("Booking approved successfully, but failed to send approval email.");
             }
         }
 

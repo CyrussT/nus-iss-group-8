@@ -11,17 +11,31 @@ import { useBooking } from '#imports';
 const auth = useAuthStore();
 const { apiUrl } = useApi();
 const toast = useToast();
-const { availableCredits, fetchAvailableCredits, searchFacilities, fetchDropdownOptions, createBooking, facilities, searchLoading } = useBooking();
+// Get all the booking related functions from the useBooking composable
+const bookingModule = useBooking();
+const { 
+  availableCredits, 
+  fetchAvailableCredits, 
+  searchFacilities, 
+  fetchDropdownOptions, 
+  createBooking, 
+  facilities, 
+  searchLoading 
+} = bookingModule;
 
 // State variables
 const bookings = ref([]);
 const loading = ref(true);
 const optionsLoading = ref(false);
+const hasSearched = ref(false); // Track if a search has been performed
 
 // Dropdown options
 const resourceTypeOptions = ref([]);
 const resourceNameOptions = ref([]);
 const locationOptions = ref([]);
+
+// Current search criteria to track for "No Results" messaging
+const currentSearchCriteria = ref({});
 
 // Selected booking info for modals
 const selectedBookingInfo = reactive({
@@ -41,18 +55,17 @@ const selectedBooking = reactive({
   location: '',
   status: '',
   description: '',
-  attendees: '',
   isPast: false,
   studentId: '',
   studentName: ''
 });
 
-// Legend items for booking status colors
+// Legend items for booking status colors with more accessible colors
 const legendItems = [
-  { status: 'APPROVED', color: '#2e7d32', label: 'Approved' },
-  { status: 'CONFIRMED', color: '#1976d2', label: 'Confirmed' },
-  { status: 'PENDING', color: '#f57c00', label: 'Pending' },
-  { status: 'MY_BOOKING', color: '#9c27b0', label: 'My Booking' }
+  { status: 'OCCUPIED', color: '#ff9999', label: 'Occupied' },     
+  { status: 'PENDING', color: '#b8b8b8', label: 'Pending' },       
+  { status: 'MY_BOOKING', color: '#b088ff', label: 'My Booking (Approved)' }, 
+  { status: 'MY_PENDING_BOOKING', color: '#7fa2e6', label: 'My Booking (Pending)' } 
 ];
 
 // Format minutes to 0.5 hour increments
@@ -79,7 +92,7 @@ const formatCredits = computed(() => {
 
 // Get current user email for checking own bookings
 const currentUserEmail = computed(() => auth.user.value?.email || '');
-const currentUserId = computed(() => auth.user.value?.id || '');
+// const currentUserId = computed(() => auth.user.value?.id || '');
 
 // Modal visibility
 const isCreateModalOpen = ref(false);
@@ -187,6 +200,16 @@ const addPointerCursorToEvents = () => {
         .fc-timegrid-event {
           cursor: pointer !important;
         }
+        
+        /* Hide event title text */
+        .fc-event-title {
+          display: none !important;
+        }
+        
+        /* Make timegrid cell display pointer cursor to indicate it's clickable */
+        .fc-timegrid-slot, .fc-timeline-slot-frame {
+          cursor: pointer !important;
+        }
       `;
       
       calendarEl.appendChild(styleEl);
@@ -199,13 +222,55 @@ const addPointerCursorToEvents = () => {
 // Handle search with criteria
 const handleSearch = async (searchCriteria) => {
   try {
-    // Get the current date from the calendar if available
+    // Set the hasSearched flag to true since we're performing a search
+    hasSearched.value = true;
+    
+    // Store the current search criteria for potential "No Results" messaging
+    // but exclude internal parameters that start with underscore
+    currentSearchCriteria.value = { ...searchCriteria };
+    Object.keys(currentSearchCriteria.value).forEach(key => {
+      if (key.startsWith('_')) {
+        delete currentSearchCriteria.value[key];
+      }
+    });
+    
+    // Get the current date from the calendar if available or from the search criteria
     let currentDate = '';
-    if (calendarRef.value) {
+    
+    // First check if date was explicitly provided in search criteria
+    if (searchCriteria._date) {
+      currentDate = searchCriteria._date;
+      console.log("Using provided date parameter:", currentDate);
+    } 
+    // Then check the calendar reference
+    else if (calendarRef.value) {
       currentDate = calendarRef.value.getCurrentCalendarDate();
+      console.log("Using calendar date:", currentDate);
+    } 
+    // Finally use today as a fallback
+    else {
+      // If calendar ref is not available, use today's date as fallback
+      const today = new Date();
+      currentDate = formatDateForApi(today);
+      console.log("Using today's date as fallback:", currentDate);
     }
     
-    await searchFacilities(apiUrl, auth.token.value, searchCriteria, currentDate);
+    // Ensure we always have a date to prevent the backend error
+    if (!currentDate) {
+      const today = new Date();
+      currentDate = formatDateForApi(today);
+      console.log("No date available, using today:", currentDate);
+    }
+    
+    // Remove internal parameters from the search criteria before sending to API
+    const apiSearchCriteria = { ...searchCriteria };
+    Object.keys(apiSearchCriteria).forEach(key => {
+      if (key.startsWith('_')) {
+        delete apiSearchCriteria[key];
+      }
+    });
+    
+    await searchFacilities(apiUrl, auth.token.value, apiSearchCriteria, currentDate);
     processBookings();
   } catch (error) {
     console.error('Error handling search:', error);
@@ -219,12 +284,62 @@ const handleSearch = async (searchCriteria) => {
 
 // Handle reset search
 const handleReset = () => {
-  handleSearch({});
+  // Reset hasSearched flag
+  hasSearched.value = false;
+  
+  // Clear the current search criteria but preserve the date
+  currentSearchCriteria.value = {};
+  
+  // Get the current date from the calendar if available
+  let currentDate = '';
+  if (calendarRef.value) {
+    currentDate = calendarRef.value.getCurrentCalendarDate();
+    console.log("Reset using calendar date:", currentDate);
+  } else {
+    // If calendar ref is not available, use today's date as fallback
+    const today = new Date();
+    currentDate = formatDateForApi(today);
+    console.log("Using today's date as fallback:", currentDate);
+  }
+  
+  // Call handleSearch with empty criteria but include the current calendar date
+  // This preserves the calendar's date while clearing all search criteria
+  handleSearch({ _date: currentDate });
+  
+  // Emit an event to tell the BookingSearchBar to reset its form fields
+  // We'll implement this in the BookingSearchBar component
+  if (document.querySelector('.booking-search-bar')) {
+    document.querySelector('.booking-search-bar').dispatchEvent(
+      new CustomEvent('reset-search-fields')
+    );
+  }
+};
+
+// Handle reset search from calendar component
+const handleResetSearchFromCalendar = (data) => {
+  // Include date information if provided from the calendar
+  const resetOptions = data && data.date ? { _date: data.date } : {};
+  
+  // Reset hasSearched flag
+  hasSearched.value = false;
+  
+  // Clear current search criteria
+  currentSearchCriteria.value = {};
+  
+  // Perform search with reset options
+  handleSearch(resetOptions);
+  
+  // Also reset the search form
+  if (document.querySelector('.booking-search-bar')) {
+    document.querySelector('.booking-search-bar').dispatchEvent(
+      new CustomEvent('reset-search-fields')
+    );
+  }
 };
 
 // Handle calendar date change
 const handleDateChange = () => {
-  handleSearch({});
+  handleSearch(currentSearchCriteria.value);
 };
 
 // Handle timeslot selection
@@ -278,15 +393,14 @@ const handleTimeslotSelect = (info) => {
 const handleEventClick = (event) => {
   Object.assign(selectedBooking, {
     id: event.id,
-    title: event.title,
+    title: event.extendedProps?.title || event.title || 'Untitled Booking', // Look for title in extendedProps first
     start: event.start,
     end: event.end,
     resourceId: event.getResources()[0]?.id || '',
     resourceName: event.getResources()[0]?.title || 'Unknown Resource',
     location: event.extendedProps?.location || '',
     status: event.extendedProps?.status || 'Unknown',
-    description: event.extendedProps?.description || '',
-    attendees: event.extendedProps?.attendees || '',
+    description: event.extendedProps?.originalDescription || event.extendedProps?.description || '', // Use original description
     isPast: event.extendedProps?.isPast || false,
     studentId: event.extendedProps?.studentId || '',
     studentName: event.extendedProps?.studentName || ''
@@ -299,6 +413,9 @@ const handleEventClick = (event) => {
 const processBookings = () => {
   const allBookings = [];
   const now = new Date();
+
+  // Get current user email for comparison
+  console.log("Current user email:", currentUserEmail.value);
   
   if (facilities.value && facilities.value.length > 0) {
     facilities.value.forEach(facility => {
@@ -312,6 +429,9 @@ const processBookings = () => {
               console.error('Booking has no timeslot:', booking);
               return; // Skip this booking
             }
+            
+            // Log booking details for debugging
+            console.log(`Processing booking ${booking.bookingId} with email: ${booking.email}, status: ${booking.status}`);
             
             // Handle different timeslot formats (with or without spaces)
             let startTime, endTime;
@@ -354,39 +474,73 @@ const processBookings = () => {
               // Check if this booking is in the past
               const isPastBooking = endDateTime < now;
               
-              // Check if this booking belongs to the current user
-              const isMyBooking = booking.studentId === currentUserId.value || 
-                                 booking.studentId === auth.user.value?.studentId;
+              // Simple direct string comparison with booking email
+              const isMyBooking = booking.email === currentUserEmail.value;
               
-              // Select color based on status and whether it's user's own booking
+              console.log(`Is booking ${booking.bookingId} mine? ${isMyBooking}`);
+              
+              // Select color based on a combination of:
+              // 1. Whether it's your booking or not
+              // 2. The status of the booking (PENDING, APPROVED, etc.)
               let backgroundColor;
+              let borderColor;
+              let legendStatus;
+              
               if (isMyBooking) {
-                backgroundColor = '#9c27b0'; // Purple for own bookings
+                if (booking.status === 'PENDING') {
+                  // Your pending booking - darker blue
+                  backgroundColor = '#7fa2e6'; // Updated color
+                  borderColor = '#6c8fd3'; // Darker border
+                  legendStatus = 'MY_PENDING_BOOKING';
+                  console.log(`Setting booking ${booking.bookingId} as MY PENDING BOOKING with blue color`);
+                } else {
+                  // Your approved booking - darker purple
+                  backgroundColor = '#b088ff'; // Updated color
+                  borderColor = '#9e75ec'; // Darker border
+                  legendStatus = 'MY_BOOKING';
+                  console.log(`Setting booking ${booking.bookingId} as MY APPROVED BOOKING with purple color`);
+                }
               } else {
-                backgroundColor = booking.status === 'APPROVED' ? '#2e7d32' : 
-                                 booking.status === 'CONFIRMED' ? '#1976d2' : '#f57c00';
+                if (booking.status === 'PENDING') {
+                  // Other's pending booking - darker grey
+                  backgroundColor = '#b8b8b8'; // Updated color
+                  borderColor = '#a7a7a7'; // Darker border
+                  legendStatus = 'PENDING';
+                  console.log(`Setting booking ${booking.bookingId} as OTHER'S PENDING BOOKING with grey color`);
+                } else {
+                  // Other's approved booking - darker red
+                  backgroundColor = '#ff9999'; // Updated color
+                  borderColor = '#ee8888'; // Darker border
+                  legendStatus = 'OCCUPIED';
+                  console.log(`Setting booking ${booking.bookingId} as OTHER'S APPROVED BOOKING with red color`);
+                }
               }
               
               // Create the booking event object for FullCalendar
               allBookings.push({
                 id: booking.bookingId.toString(),
                 resourceId: facility.facilityId.toString(),
-                title: booking.facilityName || facility.resourceName,
+                title: '', // Keep empty for visual purposes
                 start: startDateTime.toISOString(),
                 end: endDateTime.toISOString(),
                 backgroundColor: backgroundColor,
+                borderColor: borderColor,
+                textColor: 'transparent', // Make text invisible
                 editable: false, // Disable all drag and resize for bookings
                 durationEditable: false,
                 startEditable: false,
                 extendedProps: {
                   status: booking.status,
+                  legendStatus: legendStatus,
                   location: booking.location || facility.location,
                   isPast: isPastBooking,
-                  description: '',
-                  attendees: '',
+                  description: booking.description || '',
                   studentId: booking.studentId || '',
                   studentName: booking.studentName || '',
-                  isMyBooking: isMyBooking
+                  isMyBooking: isMyBooking,
+                  // Store the original title and description
+                  title: booking.title || '', // Add this line
+                  originalDescription: booking.description || '' // Add this line
                 }
               });
             }
@@ -419,7 +573,7 @@ const handleCreateBooking = async (booking) => {
     });
     
     // Refresh the calendar to show the new booking
-    await handleSearch({});
+    await handleSearch(currentSearchCriteria.value);
     
     // Refresh available credits since we just used some
     await fetchAvailableCredits(auth.user.value.email);
@@ -473,32 +627,37 @@ const loadDropdownOptions = async () => {
   }
 };
 
-onMounted(() => {
+// Fixed onMounted hook to prevent duplicate API calls
+onMounted(async () => {
   console.log('Component mounted, initializing');
   loading.value = true;
 
-  fetchAvailableCredits(auth.user.value.email);
-  
-  // First fetch dropdown options
-  loadDropdownOptions()
-    .then(() => {
-      // Then search for facilities
-      return handleSearch({});
-    })
-    .then(() => {
-      // Apply cursor styles
-      addPointerCursorToEvents();
-      loading.value = false;
-    })
-    .catch(error => {
-      console.error('Error during initialization:', error);
-      loading.value = false;
-      toast.add({
-        title: 'Error',
-        description: 'Failed to initialize booking system. Please try refreshing the page.',
-        color: 'red'
-      });
+  try {
+    // Fetch available credits first
+    await fetchAvailableCredits(auth.user.value.email);
+    
+    // Then load dropdown options
+    await loadDropdownOptions();
+    
+    // Get today's date
+    const today = new Date();
+    const formattedToday = formatDateForApi(today);
+    
+    // Only after options are loaded, do a single search with today's date
+    await handleSearch({});
+    
+    // Apply cursor styles
+    addPointerCursorToEvents();
+  } catch (error) {
+    console.error('Error during initialization:', error);
+    toast.add({
+      title: 'Error',
+      description: 'Failed to initialize booking system. Please try refreshing the page.',
+      color: 'red'
     });
+  } finally {
+    loading.value = false;
+  }
 });
 
 // Watch for bookings changes if needed
@@ -507,6 +666,11 @@ watch(() => bookings.value, (newBookings) => {
     // Apply pointer cursor after booking updates
     addPointerCursorToEvents();
   }
+}, { deep: true });
+
+// Watch for facilities changes to detect empty results
+watch(() => facilities.value, (newFacilities) => {
+  console.log("Facilities updated:", newFacilities ? newFacilities.length : 0, "facilities found");
 }, { deep: true });
 </script>
 
@@ -527,24 +691,47 @@ watch(() => bookings.value, (newBookings) => {
     />
     
     <!-- Legend for booking status colors and available credits -->
-    <div class="mt-4 p-3 bg-white rounded-md shadow">
-      <div class="flex justify-between items-center mb-2">
+    <div class="mt-4 p-4 bg-white rounded-md shadow">
+      <div class="flex justify-between items-center mb-3">
         <h3 class="text-sm font-medium">Booking Status Legend:</h3>
         <div class="flex items-center">
           <span class="text-sm font-medium mr-2">Available Credits:</span>
-          <span class="text-sm bg-blue-100 text-blue-800 px-2 py-1 rounded font-semibold">
+          <span class="text-sm bg-blue-100 text-blue-800 px-3 py-1 rounded font-semibold">
             {{ formatCredits }}
           </span>
         </div>
       </div>
-      <div class="flex flex-wrap gap-4">
-        <div v-for="item in legendItems" :key="item.status" class="flex items-center">
+      
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-3">
+        <div v-for="item in legendItems" :key="item.status" 
+            class="flex items-center p-2 rounded-md border border-gray-100 hover:bg-gray-50 transition-colors">
           <div 
-            class="w-4 h-4 rounded mr-1" 
+            class="w-7 h-7 rounded-md mr-3 border border-gray-200" 
             :style="{ backgroundColor: item.color }"
           ></div>
-          <span class="text-sm">{{ item.label }}</span>
+          <span class="text-sm font-medium">{{ item.label }}</span>
         </div>
+      </div>
+      
+      <!-- Hint about calendar clicking -->
+      <div class="text-xs text-gray-600 mt-3 flex items-center p-2 bg-blue-50 rounded-md">
+        <UIcon name="i-heroicons-information-circle" class="mr-2 text-blue-500" size="sm" />
+        <span>Click on an empty timeslot in the calendar grid to create a new booking. Click on a colored slot to view its details.</span>
+      </div>
+    </div>
+    
+    <!-- Centralized No results message - only shown when search is performed but no facilities found -->
+    <div v-if="hasSearched && (!facilities || facilities.length === 0) && !loading && !searchLoading" class="mt-4 p-6 bg-white rounded-md shadow text-center">
+      <UIcon name="i-heroicons-magnifying-glass" class="mx-auto mb-3 text-gray-400" size="lg" />
+      <h3 class="text-xl font-medium text-gray-700 mb-2">No Facilities Found</h3>
+      <p class="text-gray-500 mb-4">No resources match your search criteria for the selected date.</p>
+      <div class="flex justify-center space-x-3">
+        <UButton color="gray" variant="soft" @click="handleReset">
+          Reset Search
+        </UButton>
+        <UButton color="primary" variant="soft" icon="i-heroicons-arrow-path" @click="calendarRef?.forceRefresh()">
+          Try Again
+        </UButton>
       </div>
     </div>
     
@@ -560,8 +747,9 @@ watch(() => bookings.value, (newBookings) => {
       </UButton>
     </div>
     
-    <!-- Calendar component -->
+    <!-- Calendar component - Only show if we have facilities or are still loading -->
     <BookingCalendar
+      v-if="!hasSearched || loading || searchLoading || (facilities && facilities.length > 0)"
       ref="calendarRef"
       class="mt-4"
       :facilities="facilities"
@@ -570,6 +758,7 @@ watch(() => bookings.value, (newBookings) => {
       @select-timeslot="handleTimeslotSelect"
       @click-event="handleEventClick"
       @date-change="handleDateChange"
+      @reset-search="handleResetSearchFromCalendar"
     />
     
     <!-- Create booking modal - reused for both calendar select and button click -->

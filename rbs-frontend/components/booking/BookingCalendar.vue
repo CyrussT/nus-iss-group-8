@@ -1,3 +1,19 @@
+<template>
+  <UCard>
+    <div v-if="loading" class="py-8 text-center">
+      <p>Loading resources...</p>
+    </div>
+    <div v-else class="calendar-wrapper">
+      <FullCalendar 
+        ref="calendarRef"
+        :options="calendarOptions"
+        class="resource-timeline"
+        key="booking-calendar"
+      />
+    </div>
+  </UCard>
+</template>
+
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue';
 import FullCalendar from '@fullcalendar/vue3';
@@ -22,7 +38,8 @@ const props = defineProps({
 const emit = defineEmits([
   'select-timeslot', 
   'click-event', 
-  'date-change'
+  'date-change',
+  'reset-search'  // Keep the emit for reset search button for parent component
 ]);
 
 const calendarRef = ref(null);
@@ -106,13 +123,15 @@ const formatDateForApi = (date) => {
 
 // Computed properties for calendar
 const resources = computed(() => {
-  return props.facilities.map(facility => {
+  // Map facilities to resources preserving order
+  const mappedResources = props.facilities.map(facility => {
     const building = facility.location ? facility.location.split('-')[0] : 'Unknown';
     
     return {
       id: facility.facilityId.toString(),
       building: building,
       title: facility.resourceName || 'Unnamed Resource',
+      // Include original position to help with sorting
       extendedProps: {
         resourceType: facility.resourceType,
         fullLocation: facility.location,
@@ -120,6 +139,8 @@ const resources = computed(() => {
       }
     };
   });
+  
+  return mappedResources;
 });
 
 // Function to check if a cell is already booked (used for selection validation)
@@ -229,6 +250,7 @@ const calendarOptions = ref({
   },
   resources: [],
   resourceGroupField: 'building',
+  resourceOrder: 'title', // Sort resources by title within groups
   events: [],
   editable: false, // Set to false to disable all drag/resize by default
   selectable: true,
@@ -343,15 +365,14 @@ const calendarOptions = ref({
       // Add a "past-event" class to the event element
       info.el.classList.add('past-event');
       
-      // You could also add a small indicator icon or text
-      const eventTitle = info.el.querySelector('.fc-event-title');
-      if (eventTitle) {
-        // Add a small lock icon or text to indicate it's locked/past
-        const lockIcon = document.createElement('span');
-        lockIcon.className = 'past-event-indicator';
-        lockIcon.innerHTML = ' 🔒'; // Simple lock emoji
-        eventTitle.appendChild(lockIcon);
-      }
+      // Make past events more visually distinct by adding opacity
+      info.el.style.opacity = '0.6';
+    }
+    
+    // Remove any text content from the event to just show the color
+    const eventTitle = info.el.querySelector('.fc-event-title');
+    if (eventTitle) {
+      eventTitle.style.display = 'none';
     }
   },
   
@@ -383,11 +404,21 @@ watch(() => calendarRef.value, (newCalendarRef) => {
 const updateCalendarResources = (resourcesList) => {
   if (calendarRef.value) {
     const calendarApi = calendarRef.value.getApi();
+    
+    // Set resource group field first
     calendarApi.setOption('resourceGroupField', 'building');
+    
+    // Set resource order option
+    calendarApi.setOption('resourceOrder', 'title');
+    
+    // Apply resources to calendar
     calendarApi.setOption('resources', resourcesList);
     
     // Also update button states whenever resources are updated
     setTimeout(forceDisablePrevButton, 0);
+    
+    // Force a refetch to ensure proper rendering
+    calendarApi.refetchResources();
   }
 };
 
@@ -433,10 +464,48 @@ const addPointerCursorToEvents = () => {
       .fc-timegrid-event {
         cursor: pointer !important;
       }
+      
+      /* Make all empty cells show the pointer cursor to indicate clickability */
+      .fc-timeline-slot-frame {
+        cursor: pointer;
+      }
+      
+      /* Hide event titles to just show color blocks */
+      .fc-event-title {
+        display: none !important;
+      }
     `;
     
     calendarEl.appendChild(styleEl);
   }, 200);
+};
+
+// Force a refresh of the calendar
+const forceRefresh = () => {
+  if (calendarRef.value) {
+    const currentDate = getCurrentCalendarDate();
+    console.log("Force refreshing with date:", currentDate);
+    emit('date-change', { 
+      start: new Date(currentDate),
+      end: new Date(currentDate)
+    });
+  }
+};
+
+// Handle reset search button click
+const handleResetSearch = () => {
+  if (calendarRef.value) {
+    const currentDate = getCurrentCalendarDate();
+    console.log("Reset search with current calendar date:", currentDate);
+    
+    // Pass the current date explicitly to ensure it's preserved
+    emit('reset-search', { 
+      date: currentDate
+    });
+  } else {
+    // Just emit the reset event if calendar isn't available
+    emit('reset-search');
+  }
 };
 
 // Expose methods to parent
@@ -444,7 +513,9 @@ defineExpose({
   getCurrentCalendarDate,
   updateCalendarResources,
   updateCalendarEvents,
-  addPointerCursorToEvents
+  addPointerCursorToEvents,
+  forceRefresh,
+  handleResetSearch
 });
 
 onMounted(() => {
@@ -472,26 +543,10 @@ onMounted(() => {
 });
 </script>
 
-<template>
-  <UCard>
-    <div v-if="loading" class="py-8 text-center">
-      <p>Loading resources...</p>
-    </div>
-    <div v-else class="calendar-wrapper">
-      <FullCalendar 
-        ref="calendarRef"
-        :options="calendarOptions"
-        class="resource-timeline"
-        key="booking-calendar"
-      />
-    </div>
-  </UCard>
-</template>
-
 <style scoped>
 .calendar-wrapper {
   width: 100%;
-  overflow-x: auto; /* Allow horizontal scrolling if needed */
+  overflow-x: auto;
 }
 
 .resource-timeline {
@@ -511,6 +566,7 @@ onMounted(() => {
 
 :deep(.fc-timeline-slot-frame) {
   height: 100%;
+  cursor: pointer !important;
 }
 
 :deep(.fc-timeline-slot) {
@@ -535,9 +591,27 @@ onMounted(() => {
   background-color: #f0f0f0;
 }
 
-/* Make booked slots show pointer cursor - even for future events */
-:deep(.fc-event),
+/* Enhanced event styling */
+:deep(.fc-event) {
+  height: 26px !important; /* Increased event height */
+  min-height: 26px !important;
+  border-radius: 4px !important; /* Rounded corners */
+  border-width: 1px !important; /* Consistent border width */
+  box-shadow: 0 1px 3px rgba(0,0,0,0.08) !important; /* Subtle shadow for depth */
+  cursor: pointer !important;
+  margin-top: 3px !important; /* Slightly more spacing */
+  margin-bottom: 3px !important;
+  transition: transform 0.1s ease-in-out, box-shadow 0.1s ease-in-out;
+}
+
+/* Subtle hover effect for events */
+:deep(.fc-event:hover) {
+  transform: translateY(-1px) !important;
+  box-shadow: 0 3px 5px rgba(0,0,0,0.12) !important;
+}
+
 :deep(.fc-event-main) {
+  padding: 3px 5px !important; /* Increased inner padding */
   cursor: pointer !important;
 }
 
@@ -549,26 +623,25 @@ onMounted(() => {
 
 /* Styles for past events */
 :deep(.past-event) {
-  opacity: 0.7;
-  pointer-events: auto !important; /* Override FullCalendar's pointer-events: none */
-  cursor: default !important; /* Show default cursor instead of move cursor */
+  opacity: 0.65; /* Slightly more opaque */
+  pointer-events: auto !important;
+  cursor: pointer !important;
   background-image: repeating-linear-gradient(
     45deg,
     rgba(255, 255, 255, 0.1),
     rgba(255, 255, 255, 0.1) 10px,
     rgba(255, 255, 255, 0.2) 10px,
     rgba(255, 255, 255, 0.2) 20px
-  ) !important; /* Add subtle pattern to indicate past status */
+  ) !important;
 }
 
 :deep(.past-event) .fc-event-main {
-  cursor: pointer !important; /* Allow clicking to view details */
+  cursor: pointer !important;
 }
 
-:deep(.past-event-indicator) {
-  font-size: 0.8em;
-  margin-left: 4px;
-  opacity: 0.8;
+/* Hide event titles to just show the color block */
+:deep(.fc-event-title) {
+  display: none !important;
 }
 
 /* Disable the resize handles on past events */
