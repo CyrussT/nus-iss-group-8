@@ -366,27 +366,29 @@ const bookingForm = reactive({
   end: ''
 });
 
-// Update start time method to preserve date
+// Update start time method to preserve date in SG timezone
 const updateStartTime = () => {
   if (bookingForm.bookingDate && bookingForm.bookingTime) {
     // Explicitly construct the date without relying on timezone conversion
     const [year, month, day] = bookingForm.bookingDate.split('-').map(Number);
     const [hours, minutes] = bookingForm.bookingTime.split(':').map(Number);
     
-    // Create date with explicit components to avoid timezone shifts
+    // Create date with explicit components
     const localDate = new Date(year, month - 1, day, hours, minutes, 0, 0);
     
     // Log the constructed date for debugging
     console.log('Constructed date:', {
       date: bookingForm.bookingDate,
       time: bookingForm.bookingTime,
-      localDate: localDate,
-      localDateISO: localDate.toISOString(),
-      localOffset: localDate.getTimezoneOffset()
+      localDate: localDate
     });
     
-    // Set as ISO string, keeping the local time
+    // Set as ISO string
     bookingForm.start = localDate.toISOString();
+    
+    // Store the local date and time components separately for the API call
+    bookingForm.localDate = bookingForm.bookingDate;
+    bookingForm.localTime = bookingForm.bookingTime;
     
     // Calculate end time preserving the same date
     bookingForm.end = calculateEndTime(bookingForm.start, bookingForm.duration);

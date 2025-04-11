@@ -14,6 +14,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Map;
@@ -23,6 +25,7 @@ import java.util.Map;
 public class BookingController {
     private final BookingService bookingService;
     private final CustomEmailService emailService;
+    private static final ZoneId SG_ZONE = ZoneId.of("Asia/Singapore");
 
     public BookingController(BookingService bookingService, CustomEmailService emailService) {
         this.bookingService = bookingService;
@@ -59,7 +62,15 @@ public class BookingController {
 
     @PostMapping
     public ResponseEntity<BookingResponseDTO> createBooking(@RequestBody BookingDTO request) throws MessagingException {
-        System.out.println("Request: " + request);
+        System.out.println("Received booking request: " + request);
+        
+        // If the bookedDateTime has a timezone offset in the string (like +08:00),
+        // it will be parsed correctly by default. If not, we assume it's in Singapore time
+        LocalDateTime bookingDateTime = request.getBookedDateTime();
+        
+        // Log the parsed datetime for debugging
+        System.out.println("Parsed booking datetime: " + bookingDateTime);
+        
         BookingResponseDTO response = bookingService.createBooking(request);
 
         if (response != null && response.getBookingId() != null) {

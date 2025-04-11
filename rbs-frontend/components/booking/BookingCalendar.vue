@@ -82,22 +82,15 @@ const isInPast = (date) => {
   return true;
 };
 
-// Check if current time is end of day (after 5 PM)
 const isEndOfDay = () => {
   const now = new Date();
-  return now.getHours() >= 17; // 5 PM or later
+  return now.getHours() >= 19;
 };
 
-// Get the next business day (skip to Monday if it's Friday)
 const getNextBusinessDay = () => {
   const now = new Date();
   const nextDay = new Date(now);
   nextDay.setDate(now.getDate() + 1);
-  
-  // If it's Friday, skip to Monday
-  if (now.getDay() === 5) { // Friday
-    nextDay.setDate(now.getDate() + 3);
-  }
   
   return nextDay;
 };
@@ -206,6 +199,8 @@ const forceDisablePrevButton = () => {
 
 // Determine initial date based on time of day
 const getInitialDate = () => {
+  const today = new Date();
+  
   // If it's late in the day (after 5 PM), default to tomorrow
   if (isEndOfDay()) {
     const nextDay = getNextBusinessDay();
@@ -213,14 +208,14 @@ const getInitialDate = () => {
   }
   
   // Otherwise, use today's date
-  return new Date().toISOString().split('T')[0];
+  return today.toISOString().split('T')[0];
 };
 
 // Calendar options
 const calendarOptions = ref({
   plugins: [resourceTimelinePlugin, interactionPlugin],
   initialView: 'resourceTimelineDay',
-  initialDate: getInitialDate(), // Use the function to determine initial date
+  initialDate: getInitialDate(),
   schedulerLicenseKey: 'GPL-My-Project-Is-Open-Source',
   headerToolbar: {
     left: 'prev',

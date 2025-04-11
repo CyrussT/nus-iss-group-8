@@ -136,13 +136,20 @@ public class BookingService {
         
         // Find the account
         Optional<Account> account = accountRepository.findByEmail(requestDTO.getAccountEmail());
-
+    
         if (account.isEmpty()) {
             throw new RuntimeException("Account not found");
         }
-
+    
+        // Parse the bookedDateTime from the request
+        // The frontend now sends the datetime in SG timezone
+        LocalDateTime bookedDateTime = requestDTO.getBookedDateTime();
+        
+        // Log the datetime for debugging purposes
+        System.out.println("Received booking datetime: " + bookedDateTime);
+    
         // Check if the time slot is available
-        if (!isTimeSlotAvailable(requestDTO.getFacilityId(), requestDTO.getBookedDateTime(), requestDTO.getTimeSlot())) {
+        if (!isTimeSlotAvailable(requestDTO.getFacilityId(), bookedDateTime, requestDTO.getTimeSlot())) {
             throw new RuntimeException("This time slot is already booked");
         }
         
@@ -162,17 +169,17 @@ public class BookingService {
             throw new RuntimeException("Insufficient credits. Required: " + creditsNeeded + 
                                       ", Available: " + currentBalance);
         }
-
+    
         // To set to pending or instant approve based on facility type
         BookingStatus bookingStatus = facility.getResourceType().equals("5")
                 ? BookingStatus.PENDING // Sports & Recreation requires approval
                 : BookingStatus.APPROVED;
-
+    
         // Create the booking entity
         Booking booking = Booking.builder()
                 .facility(facility)
                 .account(account.get())
-                .bookedDateTime(requestDTO.getBookedDateTime())
+                .bookedDateTime(bookedDateTime) // Use the bookedDateTime directly
                 .timeSlot(requestDTO.getTimeSlot())
                 .title(requestDTO.getTitle())
                 .description(requestDTO.getDescription())

@@ -13,9 +13,15 @@ import java.time.LocalDateTime;
 public class BookingDTO {
     private Long facilityId;
     private String accountEmail; // User creating the booking
-    private LocalDateTime bookedDateTime; // Date of the booking
+    
+    /**
+     * Date and time of the booking in Singapore timezone.
+     * This datetime is expected to be provided by the frontend in Singapore timezone.
+     */
+    private LocalDateTime bookedDateTime;
+    
     private String timeSlot; // Format: "09:00 - 10:00"
-    private String title; // not sure if storing this
-    private String description; // not sure if storing this
+    private String title;
+    private String description;
     private String creditsUsed; // Credits used for the booking
 }

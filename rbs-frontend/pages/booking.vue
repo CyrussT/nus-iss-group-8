@@ -1,4 +1,8 @@
 <script setup>
+definePageMeta({
+  middleware: ['auth', 'student']
+});
+
 import { ref, reactive, onMounted, computed, watch } from 'vue';
 import { useApi } from '~/composables/useApi';
 import { useToast } from '#imports';
