@@ -23,6 +23,7 @@ import org.springframework.util.StringUtils;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
@@ -270,6 +271,7 @@ public class BookingService {
     public List<BookingResponseDTO> getBookingHistory(Long accountId, String status) {
         LocalDateTime now = LocalDateTime.now();
         System.out.println("Fetching booking history for studentId: " + accountId);
+        System.out.println("Current Server Time: " + now);
 
         List<Booking> bookings;
 
@@ -283,7 +285,16 @@ public class BookingService {
             bookings = bookingRepository.findByAccount_AccountIdAndBookedDateTimeBefore(accountId, now);
         }
 
+        for (Booking booking : bookings) {
+            LocalDateTime bookedTime = booking.getBookedDateTime(); // assuming your getter is named this way
+            System.out.println("Booking ID: " + booking.getBookingId());
+            System.out.println("Booked DateTime: " + bookedTime);
+            System.out.println("Formatted DateTime: " + bookedTime.format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")));
+            System.out.println("----------");
+        }
+
         System.out.println("Found " + bookings.size() + " past bookings");
+        
         return bookings.stream().map(bookingMapper::toResponseDTO).collect(Collectors.toList());
     }
 

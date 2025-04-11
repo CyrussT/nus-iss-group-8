@@ -14,9 +14,6 @@ const router = useRouter();
 const isModalOpen = ref(false);
 const isEditing = ref(false);
 
-definePageMeta({
-  middleware: ['auth', 'admin']
-})
 
 const {
   searchQuery,
