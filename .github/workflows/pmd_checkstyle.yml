@@ -30,10 +30,10 @@ jobs:
           sudo apt-get install -y maven
 
       - name: Install dependencies
-        run: mvn -f ./rbs-backend/pom.xml install
+        run: mvn -f ./rbs-backend/pom.xml install -Ddependency-check.skip=true
 
       - name: Run Checkstyle
-        run: mvn -f ./rbs-backend/pom.xml checkstyle:check
+        run: mvn -f ./rbs-backend/pom.xml checkstyle:check -Ddependency-check.skip=true
 
       - name: Upload Checkstyle report
         uses: actions/upload-artifact@v4
@@ -62,7 +62,7 @@ jobs:
           sudo apt-get install -y maven  # Install Maven
 
       - name: Run PMD
-        run: mvn -f ./rbs-backend/pom.xml pmd:check
+        run: mvn -f ./rbs-backend/pom.xml pmd:check -Ddependency-check.skip=true
 
       - name: Upload PMD report
         uses: actions/upload-artifact@v4

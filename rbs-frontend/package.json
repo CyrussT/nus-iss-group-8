@@ -14,6 +14,7 @@
   "devDependencies": {
     "@nuxt/devtools": "latest",
     "@nuxt/ui": "^2.21.0",
+    "@nuxthq/ui": "^2.7.0",
     "@typescript-eslint/eslint-plugin": "^8.25.0",
     "@typescript-eslint/parser": "^8.25.0",
     "eslint": "^9.21.0",
@@ -29,6 +30,7 @@
     "@fullcalendar/resource-timeline": "^6.1.15",
     "@fullcalendar/vue3": "^6.1.15",
     "axios": "^1.7.9",
+    "nuxt-app": "file:",
     "zod": "^3.24.2"
   }
 }

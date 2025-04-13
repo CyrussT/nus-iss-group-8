@@ -81,7 +81,7 @@ public class FacilityService {
 
     public FacilityResponseDTO updateFacility(Long id, FacilityRequestDTO facilityRequestDTO) {
         return facilityRepository.findById(id).map(facility -> {
-            facility.setResourceType(facilityRequestDTO.getResourceType());
+            facility.setResourceTypeId(facilityRequestDTO.getResourceTypeId());;
             facility.setResourceName(facilityRequestDTO.getResourceName());
             facility.setLocation(facilityRequestDTO.getLocation());
             facility.setCapacity(facilityRequestDTO.getCapacity());
@@ -129,7 +129,7 @@ public class FacilityService {
         // Return facility details with booking history
         FacilityResponseDTO response = new FacilityResponseDTO();
         response.setFacilityId(facility.getFacilityId());
-        response.setResourceType(facility.getResourceType());
+        response.setResourceTypeId(facility.getResourceTypeId());
         response.setResourceName(facility.getResourceName());
         response.setLocation(facility.getLocation());
         response.setCapacity(facility.getCapacity());

@@ -35,24 +35,24 @@ public class BookingService {
     private final BookingRepository bookingRepository;
     private final BookingMapper bookingMapper;
     private final FacilityRepository facilityRepository;
-    private final FacilityTypeRepository facilityTypeRepository;
     private final BookingFacilityMapper bookingFacilityMapper;
     private final AccountRepository accountRepository;
+    private final FacilityTypeRepository facilityTypeRepository;
     private final CreditRepository creditRepository;
 
     public BookingService(
         BookingRepository bookingRepository, 
         BookingMapper bookingMapper, 
-        FacilityRepository facilityRepository, 
         FacilityTypeRepository facilityTypeRepository,
+        FacilityRepository facilityRepository, 
         BookingFacilityMapper bookingFacilityMapper,
         AccountRepository accountRepository,
         CreditRepository creditRepository
         ) {
         this.bookingRepository = bookingRepository;
         this.bookingMapper = bookingMapper;
-        this.facilityRepository = facilityRepository;
         this.facilityTypeRepository = facilityTypeRepository;
+        this.facilityRepository = facilityRepository;
         this.bookingFacilityMapper = bookingFacilityMapper;
         this.accountRepository = accountRepository;
         this.creditRepository = creditRepository;

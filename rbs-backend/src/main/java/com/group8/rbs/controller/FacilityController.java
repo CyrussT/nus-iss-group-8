@@ -71,7 +71,7 @@ public class FacilityController {
 
     @GetMapping("/search")
     public ResponseEntity<Page<FacilityResponseDTO>> searchFacilities(
-            @RequestParam(required = false) String resourceType,
+            @RequestParam(required = false) Long resourceTypeId,
             @RequestParam(required = false) String resourceName,
             @RequestParam(required = false) String location,
             @RequestParam(required = false) Integer capacity,
@@ -79,7 +79,7 @@ public class FacilityController {
             @RequestParam(defaultValue = "10") int size) {
 
         FacilitySearchDTO searchDTO = new FacilitySearchDTO();
-        searchDTO.setResourceType(resourceType);
+        searchDTO.setResourceTypeId(resourceTypeId);
         searchDTO.setResourceName(resourceName);
         searchDTO.setLocation(location);
         searchDTO.setCapacity(capacity);
