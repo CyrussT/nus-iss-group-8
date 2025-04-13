@@ -250,13 +250,16 @@ public class MaintenanceService {
         
         // Use current date if none provided
         LocalDate checkDate = date != null ? date : LocalDate.now();
+        String checkDateString = checkDate.toString(); // Converts to "yyyy-MM-dd"
         logger.info("Checking maintenance status for {} facilities on date: {}", 
                     longFacilityIds.size(), checkDate);
         
         try {
             // Use the optimized repository method to get only facilities under maintenance
             List<Long> facilitiesUnderMaintenance = maintenanceRepository
-                .findFacilitiesUnderMaintenanceOnDate(longFacilityIds, checkDate);
+                .findFacilitiesUnderMaintenanceOnDate(longFacilityIds, checkDateString);
+
+            logger.info("Facilities under maintenance on date {}: {}", checkDate, facilitiesUnderMaintenance);
             
             logger.info("Found {} facilities under maintenance on date {}", 
                     facilitiesUnderMaintenance.size(), checkDate);

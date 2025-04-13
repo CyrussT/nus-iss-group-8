@@ -59,8 +59,9 @@ public interface MaintenanceRepository extends JpaRepository<MaintenanceSchedule
      * @return List of facility IDs that are under maintenance on the specified date
      */
     @Query("SELECT m.facilityId FROM MaintenanceSchedule m " +
-           "WHERE m.facilityId IN :facilityIds " +
-           "AND (FUNCTION('date', :checkDate) BETWEEN FUNCTION('date', m.startDate) AND FUNCTION('date', m.endDate))")
-    List<Long> findFacilitiesUnderMaintenanceOnDate(@Param("facilityIds") List<Long> facilityIds, 
-                                                   @Param("checkDate") LocalDate checkDate);
+       "WHERE m.facilityId IN :facilityIds " +
+       "AND :checkDateString BETWEEN m.startDate AND m.endDate")
+       List<Long> findFacilitiesUnderMaintenanceOnDate(@Param("facilityIds") List<Long> facilityIds, 
+                                                 @Param("checkDateString") String checkDateString);
+
 }
