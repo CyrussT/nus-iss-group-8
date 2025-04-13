@@ -1,6 +1,7 @@
 <script setup>
 import { ref, reactive, watch, computed } from 'vue';
 import { useToast } from '#imports';
+import { useMaintenance } from '~/composables/useMaintenance';
 
 const toast = useToast();
 
@@ -37,6 +38,29 @@ const props = defineProps({
 
 const emit = defineEmits(['update:modelValue', 'save']);
 
+// Use the maintenance composable
+const maintenanceModule = useMaintenance();
+const { 
+  checkMaintenanceStatus, 
+  isUnderMaintenance, 
+  maintenanceLoading,
+  getMaintenanceDetails,
+  clearMaintenanceCache
+} = maintenanceModule;
+
+// Maintenance related data
+const maintenanceDetails = ref(null);
+const checkingMaintenance = ref(false);
+
+// Validation states
+const validationErrors = ref({
+  resourceId: '',
+  bookingDate: '',
+  bookingTime: '',
+  title: '',
+  duration: ''
+});
+
 // Duration options in minutes
 const durationOptions = [
   { label: '0.5 hours', value: 30 },
@@ -48,6 +72,13 @@ const durationOptions = [
   { label: '3.5 hours', value: 210 },
   { label: '4 hours', value: 240 }
 ];
+
+// Format date for API and comparison (YYYY-MM-DD)
+const formatDateForForm = (date) => {
+  if (!date) return '';
+  const d = new Date(date);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+};
 
 // Display formatted time range for the modal header
 const formattedTimeDisplay = computed(() => {
@@ -74,7 +105,7 @@ const formattedTimeDisplay = computed(() => {
     
     return [resourceText, startTimeText + endTimeText].filter(Boolean).join(' • ');
   } else {
-    // For button-initiated bookings, show selected date, time and duration if available
+    // For button-initiated bookings, show selected date, time and duration
     const parts = [];
     
     if (bookingForm.resourceName) {
@@ -95,7 +126,7 @@ const formattedTimeDisplay = computed(() => {
       const startTime = new Date(dateObj);
       startTime.setHours(hours, minutes, 0, 0);
       const formattedStartTime = startTime.toLocaleTimeString('en-US', {
-        hour: 'numeric',
+        hour: 'numeric', 
         minute: '2-digit',
         hour12: true
       });
@@ -103,7 +134,7 @@ const formattedTimeDisplay = computed(() => {
       // Calculate end time based on duration
       const endTime = new Date(startTime.getTime() + bookingForm.duration * 60000);
       const formattedEndTime = endTime.toLocaleTimeString('en-US', {
-        hour: 'numeric',
+        hour: 'numeric', 
         minute: '2-digit',
         hour12: true
       });
@@ -188,7 +219,7 @@ const availableTimeSlots = computed(() => {
     baselineMinute = nextHalfHour.getMinutes();
   }
   
-  // Generate slots from baseline time to 19:00 (7 PM)
+  // Generate slots from baseline time to 7 PM (19:00)
   for (let hour = baselineHour; hour <= 18; hour++) {
     for (let minute of [0, 30]) {
       // Skip slots before baseline for today
@@ -215,29 +246,119 @@ const availableTimeSlots = computed(() => {
   return options;
 });
 
+// Check if selected resource is under maintenance with date check
+const isSelectedResourceUnderMaintenance = computed(() => {
+  if (!isFromCalendar.value && !bookingForm.bookingDate) return false;
+  
+  const resourceId = isFromCalendar.value ? props.resourceId : bookingForm.resourceId;
+  const bookingDate = isFromCalendar.value 
+    ? formatDateForForm(new Date(props.startTime)) 
+    : bookingForm.bookingDate;
+    
+  // If no resource ID or date, can't check maintenance
+  if (!resourceId || !bookingDate) return false;
+  
+  return isUnderMaintenance(resourceId, bookingDate);
+});
+
+// Filter out facilities that are under maintenance
+const filteredFacilityOptions = computed(() => {
+  if (!bookingForm.bookingDate) return facilityOptions.value;
+  
+  return facilityOptions.value.filter(facility => 
+    !isUnderMaintenance(facility.value, bookingForm.bookingDate)
+  );
+});
+
 // Handle resource selection from dropdown
-const handleResourceSelection = (resourceId) => {
+const handleResourceSelection = async (resourceId) => {
+  // Reset validation first
+  validationErrors.value = {
+    resourceId: '',
+    bookingDate: '',
+    bookingTime: '',
+    title: '',
+    duration: ''
+  };
+  
   // Find the selected resource name from the facilityOptions
   if (!resourceId) {
     bookingForm.resourceName = '';
+    maintenanceDetails.value = null;
     return;
   }
   
+  // Get the booking date for maintenance check
+  const bookingDate = bookingForm.bookingDate;
+  if (!bookingDate) {
+    // Can't check maintenance without a date
+    const selectedResource = facilityOptions.value.find(option => option.value === resourceId);
+    if (selectedResource) {
+      bookingForm.resourceName = selectedResource.resourceName;
+    }
+    return;
+  }
+  
+  // Check if the facility is under maintenance for this specific date
+  if (isUnderMaintenance(resourceId, bookingDate)) {
+    checkingMaintenance.value = true;
+    try {
+      const details = await getMaintenanceDetails(resourceId, bookingDate);
+      maintenanceDetails.value = details;
+      
+      // Show toast notification
+      toast.add({
+        title: 'Facility Unavailable',
+        description: `This facility is under maintenance and cannot be booked on ${bookingDate}.`,
+        color: 'orange'
+      });
+      
+      // Clear selected resource to prevent booking
+      bookingForm.resourceId = '';
+      bookingForm.resourceName = '';
+      
+    } catch (error) {
+      console.error('Error getting maintenance details:', error);
+    } finally {
+      checkingMaintenance.value = false;
+    }
+    return;
+  }
+  
+  // If not under maintenance, set the resource name as usual
   const selectedResource = facilityOptions.value.find(option => option.value === resourceId);
   if (selectedResource) {
     bookingForm.resourceName = selectedResource.resourceName;
+    maintenanceDetails.value = null; // Clear any previous maintenance details
   }
 };
 
 // Handle date change
 const handleDateChange = () => {
+  // Reset validation errors for date
+  validationErrors.value.bookingDate = '';
+  validationErrors.value.bookingTime = '';
+  
+  // If changing date, reset time to appropriate value
+  if (!isFromCalendar.value) {
+    bookingForm.bookingTime = getFirstAvailableTimeSlot(bookingForm.bookingDate);
+  }
+  
+  // Re-check maintenance status if a resource is selected
+  if (bookingForm.resourceId) {
+    handleResourceSelection(bookingForm.resourceId);
+  }
+  
   // Call updateStartTime to recalculate derived values
   updateStartTime();
 };
 
 // Handle time change
 const handleTimeChange = () => {
-  // Call updateStartTime to recalculate derived values
+  // Reset validation errors for time
+  validationErrors.value.bookingTime = '';
+  
+  // Update start time calculations
   updateStartTime();
 };
 
@@ -310,17 +431,17 @@ const getNextHalfHourFormatted = () => {
   return `${hours}:${minutes}`;
 };
 
-// Determine if booking was initiated from calendar or button
+// Determine if the booking was initiated from calendar or button
 const isFromCalendar = computed(() => {
-  return Boolean(props.resourceId && props.startTime && props.startTime.includes('T'));
+  return Boolean(props.resourceId && props.startTime);
 });
 
-// Map facilities for input menu
+// Map facilities for dropdown
 const facilityOptions = computed(() => {
-  return props.facilities.map(f => ({
-    value: f.facilityId.toString(),
-    label: `${f.resourceName} - ${f.location || 'No location'} (Capacity: ${f.capacity || 'N/A'})`,
-    resourceName: f.resourceName
+  return props.facilities.map(facility => ({
+    value: facility.facilityId.toString(),
+    label: `${facility.resourceName} - ${facility.location || 'No location'} (${facility.capacity || 0} persons)`,
+    resourceName: facility.resourceName
   }));
 });
 
@@ -406,6 +527,14 @@ const resetForm = () => {
   bookingForm.duration = 30;
   bookingForm.start = '';
   bookingForm.end = '';
+  maintenanceDetails.value = null;
+  validationErrors.value = {
+    resourceId: '',
+    bookingDate: '',
+    bookingTime: '',
+    title: '',
+    duration: ''
+  };
 };
 
 // Check if selected date/time is in the past
@@ -421,48 +550,67 @@ const isSelectedTimeInPast = computed(() => {
   return isInPast(selectedDateTime);
 });
 
-// Comprehensive overlap check
+// Check if booking overlaps with existing bookings
 const isBookingOverlapping = () => {
   return props.facilities.some(facility => {
     // Only check the selected facility
     if (facility.facilityId.toString() !== bookingForm.resourceId) return false;
     
     // Check each existing booking for this facility
-    return facility.bookings.some(existingBooking => {
+    return facility.bookings && facility.bookings.some(existingBooking => {
       // Parse existing booking times
       let existingStartTime, existingEndTime;
       
-      if (existingBooking.timeslot.includes(' - ')) {
+      if (existingBooking.timeslot && existingBooking.timeslot.includes(' - ')) {
         [existingStartTime, existingEndTime] = existingBooking.timeslot.split(' - ');
-      } else if (existingBooking.timeslot.includes('-')) {
+      } else if (existingBooking.timeslot && existingBooking.timeslot.includes('-')) {
         [existingStartTime, existingEndTime] = existingBooking.timeslot.split('-');
       } else {
         console.error('Invalid timeslot format:', existingBooking.timeslot);
         return false;
       }
       
-      // Convert booking times to Date objects
+      // Parse dates
+      if (!existingBooking.bookedDatetime) return false;
+      
       const bookedDate = new Date(existingBooking.bookedDatetime);
+      const bookedDateStr = formatDateForForm(bookedDate);
+      
+      // Only check bookings on the same day
+      if (bookedDateStr !== bookingForm.bookingDate) return false;
+      
+      // Check if the status is approved or pending
+      if (existingBooking.status !== 'APPROVED' && 
+          existingBooking.status !== 'CONFIRMED' && 
+          existingBooking.status !== 'PENDING') {
+        return false;
+      }
+      
+      // Parse times
       const [existingStartHour, existingStartMinute] = existingStartTime.trim().split(':').map(Number);
       const [existingEndHour, existingEndMinute] = existingEndTime.trim().split(':').map(Number);
       
-      const existingStart = new Date(bookedDate);
-      existingStart.setHours(existingStartHour, existingStartMinute, 0, 0);
+      // Create Date objects for existing booking
+      const existingStartDate = new Date(bookedDate);
+      existingStartDate.setHours(existingStartHour, existingStartMinute, 0, 0);
       
-      const existingEnd = new Date(bookedDate);
-      existingEnd.setHours(existingEndHour, existingEndMinute, 0, 0);
+      const existingEndDate = new Date(bookedDate);
+      existingEndDate.setHours(existingEndHour, existingEndMinute, 0, 0);
       
-      // Parse current booking times
-      const currentStart = new Date(bookingForm.start);
-      const currentEnd = new Date(bookingForm.end);
+      // Create Date objects for new booking
+      const [year, month, day] = bookingForm.bookingDate.split('-').map(Number);
+      const [hour, minute] = bookingForm.bookingTime.split(':').map(Number);
+      
+      const newStartDate = new Date(year, month - 1, day, hour, minute, 0, 0);
+      const newEndDate = new Date(newStartDate.getTime() + bookingForm.duration * 60000);
       
       // Check for overlap
-      return (currentStart < existingEnd && currentEnd > existingStart);
+      return (newStartDate < existingEndDate && newEndDate > existingStartDate);
     });
   });
 };
 
-// Filter available durations based on credits and end time restrictions
+// Filter available durations based on credits and time constraints
 const availableDurationOptions = computed(() => {
   // First filter by available credits
   let options = durationOptions;
@@ -492,28 +640,46 @@ const availableDurationOptions = computed(() => {
   return options;
 });
 
-// Watches and event handlers
+// Watch for duration changes
 watch(() => bookingForm.duration, (newDuration) => {
   // Ensure the date remains consistent when changing duration
   if (bookingForm.start) {
     // Recalculate end time while preserving the original date
     bookingForm.end = calculateEndTime(bookingForm.start, newDuration);
   }
+  
+  // Clear duration validation error when changed
+  validationErrors.value.duration = '';
 });
 
-// Props watch to handle initialization
+// Watch for props changes
 watch(() => [props.resourceId, props.resourceName, props.startTime], 
-  ([newResourceId, newResourceName, newStartTime]) => {
+  async ([newResourceId, newResourceName, newStartTime]) => {
     // Update resource info if provided
     if (newResourceId) {
       bookingForm.resourceId = newResourceId;
       bookingForm.resourceName = newResourceName;
+      
+      // Check if facility is under maintenance (using cached result)
+      const bookingDate = newStartTime ? formatDateForForm(new Date(newStartTime)) : getTodayFormatted();
+      if (isUnderMaintenance(newResourceId, bookingDate)) {
+        checkingMaintenance.value = true;
+        try {
+          // Only fetch details if it's in maintenance
+          maintenanceDetails.value = await getMaintenanceDetails(newResourceId, bookingDate);
+        } finally {
+          checkingMaintenance.value = false;
+        }
+      } else {
+        maintenanceDetails.value = null;
+      }
     } else {
       bookingForm.resourceId = '';
       bookingForm.resourceName = '';
+      maintenanceDetails.value = null;
     }
     
-    // Always ensure default duration is 30 minutes (0.5 hours)
+    // Always ensure default duration is 30 minutes
     bookingForm.duration = 30;
     
     // Update date/time if provided as ISO string from calendar
@@ -551,84 +717,107 @@ watch(() => [props.resourceId, props.resourceName, props.startTime],
 
 // Watch for booking date changes
 watch(() => bookingForm.bookingDate, () => {
-  // If changing date, reset time to appropriate value
-  if (isFromCalendar.value) return;
-  
-  // Use the first available time slot function
-  bookingForm.bookingTime = getFirstAvailableTimeSlot(bookingForm.bookingDate);
-  
-  updateStartTime();
+  handleDateChange();
+});
+
+// Watch for booking time changes
+watch(() => bookingForm.bookingTime, () => {
+  handleTimeChange();
 });
 
 // Submit booking function
 const submitBooking = async () => {
-  // Validate required fields
-  if (!bookingForm.title) {
-    toast.add({
-      title: 'Error',
-      description: 'Please enter a title for the booking',
-      color: 'red'
-    });
-    return;
-  }
-  
-  if (!isFromCalendar.value && !bookingForm.resourceId) {
-    toast.add({
-      title: 'Error',
-      description: 'Please select a room for the booking',
-      color: 'red'
-    });
-    return;
-  }
-  
-  // Check if selected time is in the past
-  if (isSelectedTimeInPast.value) {
-    toast.add({
-      title: 'Error',
-      description: 'Cannot create bookings in the past. Please select a future time.',
-      color: 'red'
-    });
-    return;
-  }
-  
-  // Check if booking would end after 7 PM
-  if (wouldEndAfter7PM.value) {
-    toast.add({
-      title: 'Error',
-      description: 'Bookings cannot extend beyond 7:00 PM. Please select a shorter duration or an earlier start time.',
-      color: 'red'
-    });
-    return;
-  }
-  
-  // Ensure start time is calculated
-  updateStartTime();
-  
-  // Check for booking overlaps
-  if (isBookingOverlapping()) {
-    toast.add({
-      title: 'Error',
-      description: 'This time slot is already booked for the selected room.',
-      color: 'red'
-    });
-    return;
-  }
-  
-  // Create booking with local time information
-  const newBooking = {
-    title: bookingForm.title,
-    resourceId: bookingForm.resourceId,
-    start: bookingForm.start,
-    end: bookingForm.end,
-    description: bookingForm.description,
-    creditsUsed: bookingForm.duration.toString(), // Convert duration to string for creditsUsed
-    
-    // Add these for debugging or potential API use
-    localDate: bookingForm.bookingDate,
-    localTime: bookingForm.bookingTime
-  };
-  
   try {
+    // Reset validation errors
+    validationErrors.value = {
+      resourceId: '',
+      bookingDate: '',
+      bookingTime: '',
+      title: '',
+      duration: ''
+    };
+    
+    // Validation checks
+    if (!bookingForm.resourceId) {
+      validationErrors.value.resourceId = 'Please select a facility';
+      toast.add({
+        title: 'Error',
+        description: 'Please select a facility for the booking',
+        color: 'red'
+      });
+      return false;
+    }
+    
+    // Check if facility is under maintenance
+    if (isSelectedResourceUnderMaintenance.value) {
+      toast.add({
+        title: 'Booking Failed',
+        description: 'This facility is under maintenance and cannot be booked on the selected date.',
+        color: 'orange'
+      });
+      return false;
+    }
+    
+    // Validate required fields
+    if (!bookingForm.title) {
+      validationErrors.value.title = 'Please enter a title for the booking';
+      toast.add({
+        title: 'Error',
+        description: 'Please enter a title for the booking',
+        color: 'red'
+      });
+      return false;
+    }
+    
+    // Check if selected time is in the past
+    if (isSelectedTimeInPast.value) {
+      validationErrors.value.bookingTime = 'Cannot create bookings in the past';
+      toast.add({
+        title: 'Error',
+        description: 'Cannot create bookings in the past. Please select a future time.',
+        color: 'red'
+      });
+      return false;
+    }
+    
+    // Check if booking would end after 7 PM
+    if (wouldEndAfter7PM.value) {
+      validationErrors.value.duration = 'Bookings cannot extend beyond 7:00 PM';
+      toast.add({
+        title: 'Error',
+        description: 'Bookings cannot extend beyond 7:00 PM. Please select a shorter duration or an earlier start time.',
+        color: 'red'
+      });
+      return false;
+    }
+    
+    // Ensure start time is calculated
+    updateStartTime();
+    
+    // Check for booking overlaps
+    if (isBookingOverlapping()) {
+      toast.add({
+        title: 'Error',
+        description: 'This time slot is already booked for the selected room.',
+        color: 'red'
+      });
+      return false;
+    }
+    
+    // Create booking with local time information
+    const newBooking = {
+      title: bookingForm.title,
+      resourceId: bookingForm.resourceId,
+      start: bookingForm.start,
+      end: bookingForm.end,
+      description: bookingForm.description,
+      creditsUsed: bookingForm.duration.toString(), // Convert duration to string for creditsUsed
+      
+      // Add these for debugging or potential API use
+      localDate: bookingForm.bookingDate,
+      localTime: bookingForm.bookingTime
+    };
+    
     // Send the booking to the parent and wait for result
     const success = await emit('save', newBooking);
     
@@ -637,6 +826,8 @@ const submitBooking = async () => {
       // Do not reset the form here - we want to keep the form populated
       // if there's an error, so the user can try again
     }
+    
+    return success;
   } catch (err) {
     console.error('Error during booking save:', err);
     toast.add({
@@ -644,6 +835,7 @@ const submitBooking = async () => {
       description: 'Failed to create booking. Please try again.',
       color: 'red'
     });
+    return false;
   }
 };
 
@@ -655,7 +847,8 @@ const closeModal = () => {
 
 // Expose methods and computed properties
 defineExpose({
-  resetForm
+  resetForm,
+  isSelectedResourceUnderMaintenance
 });
 </script>
 
@@ -669,20 +862,44 @@ defineExpose({
         </p>
       </div>
       
+      <!-- Maintenance Warning Banner (if applicable) -->
+      <div v-if="isSelectedResourceUnderMaintenance" class="mb-4 p-3 bg-orange-100 border border-orange-300 rounded-md">
+        <div class="flex items-start">
+          <UIcon name="i-heroicons-exclamation-triangle" class="text-orange-500 mr-2 flex-shrink-0 mt-0.5" />
+          <div>
+            <p class="font-medium text-orange-700">Facility Under Maintenance</p>
+            <p class="text-sm text-orange-600">
+              This facility is currently unavailable for booking due to scheduled maintenance.
+            </p>
+            <p v-if="maintenanceDetails" class="text-xs mt-1 text-orange-600">
+              Maintenance period: {{ maintenanceDetails.startDate }} to {{ maintenanceDetails.endDate }}
+            </p>
+          </div>
+        </div>
+      </div>
+      
       <div class="space-y-4">
         <!-- Room Selection with InputMenu for searchable dropdown -->
         <div v-if="!props.resourceId">
           <label class="block text-sm font-medium mb-1">Room *</label>
           <UInputMenu
             v-model="bookingForm.resourceId"
-            :options="facilityOptions"
+            :options="filteredFacilityOptions"
             option-attribute="label"
             value-attribute="value"
             placeholder="Search or select a room"
             class="w-full"
             required
+            :disabled="checkingMaintenance"
+            :color="validationErrors.resourceId ? 'red' : undefined"
             @update:model-value="handleResourceSelection"
           />
+          <p v-if="validationErrors.resourceId" class="text-red-500 text-sm mt-1">
+            {{ validationErrors.resourceId }}
+          </p>
+          <p v-else-if="maintenanceDetails" class="text-orange-500 text-sm mt-1">
+            The selected facility is under maintenance until {{ maintenanceDetails.endDate }}.
+          </p>
         </div>
         
         <!-- Date and Time Selection (visible only when entering through button) -->
@@ -695,9 +912,13 @@ defineExpose({
               type="date"
               :min="getTodayFormatted()"
               class="w-full"
-              @update:model-value="handleDateChange"
+              :color="validationErrors.bookingDate ? 'red' : undefined"
+              :disabled="isSelectedResourceUnderMaintenance"
               required
             />
+            <p v-if="validationErrors.bookingDate" class="text-red-500 text-sm mt-1">
+              {{ validationErrors.bookingDate }}
+            </p>
           </div>
           
           <!-- Time Dropdown -->
@@ -708,10 +929,14 @@ defineExpose({
               :options="availableTimeSlots"
               placeholder="Select time"
               class="w-full"
-              @update:model-value="handleTimeChange"
+              :color="validationErrors.bookingTime ? 'red' : undefined"
+              :disabled="isSelectedResourceUnderMaintenance"
               required
             />
-            <p v-if="isSelectedTimeInPast" class="text-red-500 text-sm mt-1">
+            <p v-if="validationErrors.bookingTime" class="text-red-500 text-sm mt-1">
+              {{ validationErrors.bookingTime }}
+            </p>
+            <p v-else-if="isSelectedTimeInPast" class="text-red-500 text-sm mt-1">
               This time is in the past. Please select a future time.
             </p>
           </div>
@@ -725,7 +950,12 @@ defineExpose({
             placeholder="Meeting title" 
             class="w-full"
             required
+            :color="validationErrors.title ? 'red' : undefined"
+            :disabled="isSelectedResourceUnderMaintenance"
           />
+          <p v-if="validationErrors.title" class="text-red-500 text-sm mt-1">
+            {{ validationErrors.title }}
+          </p>
         </div>
         
         <!-- Duration dropdown -->
@@ -737,8 +967,13 @@ defineExpose({
             placeholder="Select duration"
             class="w-full"
             :key="`duration-select-${modelValue}`"
+            :color="validationErrors.duration ? 'red' : undefined"
+            :disabled="isSelectedResourceUnderMaintenance"
           />
-          <p v-if="props.availableCredits !== undefined && props.availableCredits !== null && availableDurationOptions.length === 0" class="text-red-500 text-sm mt-1">
+          <p v-if="validationErrors.duration" class="text-red-500 text-sm mt-1">
+            {{ validationErrors.duration }}
+          </p>
+          <p v-else-if="props.availableCredits !== undefined && props.availableCredits !== null && availableDurationOptions.length === 0" class="text-red-500 text-sm mt-1">
             You don't have enough credits for any booking. Each booking requires at least 30 minutes.
           </p>
           <p v-else-if="wouldEndAfter7PM" class="text-red-500 text-sm mt-1">
@@ -754,6 +989,7 @@ defineExpose({
             placeholder="Add details about this booking"
             class="w-full"
             rows="3"
+            :disabled="isSelectedResourceUnderMaintenance"
           />
         </div>
       </div>
@@ -770,8 +1006,8 @@ defineExpose({
         <UButton 
           color="primary" 
           @click="submitBooking"
-          :loading="props.loading"
-          :disabled="!bookingForm.title || (!bookingForm.resourceId && !isFromCalendar)"
+          :loading="props.loading || checkingMaintenance"
+          :disabled="!bookingForm.title || (!bookingForm.resourceId && !isFromCalendar) || isSelectedResourceUnderMaintenance"
         >
           Create Booking
         </UButton>
@@ -779,3 +1015,26 @@ defineExpose({
     </UCard>
   </UModal>
 </template>
+
+<style scoped>
+/* Add animation for error messages */
+.text-red-500 {
+  animation: fadeIn 0.3s ease-in-out;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(-5px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Maintenance indicator styling */
+.maintenance-indicator {
+  animation: wrench-rotate 2s infinite ease-in-out;
+}
+
+@keyframes wrench-rotate {
+  0%, 100% { transform: rotate(0deg); }
+  25% { transform: rotate(-15deg); }
+  75% { transform: rotate(15deg); }
+}
+</style>

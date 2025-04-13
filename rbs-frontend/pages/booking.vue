@@ -11,6 +11,7 @@ import BookingSearchBar from '~/components/booking/BookingSearchBar.vue';
 import BookingCreateModal from '~/components/booking/BookingCreateModal.vue';
 import BookingDetailsModal from '~/components/booking/BookingDetailsModal.vue';
 import { useBooking } from '#imports';
+import { useMaintenance } from '~/composables/useMaintenance';
 
 const auth = useAuthStore();
 const { apiUrl } = useApi();
@@ -26,6 +27,15 @@ const {
   facilities, 
   searchLoading 
 } = bookingModule;
+
+// Get maintenance related functions
+const maintenanceModule = useMaintenance();
+const {
+  checkMultipleFacilities,
+  isUnderMaintenance,
+  maintenanceLoading,
+  facilitiesUnderMaintenance
+} = maintenanceModule;
 
 // State variables
 const bookings = ref([]);
@@ -69,7 +79,8 @@ const legendItems = [
   { status: 'OCCUPIED', color: '#ff9999', label: 'Occupied' },     
   { status: 'PENDING', color: '#b8b8b8', label: 'Pending' },       
   { status: 'MY_BOOKING', color: '#b088ff', label: 'My Booking (Approved)' }, 
-  { status: 'MY_PENDING_BOOKING', color: '#7fa2e6', label: 'My Booking (Pending)' } 
+  { status: 'MY_PENDING_BOOKING', color: '#7fa2e6', label: 'My Booking (Pending)' },
+  { status: 'MAINTENANCE', color: '#f6c46a', label: 'Maintenance' } // Updated color and label for maintenance
 ];
 
 // Format minutes to 0.5 hour increments
@@ -96,7 +107,6 @@ const formatCredits = computed(() => {
 
 // Get current user email for checking own bookings
 const currentUserEmail = computed(() => auth.user.value?.email || '');
-// const currentUserId = computed(() => auth.user.value?.id || '');
 
 // Modal visibility
 const isCreateModalOpen = ref(false);
@@ -109,7 +119,24 @@ const calendarRef = ref(null);
 const formatDateForApi = (date) => {
   if (!date) return '';
   const d = new Date(date);
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  const formattedDate = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  return formattedDate;
+};
+
+// Helper function to check if a facility is under maintenance
+const isFacilityUnderMaintenance = (facilityId) => {
+  if (!facilityId) return false;
+  
+  // Get the calendar's current date
+  let currentDate = '';
+  if (calendarRef.value) {
+    currentDate = calendarRef.value.getCurrentCalendarDate();
+  } else {
+    // If calendar ref is not available, use today's date as fallback
+    currentDate = formatDateForApi(new Date());
+  }
+  
+  return isUnderMaintenance(facilityId, currentDate);
 };
 
 // Open create booking modal from button
@@ -180,49 +207,6 @@ const openCreateBookingModal = () => {
   isCreateModalOpen.value = true;
 };
 
-// Add CSS to override FullCalendar's default cursor behavior
-const addPointerCursorToEvents = () => {
-  if (!calendarRef.value) return;
-  
-  setTimeout(() => {
-    try {
-      // Check if the calendar element exists directly
-      const calendarEl = calendarRef.value.$el || calendarRef.value.el;
-      
-      if (!calendarEl) {
-        console.warn('Calendar element not found');
-        return;
-      }
-      
-      // Add a style element with our custom CSS
-      const styleEl = document.createElement('style');
-      styleEl.textContent = `
-        .fc-event,
-        .fc-event-main,
-        .fc-event-draggable,
-        .fc-event-resizable,
-        .fc-timegrid-event {
-          cursor: pointer !important;
-        }
-        
-        /* Hide event title text */
-        .fc-event-title {
-          display: none !important;
-        }
-        
-        /* Make timegrid cell display pointer cursor to indicate it's clickable */
-        .fc-timegrid-slot, .fc-timeline-slot-frame {
-          cursor: pointer !important;
-        }
-      `;
-      
-      calendarEl.appendChild(styleEl);
-    } catch (error) {
-      console.error('Error adding pointer cursor to events:', error);
-    }
-  }, 200);
-};
-
 // Handle search with criteria
 const handleSearch = async (searchCriteria) => {
   try {
@@ -244,26 +228,22 @@ const handleSearch = async (searchCriteria) => {
     // First check if date was explicitly provided in search criteria
     if (searchCriteria._date) {
       currentDate = searchCriteria._date;
-      console.log("Using provided date parameter:", currentDate);
     } 
     // Then check the calendar reference
     else if (calendarRef.value) {
       currentDate = calendarRef.value.getCurrentCalendarDate();
-      console.log("Using calendar date:", currentDate);
     } 
     // Finally use today as a fallback
     else {
       // If calendar ref is not available, use today's date as fallback
       const today = new Date();
       currentDate = formatDateForApi(today);
-      console.log("Using today's date as fallback:", currentDate);
     }
     
     // Ensure we always have a date to prevent the backend error
     if (!currentDate) {
       const today = new Date();
       currentDate = formatDateForApi(today);
-      console.log("No date available, using today:", currentDate);
     }
     
     // Remove internal parameters from the search criteria before sending to API
@@ -274,8 +254,24 @@ const handleSearch = async (searchCriteria) => {
       }
     });
     
+    // First search for facilities
     await searchFacilities(apiUrl, auth.token.value, apiSearchCriteria, currentDate);
+    
+    // Check maintenance status for all facilities in a single API call
+    if (facilities.value && facilities.value.length > 0) {
+      const facilityIds = facilities.value.map(facility => facility.facilityId);
+      
+      // Ensure we pass the same date used for facility search to the maintenance check
+      await checkMultipleFacilities(facilityIds, currentDate);
+    }
+    
+    // Process bookings after all data is fetched
     processBookings();
+    
+    // Manually tell the calendar to apply maintenance styling
+    if (calendarRef.value && calendarRef.value.applyMaintenanceStyling) {
+      setTimeout(() => calendarRef.value.applyMaintenanceStyling(), 300);
+    }
   } catch (error) {
     console.error('Error handling search:', error);
     toast.add({
@@ -298,12 +294,10 @@ const handleReset = () => {
   let currentDate = '';
   if (calendarRef.value) {
     currentDate = calendarRef.value.getCurrentCalendarDate();
-    console.log("Reset using calendar date:", currentDate);
   } else {
     // If calendar ref is not available, use today's date as fallback
     const today = new Date();
     currentDate = formatDateForApi(today);
-    console.log("Using today's date as fallback:", currentDate);
   }
   
   // Call handleSearch with empty criteria but include the current calendar date
@@ -311,7 +305,6 @@ const handleReset = () => {
   handleSearch({ _date: currentDate });
   
   // Emit an event to tell the BookingSearchBar to reset its form fields
-  // We'll implement this in the BookingSearchBar component
   if (document.querySelector('.booking-search-bar')) {
     document.querySelector('.booking-search-bar').dispatchEvent(
       new CustomEvent('reset-search-fields')
@@ -343,11 +336,36 @@ const handleResetSearchFromCalendar = (data) => {
 
 // Handle calendar date change
 const handleDateChange = () => {
-  handleSearch(currentSearchCriteria.value);
+  // Get the current date from the calendar
+  if (calendarRef.value) {
+    const currentDate = calendarRef.value.getCurrentCalendarDate();
+    
+    // Include the date explicitly in the search criteria
+    const updatedCriteria = { 
+      ...currentSearchCriteria.value,
+      _date: currentDate 
+    };
+    
+    // Pass the updated criteria with the date
+    handleSearch(updatedCriteria);
+  } else {
+    // Fallback if calendar ref is not available
+    handleSearch(currentSearchCriteria.value);
+  }
 };
 
 // Handle timeslot selection
 const handleTimeslotSelect = (info) => {
+  // Check if the resource is under maintenance
+  if (isFacilityUnderMaintenance(info.resource.id)) {
+    toast.add({
+      title: 'Facility Unavailable',
+      description: 'This facility is currently under maintenance and cannot be booked.',
+      color: 'orange'
+    });
+    return;
+  }
+  
   // Get the selected date and time
   const selectedDateTime = new Date(info.startStr);
   const now = new Date();
@@ -395,16 +413,32 @@ const handleTimeslotSelect = (info) => {
 
 // Handle event click
 const handleEventClick = (event) => {
+  // Get the event properties
+  const isMaintenance = event.extendedProps?.isMaintenance || false;
+  
+  // If this is a maintenance event, show a special message
+  if (isMaintenance) {
+    const resourceName = event.getResources()[0]?.title || 'Unknown Facility';
+    
+    toast.add({
+      title: 'Maintenance Event',
+      description: `${resourceName} is under maintenance and cannot be booked.`,
+      color: 'orange'
+    });
+    return;
+  }
+  
+  // Otherwise prepare the regular booking details
   Object.assign(selectedBooking, {
     id: event.id,
-    title: event.extendedProps?.title || event.title || 'Untitled Booking', // Look for title in extendedProps first
+    title: event.extendedProps?.title || event.title || 'Untitled Booking',
     start: event.start,
     end: event.end,
     resourceId: event.getResources()[0]?.id || '',
     resourceName: event.getResources()[0]?.title || 'Unknown Resource',
     location: event.extendedProps?.location || '',
     status: event.extendedProps?.status || 'Unknown',
-    description: event.extendedProps?.originalDescription || event.extendedProps?.description || '', // Use original description
+    description: event.extendedProps?.originalDescription || event.extendedProps?.description || '',
     isPast: event.extendedProps?.isPast || false,
     studentId: event.extendedProps?.studentId || '',
     studentName: event.extendedProps?.studentName || ''
@@ -419,10 +453,58 @@ const processBookings = () => {
   const now = new Date();
 
   // Get current user email for comparison
-  console.log("Current user email:", currentUserEmail.value);
-  
   if (facilities.value && facilities.value.length > 0) {
     facilities.value.forEach(facility => {
+      const facilityId = facility.facilityId.toString();
+      
+      // Get the current date from the calendar or use today's date
+      const currentDate = calendarRef.value ? calendarRef.value.getCurrentCalendarDate() : formatDateForApi(new Date());
+      
+      // Check if this facility is under maintenance for the current date
+      const isMaintenanceResource = isUnderMaintenance(facilityId, currentDate);
+      
+      // If the facility is under maintenance, add maintenance "booking" covering entire day
+      if (isMaintenanceResource) {
+        try {
+          // Get the current date
+          let displayDate = currentDate ? new Date(currentDate) : new Date();
+          
+          // Create an all-day maintenance booking
+          const startDateTime = new Date(displayDate);
+          startDateTime.setHours(7, 0, 0, 0); // Start at 7 AM
+          
+          const endDateTime = new Date(displayDate);
+          endDateTime.setHours(19, 0, 0, 0); // End at 7 PM
+          
+          // Add maintenance event
+          allBookings.push({
+            id: `maintenance-${facilityId}`,
+            resourceId: facilityId,
+            title: 'Maintenance', 
+            start: startDateTime.toISOString(),
+            end: endDateTime.toISOString(),
+            backgroundColor: '#f6c46a', // Orange-yellow color from legend
+            borderColor: '#e0b25e', // Darker border
+            textColor: '#000000',  // Make text visible
+            editable: false, // Disable all drag and resize for bookings
+            durationEditable: false,
+            startEditable: false,
+            display: 'block',
+            className: 'maintenance-event', // Add a class for targeting in CSS
+            extendedProps: {
+              status: 'MAINTENANCE',
+              legendStatus: 'MAINTENANCE',
+              description: 'This facility is under maintenance and not available for booking.',
+              isPast: false,
+              isMaintenance: true
+            }
+          });
+        } catch (err) {
+          console.error('Error creating maintenance booking:', err);
+        }
+      }
+      
+      // Add regular bookings
       if (facility.bookings && facility.bookings.length > 0) {
         facility.bookings.forEach(booking => {
           try {
@@ -433,9 +515,6 @@ const processBookings = () => {
               console.error('Booking has no timeslot:', booking);
               return; // Skip this booking
             }
-            
-            // Log booking details for debugging
-            console.log(`Processing booking ${booking.bookingId} with email: ${booking.email}, status: ${booking.status}`);
             
             // Handle different timeslot formats (with or without spaces)
             let startTime, endTime;
@@ -481,8 +560,6 @@ const processBookings = () => {
               // Simple direct string comparison with booking email
               const isMyBooking = booking.email === currentUserEmail.value;
               
-              console.log(`Is booking ${booking.bookingId} mine? ${isMyBooking}`);
-              
               // Select color based on a combination of:
               // 1. Whether it's your booking or not
               // 2. The status of the booking (PENDING, APPROVED, etc.)
@@ -496,13 +573,11 @@ const processBookings = () => {
                   backgroundColor = '#7fa2e6'; // Updated color
                   borderColor = '#6c8fd3'; // Darker border
                   legendStatus = 'MY_PENDING_BOOKING';
-                  console.log(`Setting booking ${booking.bookingId} as MY PENDING BOOKING with blue color`);
                 } else {
                   // Your approved booking - darker purple
                   backgroundColor = '#b088ff'; // Updated color
                   borderColor = '#9e75ec'; // Darker border
                   legendStatus = 'MY_BOOKING';
-                  console.log(`Setting booking ${booking.bookingId} as MY APPROVED BOOKING with purple color`);
                 }
               } else {
                 if (booking.status === 'PENDING') {
@@ -510,13 +585,11 @@ const processBookings = () => {
                   backgroundColor = '#b8b8b8'; // Updated color
                   borderColor = '#a7a7a7'; // Darker border
                   legendStatus = 'PENDING';
-                  console.log(`Setting booking ${booking.bookingId} as OTHER'S PENDING BOOKING with grey color`);
                 } else {
                   // Other's approved booking - darker red
                   backgroundColor = '#ff9999'; // Updated color
                   borderColor = '#ee8888'; // Darker border
                   legendStatus = 'OCCUPIED';
-                  console.log(`Setting booking ${booking.bookingId} as OTHER'S APPROVED BOOKING with red color`);
                 }
               }
               
@@ -543,13 +616,13 @@ const processBookings = () => {
                   studentName: booking.studentName || '',
                   isMyBooking: isMyBooking,
                   // Store the original title and description
-                  title: booking.title || '', // Add this line
-                  originalDescription: booking.description || '' // Add this line
+                  title: booking.title || '',
+                  originalDescription: booking.description || ''
                 }
               });
             }
           } catch (err) {
-            console.error('Error processing booking:', err, booking);
+            console.error('Error processing booking:', err);
           }
         });
       }
@@ -563,6 +636,28 @@ const processBookings = () => {
 // Update the handleCreateBooking function - now returns a Promise for modal handling
 const handleCreateBooking = async (booking) => {
   try {
+    // Check if the facility is under maintenance before creating the booking
+    const resourceId = booking.resourceId;
+    
+    if (!resourceId) {
+      toast.add({
+        title: 'Error',
+        description: 'Please select a facility for booking.',
+        color: 'red'
+      });
+      return false;
+    }
+    
+    // Check if facility is under maintenance
+    if (isFacilityUnderMaintenance(resourceId)) {
+      toast.add({
+        title: 'Booking Failed',
+        description: 'This facility is currently under maintenance and cannot be booked.',
+        color: 'orange'
+      });
+      return false;
+    }
+    
     // Add user email to the booking
     booking.accountEmail = auth.user.value.email;
     
@@ -643,15 +738,8 @@ onMounted(async () => {
     // Then load dropdown options
     await loadDropdownOptions();
     
-    // Get today's date
-    const today = new Date();
-    const formattedToday = formatDateForApi(today);
-    
     // Only after options are loaded, do a single search with today's date
     await handleSearch({});
-    
-    // Apply cursor styles
-    addPointerCursorToEvents();
   } catch (error) {
     console.error('Error during initialization:', error);
     toast.add({
@@ -664,17 +752,43 @@ onMounted(async () => {
   }
 });
 
+// Watch for calendar reference to ensure we can apply maintenance styling
+watch(() => calendarRef.value, (newValue) => {
+  if (newValue) {
+    // Apply maintenance styling when calendar ref becomes available
+    setTimeout(() => {
+      if (calendarRef.value && calendarRef.value.applyMaintenanceStyling) {
+        calendarRef.value.applyMaintenanceStyling();
+      }
+    }, 500);
+  }
+});
+
 // Watch for bookings changes if needed
 watch(() => bookings.value, (newBookings) => {
-  if (calendarRef.value) {
-    // Apply pointer cursor after booking updates
-    addPointerCursorToEvents();
+  if (calendarRef.value && calendarRef.value.applyMaintenanceStyling) {
+    // Apply maintenance styling after bookings update
+    setTimeout(() => calendarRef.value.applyMaintenanceStyling(), 200);
   }
 }, { deep: true });
 
-// Watch for facilities changes to detect empty results
+// Watch for facilities changes to detect empty results and apply maintenance
 watch(() => facilities.value, (newFacilities) => {
-  console.log("Facilities updated:", newFacilities ? newFacilities.length : 0, "facilities found");
+  // Apply maintenance styling after facilities update
+  if (calendarRef.value && calendarRef.value.applyMaintenanceStyling) {
+    setTimeout(() => calendarRef.value.applyMaintenanceStyling(), 200);
+  }
+}, { deep: true });
+
+// Watch for maintenance status changes
+watch(() => facilitiesUnderMaintenance, () => {
+  // When maintenance status changes, reprocess bookings to update maintenance events
+  processBookings();
+  
+  // Then apply maintenance styling
+  if (calendarRef.value && calendarRef.value.applyMaintenanceStyling) {
+    setTimeout(() => calendarRef.value.applyMaintenanceStyling(), 200);
+  }
 }, { deep: true });
 </script>
 
@@ -706,7 +820,7 @@ watch(() => facilities.value, (newFacilities) => {
         </div>
       </div>
       
-      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-3">
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 mb-3">
         <div v-for="item in legendItems" :key="item.status" 
             class="flex items-center p-2 rounded-md border border-gray-100 hover:bg-gray-50 transition-colors">
           <div 
@@ -720,7 +834,7 @@ watch(() => facilities.value, (newFacilities) => {
       <!-- Hint about calendar clicking -->
       <div class="text-xs text-gray-600 mt-3 flex items-center p-2 bg-blue-50 rounded-md">
         <UIcon name="i-heroicons-information-circle" class="mr-2 text-blue-500" size="sm" />
-        <span>Click on an empty timeslot in the calendar grid to create a new booking. Click on a colored slot to view its details.</span>
+        <span>Click on an empty timeslot in the calendar grid to create a new booking. Click on a colored slot to view its details. Facilities under maintenance cannot be booked.</span>
       </div>
     </div>
     
@@ -785,3 +899,57 @@ watch(() => facilities.value, (newFacilities) => {
     />
   </div>
 </template>
+
+<style scoped>
+/* Maintenance booking indicator animation */
+@keyframes wrench-rotate {
+  0%, 100% { transform: rotate(0deg); }
+  25% { transform: rotate(-15deg); }
+  75% { transform: rotate(15deg); }
+}
+
+.maintenance-indicator {
+  animation: wrench-rotate 2s infinite ease-in-out;
+}
+
+/* Maintenance event styling */
+:deep(.maintenance-event) {
+  height: 26px !important;
+  min-height: 26px !important;
+  background-color: #f6c46a !important; /* Match legend color */
+  border-color: #e0b25e !important;
+  opacity: 0.9 !important;
+  cursor: not-allowed !important;
+  border-radius: 4px !important;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.12) !important;
+}
+
+:deep(.maintenance-event .fc-event-main) {
+  cursor: not-allowed !important;
+}
+
+:deep(.maintenance-event:hover) {
+  transform: none !important;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.12) !important;
+}
+
+:deep(.maintenance-event .fc-event-title) {
+  display: block !important;
+  text-align: center;
+  font-weight: bold;
+  color: #000;
+}
+
+/* Resource under maintenance styling */
+:deep(.resource-under-maintenance .fc-timeline-slot-lane) {
+  background-color: rgba(246, 196, 106, 0.3) !important;
+  background-image: repeating-linear-gradient(
+    45deg,
+    rgba(255, 255, 255, 0.2),
+    rgba(255, 255, 255, 0.2) 10px,
+    rgba(246, 196, 106, 0.3) 10px,
+    rgba(246, 196, 106, 0.3) 20px
+  ) !important;
+  position: relative;
+}
+</style>

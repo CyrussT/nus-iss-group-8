@@ -1,24 +1,9 @@
-<template>
-  <UCard>
-    <div v-if="loading" class="py-8 text-center">
-      <p>Loading resources...</p>
-    </div>
-    <div v-else class="calendar-wrapper">
-      <FullCalendar 
-        ref="calendarRef"
-        :options="calendarOptions"
-        class="resource-timeline"
-        key="booking-calendar"
-      />
-    </div>
-  </UCard>
-</template>
-
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue';
 import FullCalendar from '@fullcalendar/vue3';
 import resourceTimelinePlugin from '@fullcalendar/resource-timeline';
 import interactionPlugin from '@fullcalendar/interaction';
+import { useMaintenance } from '~/composables/useMaintenance';
 
 const props = defineProps({
   facilities: {
@@ -39,10 +24,17 @@ const emit = defineEmits([
   'select-timeslot', 
   'click-event', 
   'date-change',
-  'reset-search'  // Keep the emit for reset search button for parent component
+  'reset-search'
 ]);
 
 const calendarRef = ref(null);
+
+// Use the maintenance composable
+const maintenanceModule = useMaintenance();
+const { 
+  isUnderMaintenance, 
+  facilitiesUnderMaintenance
+} = maintenanceModule;
 
 // Helper function to check if a date is in the past
 const isInPast = (date) => {
@@ -52,7 +44,6 @@ const isInPast = (date) => {
   const checkDate = date instanceof Date ? date : new Date(date);
   
   // Compare just the date parts for dates in the future
-  // This avoids timezone issues with future dates
   if (checkDate.getFullYear() > now.getFullYear()) {
     return false; // Future year
   }
@@ -111,7 +102,8 @@ const wouldEndAfter7PM = (startTime, duration) => {
 const formatDateForApi = (date) => {
   if (!date) return '';
   const d = new Date(date);
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  const formattedDate = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  return formattedDate;
 };
 
 // Computed properties for calendar
@@ -119,16 +111,22 @@ const resources = computed(() => {
   // Map facilities to resources preserving order
   const mappedResources = props.facilities.map(facility => {
     const building = facility.location ? facility.location.split('-')[0] : 'Unknown';
+    const facilityId = facility.facilityId.toString();
+    
+    // Check if this facility is under maintenance
+    const currentDate = getCurrentCalendarDate();
+    const underMaintenance = isResourceUnderMaintenance(facilityId);
     
     return {
-      id: facility.facilityId.toString(),
+      id: facilityId,
       building: building,
       title: facility.resourceName || 'Unnamed Resource',
-      // Include original position to help with sorting
+      // Include maintenance status in extendedProps
       extendedProps: {
         resourceType: facility.resourceType,
         fullLocation: facility.location,
-        capacity: facility.capacity
+        capacity: facility.capacity,
+        underMaintenance: underMaintenance
       }
     };
   });
@@ -158,12 +156,36 @@ const isCellBooked = (selectInfo) => {
   });
 };
 
+// Check if a resource is under maintenance
+const isResourceUnderMaintenance = (resourceId) => {
+  if (!resourceId) return false;
+  
+  // Get the current calendar date for maintenance check
+  const currentDate = getCurrentCalendarDate();
+  
+  // Check both with and without date format
+  const maintenanceKey = currentDate ? `${resourceId}_${currentDate}` : resourceId;
+  
+  // First check the date-specific key, then fall back to the simple ID key
+  return facilitiesUnderMaintenance[maintenanceKey] === true || 
+         facilitiesUnderMaintenance[resourceId] === true;
+};
+
 // Get the current calendar date
 const getCurrentCalendarDate = () => {
-  if (!calendarRef.value) return formatDateForApi(new Date());
+  if (!calendarRef.value) {
+    return formatDateForApi(new Date());
+  }
   
-  const calendarApi = calendarRef.value.getApi();
-  return formatDateForApi(calendarApi.getDate());
+  try {
+    const calendarApi = calendarRef.value.getApi();
+    const calendarDate = calendarApi.getDate();
+    const formattedDate = formatDateForApi(calendarDate);
+    return formattedDate;
+  } catch (err) {
+    console.error('Error getting calendar date:', err);
+    return formatDateForApi(new Date());
+  }
 };
 
 // Force disable/enable the prev button based on the current calendar date
@@ -201,7 +223,7 @@ const forceDisablePrevButton = () => {
 const getInitialDate = () => {
   const today = new Date();
   
-  // If it's late in the day (after 5 PM), default to tomorrow
+  // If it's late in the day (after 7 PM), default to tomorrow
   if (isEndOfDay()) {
     const nextDay = getNextBusinessDay();
     return nextDay.toISOString().split('T')[0]; // Format as YYYY-MM-DD
@@ -250,6 +272,12 @@ const calendarOptions = ref({
   editable: false, // Set to false to disable all drag/resize by default
   selectable: true,
   selectAllow: (selectInfo) => {
+    // Get the resource ID from the selection
+    const resourceId = selectInfo.resource?.id;
+    
+    // Prevent selecting resources under maintenance
+    if (resourceId && isResourceUnderMaintenance(resourceId)) return false;
+    
     // Prevent selecting time slots in the past
     if (isInPast(selectInfo.start)) return false;
     
@@ -275,7 +303,10 @@ const calendarOptions = ref({
   loading: (isLoading) => {
     if (!isLoading) {
       // This runs after the calendar has fully loaded
-      setTimeout(forceDisablePrevButton, 0);
+      setTimeout(() => {
+        forceDisablePrevButton();
+        applyMaintenanceStyling();
+      }, 0);
     }
   },
   
@@ -296,11 +327,21 @@ const calendarOptions = ref({
     
     emit('date-change', dateInfo);
     // Update button states after date change
-    setTimeout(forceDisablePrevButton, 0);
+    setTimeout(() => {
+      forceDisablePrevButton();
+      applyMaintenanceStyling();
+    }, 0);
   },
   
   // Override default booking modal
   select: (info) => {
+    // Check again if resource is under maintenance (safeguard)
+    if (isResourceUnderMaintenance(info.resource.id)) {
+      // Show toast notification
+      alert('This facility is currently under maintenance and cannot be booked.');
+      return;
+    }
+    
     // Get the selected date and time
     const selectedDateTime = new Date(info.startStr);
     const now = new Date();
@@ -354,9 +395,29 @@ const calendarOptions = ref({
   eventDidMount: (info) => {
     const event = info.event;
     const isPastEvent = event.extendedProps.isPast || isInPast(event.end);
+    const isMaintenance = event.extendedProps.isMaintenance || false;
     
+    // Apply visual styling to maintenance events
+    if (isMaintenance) {
+      info.el.classList.add('maintenance-event');
+      
+      // Add maintenance title - but check if it already has text first
+      const eventTitle = info.el.querySelector('.fc-event-title');
+      if (eventTitle) {
+        if (!eventTitle.textContent || eventTitle.textContent === '') {
+          eventTitle.innerHTML = 'Maintenance';
+        } else if (eventTitle.textContent === 'MaintenanceMaintenance') {
+          // Fix double text if it already happened
+          eventTitle.innerHTML = 'Maintenance';
+        }
+        eventTitle.style.display = 'block';
+        eventTitle.style.textAlign = 'center';
+        eventTitle.style.fontSize = '12px';
+        eventTitle.style.fontWeight = 'bold';
+      }
+    }
     // Apply visual styling to past events to indicate they can't be edited
-    if (isPastEvent) {
+    else if (isPastEvent) {
       // Add a "past-event" class to the event element
       info.el.classList.add('past-event');
       
@@ -364,19 +425,216 @@ const calendarOptions = ref({
       info.el.style.opacity = '0.6';
     }
     
-    // Remove any text content from the event to just show the color
-    const eventTitle = info.el.querySelector('.fc-event-title');
-    if (eventTitle) {
-      eventTitle.style.display = 'none';
+    // For non-maintenance events, remove any text content to just show the color
+    if (!isMaintenance) {
+      const eventTitle = info.el.querySelector('.fc-event-title');
+      if (eventTitle) {
+        eventTitle.style.display = 'none';
+      }
+    }
+  },
+  
+  resourceDidMount: (info) => {
+    // Apply styling to resources under maintenance
+    if (info.resource.extendedProps.underMaintenance) {
+      // Find the row element for this resource
+      const resourceRow = info.el.closest('.fc-resource');
+      
+      if (resourceRow) {
+        resourceRow.classList.add('resource-under-maintenance');
+        
+        // Add maintenance indicator
+        const titleCell = resourceRow.querySelector('.fc-datagrid-cell-main');
+        if (titleCell && !titleCell.querySelector('.maintenance-indicator')) {
+          const maintenanceIndicator = document.createElement('span');
+          maintenanceIndicator.className = 'maintenance-indicator';
+          maintenanceIndicator.innerHTML = ' (MAINTENANCE)';
+          maintenanceIndicator.title = 'Under Maintenance';
+          titleCell.appendChild(maintenanceIndicator);
+        }
+      }
     }
   },
   
   // Runs when the view is fully rendered
   viewDidMount: () => {
     // Update button states when the view is mounted
-    forceDisablePrevButton();
+    setTimeout(() => {
+      forceDisablePrevButton();
+      applyMaintenanceStyling();
+    }, 200);
   }
 });
+
+// Function to apply maintenance styling
+const applyMaintenanceStyling = () => {
+  if (!calendarRef.value) return;
+  
+  setTimeout(() => {
+    try {
+      const calendarApi = calendarRef.value.getApi();
+      const calendarEl = calendarApi.el;
+      
+      // Find all resources under maintenance based on the cached data
+      const resourcesUnderMaintenance = [];
+      
+      resources.value.forEach(resource => {
+        const resourceId = resource.id;
+        // Check if this resource is under maintenance for the current date
+        const underMaintenance = isResourceUnderMaintenance(resourceId);
+        if (underMaintenance) {
+          resourcesUnderMaintenance.push(resourceId);
+        }
+      });
+      
+      // Add a style element with our custom CSS if it doesn't exist yet
+      if (!calendarEl.querySelector('.maintenance-styles')) {
+        const styleEl = document.createElement('style');
+        styleEl.className = 'maintenance-styles';
+        styleEl.textContent = `
+          /* Resource row styling */
+          .resource-under-maintenance .fc-timeline-lane {
+            position: relative;
+          }
+          
+          /* Timeline lane styling */
+          .resource-under-maintenance .fc-timeline-slot-lane {
+            background-color: #f6c46a !important;
+            background-image: repeating-linear-gradient(
+              45deg,
+              rgba(255, 255, 255, 0.2),
+              rgba(255, 255, 255, 0.2) 10px,
+              rgba(246, 196, 106, 0.3) 10px,
+              rgba(246, 196, 106, 0.3) 20px
+            ) !important;
+            cursor: not-allowed !important;
+          }
+          
+          /* Maintenance indicator in the resource title */
+          .maintenance-indicator {
+            margin-left: 5px;
+            font-size: 10px;
+            color: #e67e22;
+            font-weight: bold;
+            animation: wrench-rotate 2s infinite ease-in-out;
+          }
+          
+          @keyframes wrench-rotate {
+            0%, 100% { transform: rotate(0deg); }
+            25% { transform: rotate(-15deg); }
+            75% { transform: rotate(15deg); }
+          }
+          
+          /* Maintenance event styling */
+          .maintenance-event {
+            background-color: #f6c46a !important;
+            border-color: #e0b25e !important;
+            cursor: not-allowed !important;
+          }
+          
+          .maintenance-event .fc-event-title {
+            display: block !important;
+            text-align: center;
+            font-size: 12px;
+            font-weight: bold;
+            color: #000;
+          }
+          
+          /* Maintenance overlay for cells */
+          .maintenance-overlay {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: #91580d;
+            font-size: 14px;
+            font-weight: bold;
+            opacity: 0.7;
+            pointer-events: none;
+            white-space: nowrap;
+          }
+        `;
+        
+        calendarEl.appendChild(styleEl);
+      }
+      
+      // Apply maintenance styling to resources
+      resourcesUnderMaintenance.forEach(resourceId => {
+        // Apply class to the resource row
+        const resourceEl = calendarEl.querySelector(`.fc-resource[data-resource-id="${resourceId}"]`);
+        if (resourceEl) {
+          resourceEl.classList.add('resource-under-maintenance');
+          
+          // Add maintenance indicator to resource title if not already present
+          const titleCell = resourceEl.querySelector('.fc-datagrid-cell-main');
+          if (titleCell && !titleCell.querySelector('.maintenance-indicator')) {
+            const maintenanceIndicator = document.createElement('span');
+            maintenanceIndicator.className = 'maintenance-indicator';
+            maintenanceIndicator.innerHTML = ' (MAINTENANCE)';
+            maintenanceIndicator.title = 'Under Maintenance';
+            titleCell.appendChild(maintenanceIndicator);
+          }
+        }
+        
+        // Apply styling to timeline slots for this resource
+        const slots = calendarEl.querySelectorAll(`.fc-timeline-lane[data-resource-id="${resourceId}"] .fc-timeline-slot-lane`);
+        slots.forEach(slot => {
+          slot.classList.add('maintenance-slot');
+          slot.style.cursor = 'not-allowed';
+          
+          // Add overlay text if not already present
+          if (!slot.querySelector('.maintenance-overlay')) {
+            const overlayDiv = document.createElement('div');
+            overlayDiv.className = 'maintenance-overlay';
+            overlayDiv.textContent = 'Under Maintenance';
+            slot.appendChild(overlayDiv);
+          }
+        });
+        
+        // Create a full-day maintenance event for this resource if not already present
+        const existingMaintenanceEvent = calendarApi.getEventById(`maintenance-${resourceId}`);
+        if (!existingMaintenanceEvent) {
+          // Get the calendar date
+          const viewDate = calendarApi.getDate();
+          
+          // Create start and end times for the maintenance event (full day)
+          const startDateTime = new Date(viewDate);
+          startDateTime.setHours(7, 0, 0, 0); // 7 AM
+          
+          const endDateTime = new Date(viewDate);
+          endDateTime.setHours(19, 0, 0, 0); // 7 PM
+          
+          // Add the maintenance event
+          calendarApi.addEvent({
+            id: `maintenance-${resourceId}`,
+            resourceId: resourceId,
+            title: '', // Use empty title to prevent duplicate text
+            start: startDateTime.toISOString(),
+            end: endDateTime.toISOString(),
+            backgroundColor: '#f6c46a',
+            borderColor: '#e0b25e',
+            textColor: '#000000',
+            editable: false,
+            durationEditable: false,
+            startEditable: false,
+            display: 'block',
+            className: 'maintenance-event',
+            extendedProps: {
+              status: 'MAINTENANCE',
+              legendStatus: 'MAINTENANCE',
+              description: 'This facility is under maintenance and not available for booking.',
+              isPast: false,
+              isMaintenance: true
+            }
+          });
+        }
+      });
+      
+    } catch (error) {
+      console.error('Error applying maintenance styling:', error);
+    }
+  }, 200);
+};
 
 // Watch for changes in resources and bookings
 watch(() => resources.value, (newResources) => {
@@ -387,11 +645,21 @@ watch(() => props.bookings, (newBookings) => {
   updateCalendarEvents(newBookings);
 }, { deep: true });
 
+// Watch for changes in the maintenance status
+watch(() => facilitiesUnderMaintenance, () => {
+  if (calendarRef.value) {
+    applyMaintenanceStyling();
+  }
+}, { deep: true });
+
 // Watch for calendar reference to be available
 watch(() => calendarRef.value, (newCalendarRef) => {
   if (newCalendarRef) {
     // Wait for the calendar to be fully rendered
-    setTimeout(forceDisablePrevButton, 50);
+    setTimeout(() => {
+      forceDisablePrevButton();
+      applyMaintenanceStyling();
+    }, 200);
   }
 });
 
@@ -410,10 +678,15 @@ const updateCalendarResources = (resourcesList) => {
     calendarApi.setOption('resources', resourcesList);
     
     // Also update button states whenever resources are updated
-    setTimeout(forceDisablePrevButton, 0);
-    
-    // Force a refetch to ensure proper rendering
-    calendarApi.refetchResources();
+    setTimeout(() => {
+      forceDisablePrevButton();
+      
+      // Apply maintenance styling
+      applyMaintenanceStyling();
+      
+      // Force a refetch to ensure proper rendering
+      calendarApi.refetchResources();
+    }, 200);
   }
 };
 
@@ -422,7 +695,7 @@ const updateCalendarEvents = (eventsList) => {
   if (calendarRef.value) {
     const calendarApi = calendarRef.value.getApi();
     
-    // Remove existing events
+    // Remove all events first
     calendarApi.removeAllEvents();
     
     // Add new events
@@ -438,7 +711,10 @@ const updateCalendarEvents = (eventsList) => {
     calendarApi.render();
     
     // Update button states after events are updated
-    setTimeout(forceDisablePrevButton, 0);
+    setTimeout(() => {
+      forceDisablePrevButton();
+      applyMaintenanceStyling();
+    }, 200);
   }
 };
 
@@ -469,6 +745,16 @@ const addPointerCursorToEvents = () => {
       .fc-event-title {
         display: none !important;
       }
+      
+      /* Resource under maintenance styling */
+      .resource-under-maintenance .fc-timeline-slot-frame {
+        cursor: not-allowed !important;
+      }
+      
+      /* Maintenance events should show title */
+      .maintenance-event .fc-event-title {
+        display: block !important;
+      }
     `;
     
     calendarEl.appendChild(styleEl);
@@ -479,11 +765,13 @@ const addPointerCursorToEvents = () => {
 const forceRefresh = () => {
   if (calendarRef.value) {
     const currentDate = getCurrentCalendarDate();
-    console.log("Force refreshing with date:", currentDate);
     emit('date-change', { 
       start: new Date(currentDate),
       end: new Date(currentDate)
     });
+    
+    // Apply maintenance styling after refresh
+    setTimeout(applyMaintenanceStyling, 300);
   }
 };
 
@@ -491,7 +779,6 @@ const forceRefresh = () => {
 const handleResetSearch = () => {
   if (calendarRef.value) {
     const currentDate = getCurrentCalendarDate();
-    console.log("Reset search with current calendar date:", currentDate);
     
     // Pass the current date explicitly to ensure it's preserved
     emit('reset-search', { 
@@ -510,7 +797,9 @@ defineExpose({
   updateCalendarEvents,
   addPointerCursorToEvents,
   forceRefresh,
-  handleResetSearch
+  handleResetSearch,
+  isResourceUnderMaintenance,
+  applyMaintenanceStyling
 });
 
 onMounted(() => {
@@ -520,23 +809,32 @@ onMounted(() => {
   // Initial setup of events
   updateCalendarEvents(props.bookings);
   
-  // Simplified approach to ensure the prev button state is correct
-  // Two attempts with different delays should be sufficient
+  // Setup maintenance styling
   setTimeout(() => {
     if (calendarRef.value) {
       forceDisablePrevButton();
       addPointerCursorToEvents();
-    }
-  }, 100);
-  
-  setTimeout(() => {
-    if (calendarRef.value) {
-      forceDisablePrevButton();
-      addPointerCursorToEvents();
+      applyMaintenanceStyling();
     }
   }, 300);
 });
 </script>
+
+<template>
+  <UCard>
+    <div v-if="loading" class="py-8 text-center">
+      <p>Loading resources...</p>
+    </div>
+    <div v-else class="calendar-wrapper">
+      <FullCalendar 
+        ref="calendarRef"
+        :options="calendarOptions"
+        class="resource-timeline"
+        key="booking-calendar"
+      />
+    </div>
+  </UCard>
+</template>
 
 <style scoped>
 .calendar-wrapper {
@@ -649,5 +947,42 @@ onMounted(() => {
   opacity: 0.4 !important;
   cursor: not-allowed !important;
   pointer-events: none !important;
+}
+
+/* Special styling for maintenance events */
+:deep(.maintenance-event) {
+  background-color: #f6c46a !important;
+  border-color: #e0b25e !important;
+  cursor: not-allowed !important;
+}
+
+:deep(.maintenance-event .fc-event-title) {
+  display: block !important;
+  text-align: center;
+  font-weight: bold;
+  color: #000;
+}
+
+/* Style for resources under maintenance */
+:deep(.resource-under-maintenance .fc-timeline-slot-lane) {
+  background-color: #f6c46a !important;
+  background-image: repeating-linear-gradient(
+    45deg,
+    rgba(255, 255, 255, 0.2),
+    rgba(255, 255, 255, 0.2) 10px,
+    rgba(255, 255, 255, 0.3) 10px,
+    rgba(255, 255, 255, 0.3) 20px
+  ) !important;
+  cursor: not-allowed !important;
+}
+
+/* Animation for maintenance indicator */
+@keyframes maintenanceBlink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+.maintenance-indicator {
+  animation: maintenanceBlink 2s infinite;
 }
 </style>

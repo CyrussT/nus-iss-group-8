@@ -19,7 +19,6 @@ import com.group8.rbs.repository.FacilityTypeRepository;
 import jakarta.transaction.Transactional;
 
 import org.springframework.stereotype.Service;
-import org.springframework.util.StringUtils;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;

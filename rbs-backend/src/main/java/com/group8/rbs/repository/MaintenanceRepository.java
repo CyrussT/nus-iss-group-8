@@ -7,6 +7,7 @@ import org.springframework.stereotype.Repository;
 
 import com.group8.rbs.entities.MaintenanceSchedule;
 
+import java.time.LocalDate;
 import java.util.List;
 
 @Repository
@@ -49,4 +50,17 @@ public interface MaintenanceRepository extends JpaRepository<MaintenanceSchedule
            "WHERE FUNCTION('date', m.endDate) < FUNCTION('date', CURRENT_TIMESTAMP) " +
            "ORDER BY m.endDate DESC")
     List<MaintenanceSchedule> findCompletedMaintenance();
+    
+    /**
+     * Find facilities that are under maintenance on a specific date from a list of facility IDs
+     * 
+     * @param facilityIds List of facility IDs to check
+     * @param checkDate The date to check for maintenance
+     * @return List of facility IDs that are under maintenance on the specified date
+     */
+    @Query("SELECT m.facilityId FROM MaintenanceSchedule m " +
+           "WHERE m.facilityId IN :facilityIds " +
+           "AND (FUNCTION('date', :checkDate) BETWEEN FUNCTION('date', m.startDate) AND FUNCTION('date', m.endDate))")
+    List<Long> findFacilitiesUnderMaintenanceOnDate(@Param("facilityIds") List<Long> facilityIds, 
+                                                   @Param("checkDate") LocalDate checkDate);
 }

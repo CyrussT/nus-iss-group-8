@@ -9,6 +9,7 @@ import org.springframework.web.bind.annotation.*;
 
 import com.group8.rbs.entities.Account;
 import com.group8.rbs.entities.MaintenanceSchedule;
+import com.group8.rbs.exception.MaintenanceOverlapException;
 import com.group8.rbs.repository.AccountRepository;
 import com.group8.rbs.service.maintenance.MaintenanceService;
 
@@ -19,6 +20,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/maintenance")
@@ -79,11 +81,6 @@ public class MaintenanceController {
             // Get the facility ID
             Long facilityId = Long.valueOf(requestMap.get("facilityId").toString());
             
-            // Check if the facility is already under maintenance
-            if (maintenanceService.isFacilityUnderMaintenance(facilityId)) {
-                return createErrorResponse("This facility is already under maintenance");
-            }
-            
             // Create a new maintenance schedule
             MaintenanceSchedule maintenanceSchedule = new MaintenanceSchedule();
             
@@ -124,9 +121,78 @@ public class MaintenanceController {
             MaintenanceSchedule savedSchedule = maintenanceService.scheduleMaintenanceForFacility(maintenanceSchedule);
             
             return new ResponseEntity<>(savedSchedule, HttpStatus.CREATED);
+        } catch (MaintenanceOverlapException e) {
+            return createErrorResponse(e.getMessage());
         } catch (Exception e) {
             logger.error("Error creating maintenance schedule", e);
             return createErrorResponse("An error occurred: " + e.getMessage());
+        }
+    }
+    
+    /**
+     * Release a facility from maintenance early
+     */
+    @PostMapping("/release/{facilityId}")
+    public ResponseEntity<?> releaseFacilityFromMaintenance(@PathVariable Long facilityId) {
+        try {
+            // Get current maintenance for facility
+            Optional<MaintenanceSchedule> currentMaintenance = maintenanceService.getCurrentMaintenanceForFacility(facilityId);
+            
+            if (!currentMaintenance.isPresent()) {
+                return createErrorResponse("This facility is not currently under maintenance");
+            }
+            
+            // Get today's date
+            String today = LocalDate.now().format(DATE_FORMATTER);
+            MaintenanceSchedule schedule = currentMaintenance.get();
+            
+            // Check if end date is already today
+            if (schedule.getEndDate().equals(today)) {
+                return createErrorResponse("Facility maintenance is already ending today");
+            }
+            
+            // Update end date to today
+            MaintenanceSchedule updatedSchedule = maintenanceService.updateMaintenanceEndDate(schedule.getMaintenanceId(), today);
+            
+            return new ResponseEntity<>(updatedSchedule, HttpStatus.OK);
+        } catch (Exception e) {
+            logger.error("Error releasing facility from maintenance", e);
+            return createErrorResponse("Failed to release facility: " + e.getMessage());
+        }
+    }
+    
+    /**
+     * Get current maintenance for a facility
+     */
+    @GetMapping("/current/{facilityId}")
+    public ResponseEntity<?> getCurrentMaintenanceForFacility(
+            @PathVariable Long facilityId,
+            @RequestParam(required = false) String date) {
+        try {
+            Optional<MaintenanceSchedule> maintenanceSchedule;
+            
+            // If date parameter provided, check maintenance for that date
+            if (date != null && !date.isEmpty()) {
+                try {
+                    LocalDate checkDate = LocalDate.parse(date);
+                    maintenanceSchedule = maintenanceService.getMaintenanceForFacilityOnDate(facilityId, checkDate);
+                } catch (DateTimeParseException e) {
+                    logger.warn("Invalid date format: {}, using current date", date);
+                    maintenanceSchedule = maintenanceService.getCurrentMaintenanceForFacility(facilityId);
+                }
+            } else {
+                // Default to current date
+                maintenanceSchedule = maintenanceService.getCurrentMaintenanceForFacility(facilityId);
+            }
+            
+            if (maintenanceSchedule.isPresent()) {
+                return new ResponseEntity<>(maintenanceSchedule.get(), HttpStatus.OK);
+            } else {
+                return new ResponseEntity<>(null, HttpStatus.OK);
+            }
+        } catch (Exception e) {
+            logger.error("Error getting current maintenance", e);
+            return createErrorResponse("Failed to get current maintenance: " + e.getMessage());
         }
     }
     
@@ -176,13 +242,19 @@ public class MaintenanceController {
             @PathVariable Long maintenanceId, 
             @RequestBody MaintenanceSchedule maintenanceSchedule) {
         logger.info("Updating maintenance schedule with ID: {}", maintenanceId);
-        return maintenanceService.getMaintenanceScheduleById(maintenanceId)
-            .map(existingSchedule -> {
-                maintenanceSchedule.setMaintenanceId(maintenanceId);
-                MaintenanceSchedule updatedSchedule = maintenanceService.updateMaintenanceSchedule(maintenanceSchedule);
-                return new ResponseEntity<Object>(updatedSchedule, HttpStatus.OK);
-            })
-            .orElse(new ResponseEntity<Object>("Maintenance schedule not found", HttpStatus.NOT_FOUND));
+        try {
+            return maintenanceService.getMaintenanceScheduleById(maintenanceId)
+                .map(existingSchedule -> {
+                    maintenanceSchedule.setMaintenanceId(maintenanceId);
+                    MaintenanceSchedule updatedSchedule = maintenanceService.updateMaintenanceSchedule(maintenanceSchedule);
+                    return new ResponseEntity<Object>(updatedSchedule, HttpStatus.OK);
+                })
+                .orElse(new ResponseEntity<Object>("Maintenance schedule not found", HttpStatus.NOT_FOUND));
+        } catch (MaintenanceOverlapException e) {
+            Map<String, String> errorResponse = new HashMap<>();
+            errorResponse.put("error", e.getMessage());
+            return new ResponseEntity<>(errorResponse, HttpStatus.BAD_REQUEST);
+        }
     }
     
     /**
@@ -203,9 +275,67 @@ public class MaintenanceController {
      * Check if a facility is currently under maintenance
      */
     @GetMapping("/check/{facilityId}")
-    public ResponseEntity<Boolean> isFacilityUnderMaintenance(@PathVariable Long facilityId) {
-        logger.info("Checking if facility ID: {} is under maintenance", facilityId);
-        boolean isUnderMaintenance = maintenanceService.isFacilityUnderMaintenance(facilityId);
+    public ResponseEntity<Boolean> isFacilityUnderMaintenance(
+            @PathVariable Long facilityId,
+            @RequestParam(required = false) String date) {
+        
+        boolean isUnderMaintenance;
+        
+        // If date parameter provided, check for that specific date
+        if (date != null && !date.isEmpty()) {
+            try {
+                LocalDate checkDate = LocalDate.parse(date);
+                logger.info("Checking if facility ID: {} is under maintenance on date: {}", facilityId, checkDate);
+                isUnderMaintenance = maintenanceService.isFacilityUnderMaintenanceOnDate(facilityId, checkDate);
+            } catch (DateTimeParseException e) {
+                logger.warn("Invalid date format: {}, using current date", date);
+                isUnderMaintenance = maintenanceService.isFacilityUnderMaintenance(facilityId);
+            }
+        } else {
+            // Default to current date check
+            logger.info("Checking if facility ID: {} is under maintenance (current date)", facilityId);
+            isUnderMaintenance = maintenanceService.isFacilityUnderMaintenance(facilityId);
+        }
+        
         return new ResponseEntity<>(isUnderMaintenance, HttpStatus.OK);
+    }
+    
+    /**
+     * Batch check for multiple facilities under maintenance for a specific date
+     * This reduces the number of API calls needed when checking maintenance status
+     */
+    @PostMapping("/check-maintenance-status")
+    public ResponseEntity<Map<String, Boolean>> checkMultipleFacilitiesMaintenance(
+            @RequestBody Map<String, Object> requestMap) {
+        
+        @SuppressWarnings("unchecked")
+        List<Long> facilityIds = (List<Long>) requestMap.get("facilityIds");
+        String dateStr = (String) requestMap.get("date");
+        
+        logger.info("Checking maintenance status for {} facilities on date {}", 
+                facilityIds != null ? facilityIds.size() : 0, dateStr);
+        
+        // Parse the date or use current date if not provided
+        LocalDate checkDate = null;
+        if (dateStr != null && !dateStr.isEmpty()) {
+            try {
+                checkDate = LocalDate.parse(dateStr);
+            } catch (Exception e) {
+                logger.warn("Invalid date format: {}. Using current date instead.", dateStr);
+            }
+        }
+        
+        // If facilityIds is null or empty, return empty map
+        if (facilityIds == null || facilityIds.isEmpty()) {
+            return new ResponseEntity<>(new HashMap<>(), HttpStatus.OK);
+        }
+        
+        // Deduplicate facility IDs
+        List<Long> uniqueFacilityIds = facilityIds.stream().distinct().collect(Collectors.toList());
+        
+        // Get maintenance status for all facilities in a single operation
+        Map<String, Boolean> maintenanceStatusMap = maintenanceService.checkMaintenanceStatusBatch(uniqueFacilityIds, checkDate);
+        
+        return new ResponseEntity<>(maintenanceStatusMap, HttpStatus.OK);
     }
 }

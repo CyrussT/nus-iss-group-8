@@ -14,7 +14,9 @@ const router = useRouter();
 const isModalOpen = ref(false);
 const isEditing = ref(false);
 const isMaintenanceModalOpen = ref(false);
+const isReleaseConfirmModalOpen = ref(false);
 const selectedFacility = ref<Partial<Facility> | null>(null);
+const currentMaintenanceDetails = ref<any>(null);
 
 // Computed property for today's date in YYYY-MM-DD format for min attribute
 const minDate = computed(() => {
@@ -43,6 +45,7 @@ const textareaRows = 3;
 // Maintenance status tracking
 const facilityMaintenanceStatus = ref<Record<number, boolean>>({});
 const maintenanceLoading = ref<Record<number, boolean>>({});
+const releasingMaintenance = ref(false);
 
 definePageMeta({
   middleware: ['auth', 'admin']
@@ -109,6 +112,75 @@ const openMaintenanceModal = (row: any) => {
   isMaintenanceModalOpen.value = true;
 };
 
+// Function to handle maintenance button click
+const handleMaintenanceButtonClick = async (row: any) => {
+  const isInMaintenance = isUnderMaintenance(row.facilityId);
+  
+  if (isInMaintenance) {
+    // If under maintenance, fetch current maintenance details and show release modal
+    await fetchCurrentMaintenanceDetails(row.facilityId);
+    selectedFacility.value = row;
+    isReleaseConfirmModalOpen.value = true;
+  } else {
+    // If not under maintenance, show maintenance creation modal
+    openMaintenanceModal(row);
+  }
+};
+
+// Release facility from maintenance early
+const releaseFacilityFromMaintenance = async () => {
+  if (!selectedFacility.value?.facilityId) return;
+  
+  try {
+    releasingMaintenance.value = true;
+    
+    // Call API to release facility
+    const response = await axios.post(`http://localhost:8080/api/maintenance/release/${selectedFacility.value.facilityId}`);
+    
+    // Close the release modal
+    isReleaseConfirmModalOpen.value = false;
+    
+    // Refresh data
+    await fetchFacilities();
+    await updateAllMaintenanceStatus();
+    
+    // Success message
+    alert(`${selectedFacility.value.resourceName} has been successfully released from maintenance.`);
+  } catch (error: any) {
+    console.error("Error releasing facility from maintenance:", error);
+    if (error.response && error.response.data && error.response.data.error) {
+      alert(error.response.data.error);
+    } else {
+      alert("Failed to release facility from maintenance. Please try again.");
+    }
+  } finally {
+    releasingMaintenance.value = false;
+  }
+};
+
+// Fetch current maintenance details for a facility
+const fetchCurrentMaintenanceDetails = async (facilityId: number) => {
+  try {
+    const response = await axios.get(`http://localhost:8080/api/maintenance/current/${facilityId}`);
+    currentMaintenanceDetails.value = response.data;
+    return response.data;
+  } catch (error) {
+    console.error("Error fetching current maintenance details:", error);
+    currentMaintenanceDetails.value = null;
+    return null;
+  }
+};
+
+// Format date for display (YYYY-MM-DD to DD MMM YYYY)
+const formatDateForDisplay = (dateString: string) => {
+  if (!dateString) return '';
+  
+  const date = new Date(dateString);
+  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  
+  return `${date.getDate()} ${months[date.getMonth()]} ${date.getFullYear()}`;
+};
+
 // Helper function to format date for input field
 const formatDateForInput = (date: Date): string => {
   const year = date.getFullYear();
@@ -120,6 +192,12 @@ const formatDateForInput = (date: Date): string => {
 const closeMaintenanceModal = () => {
   isMaintenanceModalOpen.value = false;
   selectedFacility.value = null;
+};
+
+const closeReleaseConfirmModal = () => {
+  isReleaseConfirmModalOpen.value = false;
+  selectedFacility.value = null;
+  currentMaintenanceDetails.value = null;
 };
 
 const closeModal = () => {
@@ -154,14 +232,15 @@ const isUnderMaintenance = (facilityId: number): boolean => {
   return facilityMaintenanceStatus.value[facilityId] || false;
 };
 
-// Get maintenance tooltip text
-const getMaintenanceTooltip = (facilityId: number): string => {
-  if (maintenanceLoading.value[facilityId]) {
-    return "Checking maintenance status...";
+// Update maintenance status for all facilities
+const updateAllMaintenanceStatus = async () => {
+  if (facilities.value && facilities.value.length > 0) {
+    for (const facility of facilities.value as Facility[]) {
+      if (facility.facilityId) {
+        await checkMaintenanceStatus(facility.facilityId);
+      }
+    }
   }
-  return isUnderMaintenance(facilityId) ? 
-    "This facility is currently under maintenance" : 
-    "Set facility to maintenance mode";
 };
 
 // Validate the form and return true if valid
@@ -272,18 +351,12 @@ const saveMaintenance = async () => {
     await fetchFacilities();
     
     // Update maintenance status for all facilities
-    if (facilities.value && facilities.value.length > 0) {
-      for (const facility of facilities.value as Facility[]) {
-        if (facility.facilityId) {
-          await checkMaintenanceStatus(facility.facilityId);
-        }
-      }
-    }
+    await updateAllMaintenanceStatus();
   } catch (error: any) {
     console.error("Error scheduling maintenance:", error);
     if (error.response && error.response.data && error.response.data.error) {
       // If the API returns a specific error message
-      alert("Failed to schedule maintenance: " + error.response.data.error);
+      validationErrors.value.startDate = error.response.data.error;
     } else {
       alert("Failed to schedule maintenance. Please try again.");
     }
@@ -311,13 +384,7 @@ onMounted(async () => {
   await fetchFacilities();
   
   // Check maintenance status for all facilities
-  if (facilities.value && facilities.value.length > 0) {
-    for (const facility of facilities.value as Facility[]) {
-      if (facility.facilityId) {
-        await checkMaintenanceStatus(facility.facilityId);
-      }
-    }
-  }
+  await updateAllMaintenanceStatus();
 });
 </script>
 
@@ -367,18 +434,15 @@ onMounted(async () => {
               <UButton @click="openModal(row)" color="yellow" variant="solid" icon="i-heroicons-pencil" label="Edit"
                 class="px-3 py-1 gap-2" />
 
-              <UTooltip :text="getMaintenanceTooltip(row.facilityId)">
-                <UButton 
-                  @click="isUnderMaintenance(row.facilityId) ? null : openMaintenanceModal(row)" 
-                  color="red" 
-                  variant="solid" 
-                  icon="i-heroicons-wrench"
-                  :loading="maintenanceLoading[row.facilityId]"
-                  :disabled="isUnderMaintenance(row.facilityId)"
-                  :label="isUnderMaintenance(row.facilityId) ? 'In Maintenance' : 'Maintenance'" 
-                  class="px-3 py-1 gap-2"
-                />
-              </UTooltip>
+              <UButton 
+                @click="handleMaintenanceButtonClick(row)" 
+                :color="isUnderMaintenance(row.facilityId) ? 'orange' : 'red'" 
+                variant="solid" 
+                :icon="isUnderMaintenance(row.facilityId) ? 'i-heroicons-check-circle' : 'i-heroicons-wrench'"
+                :loading="maintenanceLoading[row.facilityId]"
+                :label="isUnderMaintenance(row.facilityId) ? 'Release' : 'Maintenance'" 
+                class="px-3 py-1 gap-2"
+              />
 
             </div>
           </template>
@@ -480,6 +544,63 @@ onMounted(async () => {
         </button>
         <button @click="saveMaintenance" class="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-700">
           Schedule Maintenance
+        </button>
+      </div>
+    </UCard>
+  </UModal>
+  
+  <!-- Early Release Confirmation Modal -->
+  <UModal v-model="isReleaseConfirmModalOpen">
+    <UCard class="p-9 max-w-lg">
+      <button @click="closeReleaseConfirmModal" class="absolute top-4 right-4 text-gray-500 hover:text-gray-700">
+        <UIcon name="i-heroicons-x-mark" class="w-6 h-6" />
+      </button>
+
+      <h2 class="text-xl font-bold mb-4 text-center">
+        Release Facility from Maintenance
+      </h2>
+      
+      <div v-if="selectedFacility" class="mb-6 p-4 bg-gray-100 rounded-lg">
+        <p class="font-medium">Facility: {{ selectedFacility.resourceName }}</p>
+        <p class="text-sm text-gray-600">Type: {{ selectedFacility.resourceType }}</p>
+        <p class="text-sm text-gray-600">Location: {{ selectedFacility.location }}</p>
+      </div>
+      
+      <div v-if="currentMaintenanceDetails" class="mb-6 p-4 bg-orange-50 border border-orange-200 rounded-lg">
+        <h3 class="font-medium text-orange-700 mb-2">Current Maintenance Information</h3>
+        <div class="grid grid-cols-2 gap-2 text-sm">
+          <p class="text-gray-600">Start Date:</p>
+          <p class="font-medium">{{ formatDateForDisplay(currentMaintenanceDetails.startDate) }}</p>
+          
+          <p class="text-gray-600">Scheduled End Date:</p>
+          <p class="font-medium">{{ formatDateForDisplay(currentMaintenanceDetails.endDate) }}</p>
+          
+          <p class="text-gray-600">Description:</p>
+          <p class="font-medium">{{ currentMaintenanceDetails.description }}</p>
+        </div>
+      </div>
+      
+      <div class="bg-yellow-50 p-4 rounded-lg mb-6 border border-yellow-200">
+        <div class="flex items-start">
+          <UIcon name="i-heroicons-exclamation-triangle" class="text-yellow-500 mr-3 flex-shrink-0 mt-0.5" />
+          <p class="text-sm text-gray-700">
+            You are about to release this facility from maintenance earlier than scheduled. 
+            The maintenance end date will be set to today, and the facility will be available for booking the next day.
+          </p>
+        </div>
+      </div>
+
+      <div class="mt-6 flex justify-end gap-3">
+        <button @click="closeReleaseConfirmModal" class="bg-gray-400 text-white px-4 py-2 rounded hover:bg-gray-600">
+          Cancel
+        </button>
+        <button 
+          @click="releaseFacilityFromMaintenance" 
+          class="bg-orange-500 text-white px-4 py-2 rounded hover:bg-orange-700 flex items-center"
+          :disabled="releasingMaintenance"
+        >
+          <UIcon v-if="releasingMaintenance" name="i-heroicons-arrow-path" class="animate-spin mr-2" />
+          <span>{{ releasingMaintenance ? 'Releasing...' : 'Release Facility' }}</span>
         </button>
       </div>
     </UCard>
