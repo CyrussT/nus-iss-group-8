@@ -9,7 +9,7 @@ import type { Facility } from "@/composables/useFacility";
 import { useFacility } from "@/composables/useFacility";
 import axios from "axios";
 
-
+const auth = useAuthStore();
 const router = useRouter();
 const isModalOpen = ref(false);
 const isEditing = ref(false);
@@ -519,7 +519,7 @@ onMounted(async () => {
       
       <div v-if="selectedFacility" class="mb-6 p-4 bg-gray-50 rounded-lg">
         <p class="font-medium">Facility: {{ selectedFacility.resourceName }}</p>
-        <p class="text-sm text-gray-600">Type: {{ selectedFacility.resourceType }}</p>
+        <p class="text-sm text-gray-600">Type: {{ selectedFacility.resourceTypeId }}</p>
         <p class="text-sm text-gray-600">Location: {{ selectedFacility.location }}</p>
       </div>
       
@@ -576,7 +576,7 @@ onMounted(async () => {
       
       <div v-if="selectedFacility" class="mb-6 p-4 bg-gray-100 rounded-lg">
         <p class="font-medium">Facility: {{ selectedFacility.resourceName }}</p>
-        <p class="text-sm text-gray-600">Type: {{ selectedFacility.resourceType }}</p>
+        <p class="text-sm text-gray-600">Type: {{ selectedFacility.resourceTypeId }}</p>
         <p class="text-sm text-gray-600">Location: {{ selectedFacility.location }}</p>
       </div>
       

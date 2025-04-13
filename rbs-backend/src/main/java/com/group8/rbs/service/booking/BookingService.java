@@ -59,9 +59,13 @@ public class BookingService {
     }
 
     public List<FacilitySearchDTO> searchFacilities(FacilitySearchDTO searchCriteria) {
+
+        String resourceTypeId = searchCriteria.getResourceTypeId() != null 
+            ? searchCriteria.getResourceTypeId().toString() 
+            : null;
         // Filter the facilities based on search criteria
         List<Facility> filteredFacilities = facilityRepository.searchFacilities(
-            searchCriteria.getResourceType(),
+            resourceTypeId,
             searchCriteria.getResourceName(),
             searchCriteria.getLocation(),
             searchCriteria.getCapacity());
@@ -170,7 +174,7 @@ public class BookingService {
         }
     
         // To set to pending or instant approve based on facility type
-        BookingStatus bookingStatus = facility.getResourceType().equals("5")
+        BookingStatus bookingStatus = facility.getResourceTypeId().equals("5")
                 ? BookingStatus.PENDING // Sports & Recreation requires approval
                 : BookingStatus.APPROVED;
     
