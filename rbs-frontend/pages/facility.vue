@@ -7,6 +7,7 @@ import { useRouter } from "vue-router";
 import { computed, onMounted, ref, watch } from "vue";
 import type { Facility } from "@/composables/useFacility";
 import { useFacility } from "@/composables/useFacility";
+import { useMaintenance } from "~/composables/useMaintenance";
 import axios from "axios";
 
 const auth = useAuthStore();
@@ -17,6 +18,16 @@ const isMaintenanceModalOpen = ref(false);
 const isReleaseConfirmModalOpen = ref(false);
 const selectedFacility = ref<Partial<Facility> | null>(null);
 const currentMaintenanceDetails = ref<any>(null);
+
+// Maintenance composable
+const maintenanceModule = useMaintenance();
+const { 
+  checkMultipleFacilities, 
+  isUnderMaintenance, 
+  maintenanceLoading,
+  facilitiesUnderMaintenance,
+  getMaintenanceDetails
+} = maintenanceModule;
 
 // Computed property for today's date in YYYY-MM-DD format for min attribute
 const minDate = computed(() => {
@@ -44,12 +55,7 @@ const textareaRows = 3;
 
 // Maintenance status tracking
 const facilityMaintenanceStatus = ref<Record<number, boolean>>({});
-const maintenanceLoading = ref<Record<number, boolean>>({});
 const releasingMaintenance = ref(false);
-
-definePageMeta({
-  middleware: ['auth', 'admin']
-})
 
 const {
   searchQuery,
@@ -66,7 +72,6 @@ const {
   resourceTypeOptions,
   getResourceTypeName
 } = useFacility();
-
 
 const openModal = (facilityData: Partial<Facility> | null = null) => {
   if (facilityData && typeof facilityData === "object") {
@@ -212,37 +217,25 @@ const viewFacility = (facilityId: number) => {
   router.push(`/facility-details/${facilityId}`);
 };
 
-// Check if a facility is under maintenance
-const checkMaintenanceStatus = async (facilityId: number) => {
-  if (!facilityId) return;
-  
-  try {
-    maintenanceLoading.value[facilityId] = true;
-    const response = await axios.get(`http://localhost:8080/api/maintenance/check/${facilityId}`);
-    facilityMaintenanceStatus.value[facilityId] = response.data;
-    return response.data;
-  } catch (error) {
-    console.error(`Error checking maintenance status for facility ${facilityId}:`, error);
-    facilityMaintenanceStatus.value[facilityId] = false;
-    return false;
-  } finally {
-    maintenanceLoading.value[facilityId] = false;
-  }
-};
-
-// Check if a facility is under maintenance
-const isUnderMaintenance = (facilityId: number): boolean => {
-  return facilityMaintenanceStatus.value[facilityId] || false;
-};
-
-// Update maintenance status for all facilities
+// Update maintenance status for all facilities using batch API
 const updateAllMaintenanceStatus = async () => {
-  if (facilities.value && facilities.value.length > 0) {
-    for (const facility of facilities.value as Facility[]) {
-      if (facility.facilityId) {
-        await checkMaintenanceStatus(facility.facilityId);
-      }
-    }
+  if (!facilities.value || facilities.value.length === 0) return;
+
+  try {
+    // Extract facility IDs from all facilities
+    const facilityIds = facilities.value.map((facility: any) => facility.facilityId).filter(Boolean);
+    
+    if (facilityIds.length === 0) return;
+    
+    // Use the batch API to check maintenance status for all facilities at once
+    await checkMultipleFacilities(facilityIds);
+    
+    // Update facilityMaintenanceStatus from the shared state
+    facilityIds.forEach((id: number) => {
+      facilityMaintenanceStatus.value[id] = isUnderMaintenance(id);
+    });
+  } catch (error) {
+    console.error('Error updating maintenance status:', error);
   }
 };
 
@@ -383,11 +376,15 @@ const saveFacility = async () => {
   }
 };
 
+// Watch for facilities change to update maintenance statuses
+watch(() => facilities.value, async (newFacilities) => {
+  if (newFacilities && newFacilities.length > 0) {
+    await updateAllMaintenanceStatus();
+  }
+}, { deep: true });
+
 onMounted(async () => {
   await fetchFacilities();
-  
-  // Check maintenance status for all facilities
-  await updateAllMaintenanceStatus();
 });
 </script>
 
@@ -449,7 +446,7 @@ onMounted(async () => {
                 :color="isUnderMaintenance(row.facilityId) ? 'orange' : 'red'" 
                 variant="solid" 
                 :icon="isUnderMaintenance(row.facilityId) ? 'i-heroicons-check-circle' : 'i-heroicons-wrench'"
-                :loading="maintenanceLoading[row.facilityId]"
+                :loading="maintenanceLoading"
                 :label="isUnderMaintenance(row.facilityId) ? 'Release' : 'Maintenance'" 
                 class="px-3 py-1 gap-2"
               />
