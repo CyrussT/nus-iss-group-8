@@ -165,23 +165,35 @@ const openCreateBookingModal = () => {
       let startHour, startMinute;
       
       if (isToday) {
-        // If it's today, use the next half-hour slot
-        if (currentMinute < 30) {
-          // Use current hour and 30 minutes
-          startHour = currentHour;
-          startMinute = 30;
-        } else {
-          // Use next hour and 0 minutes
-          startHour = currentHour + 1;
+        // If it's today, check if we're in business hours (7 AM - 7 PM)
+        if (currentHour < 7) {
+          // Before business hours - use 7 AM
+          startHour = 7;
           startMinute = 0;
-        }
-        
-        // Check if we're past business hours
-        if (startHour >= 19) {
-          // Default to start of next day
+        } else if (currentHour >= 19) {
+          // After business hours - use 7 AM next day
           date.setDate(date.getDate() + 1);
-          startHour = 7; // First slot of the day
+          startHour = 7;
           startMinute = 0;
+        } else {
+          // During business hours - use next half-hour slot
+          if (currentMinute < 30) {
+            // Use current hour and 30 minutes
+            startHour = currentHour;
+            startMinute = 30;
+          } else {
+            // Use next hour and 0 minutes
+            startHour = currentHour + 1;
+            startMinute = 0;
+            
+            // Check if next hour would be after business hours
+            if (startHour >= 19) {
+              // If so, use next day at 7 AM
+              date.setDate(date.getDate() + 1);
+              startHour = 7;
+              startMinute = 0;
+            }
+          }
         }
       } else {
         // If it's a future date, use first time slot (7:00 AM)
@@ -425,7 +437,7 @@ const handleEventClick = (event) => {
       description: `${resourceName} is under maintenance and cannot be booked.`,
       color: 'orange'
     });
-    return;
+    return; // Return early for maintenance events - don't open any modal
   }
   
   // Otherwise prepare the regular booking details

@@ -159,28 +159,36 @@ const getFirstAvailableTimeSlot = (date) => {
   let startHour, startMinute;
   
   if (isToday) {
-    // If it's today, use the next half-hour slot
-    const currentHour = now.getHours();
-    const currentMinute = now.getMinutes();
-    
-    if (currentMinute < 30) {
-      // Use current hour and 30 minutes
-      startHour = currentHour;
-      startMinute = 30;
+    // If it's today, check if we're in business hours (7 AM - 7 PM)
+    if (now.getHours() < 7) {
+      // Before business hours - use 7 AM
+      startHour = 7;
+      startMinute = 0;
+    } else if (now.getHours() >= 19) {
+      // After business hours - use 7 AM (though this should be handled elsewhere)
+      startHour = 7;
+      startMinute = 0;
     } else {
-      // Use next hour and 0 minutes
-      startHour = currentHour + 1;
-      startMinute = 0;
-    }
-    
-    // Check if we're past business hours (7 AM to 7 PM)
-    if (startHour < 7) {
-      startHour = 7;
-      startMinute = 0;
-    } else if (startHour >= 19) {
-      // If after business hours, return the first slot of the next day
-      startHour = 7;
-      startMinute = 0;
+      // During business hours - use next half-hour slot
+      const currentHour = now.getHours();
+      const currentMinute = now.getMinutes();
+      
+      if (currentMinute < 30) {
+        // Use current hour and 30 minutes
+        startHour = currentHour;
+        startMinute = 30;
+      } else {
+        // Use next hour and 0 minutes
+        startHour = currentHour + 1;
+        startMinute = 0;
+        
+        // Check if next hour would be after business hours
+        if (startHour >= 19) {
+          // Cap at the last available slot
+          startHour = 18;
+          startMinute = 30;
+        }
+      }
     }
   } else {
     // If it's a future date, use first slot (7:00 AM)
@@ -189,6 +197,40 @@ const getFirstAvailableTimeSlot = (date) => {
   }
   
   return `${startHour.toString().padStart(2, '0')}:${startMinute.toString().padStart(2, '0')}`;
+};
+
+// Get the next half hour - fixes the overnight issue
+const getNextHalfHour = () => {
+  const now = new Date();
+  const hours = now.getHours();
+  const minutes = now.getMinutes();
+  
+  // If current time is outside of business hours (7 AM - 7 PM)
+  if (hours < 7 || hours >= 19) {
+    // Default to 7 AM
+    const result = new Date(now);
+    result.setHours(7, 0, 0, 0);
+    return result;
+  }
+  
+  // Normal half-hour rounding within business hours
+  const newMinutes = minutes < 30 ? 30 : 0;
+  const hoursToAdd = minutes < 30 ? 0 : 1;
+  
+  now.setMinutes(newMinutes);
+  now.setSeconds(0);
+  now.setMilliseconds(0);
+  
+  // Add hours and check if we're still within business hours
+  const newHour = hours + (minutes < 30 ? 0 : 1);
+  if (newHour >= 19) {
+    // If we'd end up past 7 PM, set to 7 PM
+    now.setHours(18, 30, 0, 0);
+  } else {
+    now.setHours(newHour);
+  }
+  
+  return now;
 };
 
 // Time slot options for dropdown
@@ -213,22 +255,45 @@ const availableTimeSlots = computed(() => {
   
   // If it's today, adjust baseline based on current time
   if (isToday) {
-    // Get next half hour rounded time as baseline
-    const nextHalfHour = getNextHalfHour();
-    baselineHour = nextHalfHour.getHours();
-    baselineMinute = nextHalfHour.getMinutes();
+    const currentHour = now.getHours();
+    const currentMinute = now.getMinutes();
+    
+    // Only adjust if current time is within business hours
+    if (currentHour >= 7 && currentHour < 19) {
+      // Get next half hour time
+      if (currentMinute < 30) {
+        baselineHour = currentHour;
+        baselineMinute = 30;
+      } else {
+        baselineHour = currentHour + 1;
+        baselineMinute = 0;
+        
+        // If next hour would be after business hours, cap at last slot
+        if (baselineHour >= 19) {
+          baselineHour = 18;
+          baselineMinute = 30;
+        }
+      }
+    }
   }
   
-  // Generate slots from baseline time to 7 PM (19:00)
-  for (let hour = baselineHour; hour <= 18; hour++) {
+  // Generate slots from 7 AM to 7 PM (19:00), or from baseline time if later
+  const startHour = Math.max(7, baselineHour);
+  
+  for (let hour = startHour; hour <= 18; hour++) {
+    // For the first hour, respect the baseline minute
+    const startMinute = (hour === baselineHour) ? baselineMinute : 0;
+    
+    // Generate 30-minute slots for this hour
     for (let minute of [0, 30]) {
-      // Skip slots before baseline for today
-      if (isToday && hour === baselineHour && minute < baselineMinute) continue;
+      // Skip slots before baseline for first hour
+      if (hour === baselineHour && minute < startMinute) continue;
       
       const formattedHour = hour.toString().padStart(2, '0');
       const formattedMinute = minute.toString().padStart(2, '0');
       const timeValue = `${formattedHour}:${formattedMinute}`;
       
+      // Create a label time that shows correctly formatted for display
       const timeForLabel = new Date(selectedYear, selectedMonth, selectedDay, hour, minute, 0, 0);
       const timeLabel = timeForLabel.toLocaleTimeString('en-US', {
         hour: 'numeric',
@@ -397,21 +462,6 @@ const isInPast = (date) => {
   
   // If we get here, it's a date in the past
   return true;
-};
-
-// Get the next half hour
-const getNextHalfHour = () => {
-  const now = new Date();
-  const minutes = now.getMinutes();
-  const newMinutes = minutes < 30 ? 30 : 0;
-  const hoursToAdd = minutes < 30 ? 0 : 1;
-  
-  now.setMinutes(newMinutes);
-  now.setSeconds(0);
-  now.setMilliseconds(0);
-  now.setHours(now.getHours() + hoursToAdd);
-  
-  return now;
 };
 
 // Get today's date formatted for input[type="date"]
