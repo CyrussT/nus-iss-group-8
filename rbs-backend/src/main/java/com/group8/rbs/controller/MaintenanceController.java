@@ -8,10 +8,12 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import com.group8.rbs.entities.Account;
+import com.group8.rbs.entities.Booking;
 import com.group8.rbs.entities.MaintenanceSchedule;
 import com.group8.rbs.exception.MaintenanceOverlapException;
 import com.group8.rbs.repository.AccountRepository;
 import com.group8.rbs.service.maintenance.MaintenanceService;
+import com.group8.rbs.service.email.CustomEmailService;
 
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
@@ -29,12 +31,16 @@ public class MaintenanceController {
     private static final Logger logger = LoggerFactory.getLogger(MaintenanceController.class);
     private final MaintenanceService maintenanceService;
     private final AccountRepository accountRepository;
+    private final CustomEmailService emailService;
     private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd");
 
     @Autowired
-    public MaintenanceController(MaintenanceService maintenanceService, AccountRepository accountRepository) {
+    public MaintenanceController(MaintenanceService maintenanceService, 
+                                AccountRepository accountRepository,
+                                CustomEmailService emailService) {
         this.maintenanceService = maintenanceService;
         this.accountRepository = accountRepository;
+        this.emailService = emailService;
     }
     
     /**
@@ -81,6 +87,10 @@ public class MaintenanceController {
             // Get the facility ID
             Long facilityId = Long.valueOf(requestMap.get("facilityId").toString());
             
+            // Check for affected bookings
+            List<Booking> affectedBookings = maintenanceService.findBookingsAffectedByMaintenance(
+                facilityId, startDateStr, endDateStr);
+            
             // Create a new maintenance schedule
             MaintenanceSchedule maintenanceSchedule = new MaintenanceSchedule();
             
@@ -120,12 +130,48 @@ public class MaintenanceController {
             // Save the maintenance schedule
             MaintenanceSchedule savedSchedule = maintenanceService.scheduleMaintenanceForFacility(maintenanceSchedule);
             
+            // If there are affected bookings, cancel them and send emails
+            if (!affectedBookings.isEmpty()) {
+                int cancelledCount = maintenanceService.cancelBookingsForMaintenance(
+                    affectedBookings, savedSchedule, emailService);
+                
+                // Add information about cancelled bookings to the response
+                Map<String, Object> response = new HashMap<>();
+                response.put("maintenanceSchedule", savedSchedule);
+                response.put("cancelledBookings", cancelledCount);
+                
+                return new ResponseEntity<>(response, HttpStatus.CREATED);
+            }
+            
             return new ResponseEntity<>(savedSchedule, HttpStatus.CREATED);
         } catch (MaintenanceOverlapException e) {
             return createErrorResponse(e.getMessage());
         } catch (Exception e) {
             logger.error("Error creating maintenance schedule", e);
             return createErrorResponse("An error occurred: " + e.getMessage());
+        }
+    }
+    
+    /**
+     * Get affected bookings count for a facility maintenance period
+     */
+    @GetMapping("/affected-bookings")
+    public ResponseEntity<?> getAffectedBookingsCount(
+            @RequestParam Long facilityId,
+            @RequestParam String startDate,
+            @RequestParam String endDate) {
+        try {
+            List<Booking> affectedBookings = maintenanceService.findBookingsAffectedByMaintenance(
+                facilityId, startDate, endDate);
+            
+            Map<String, Object> response = new HashMap<>();
+            response.put("count", affectedBookings.size());
+            response.put("bookings", affectedBookings);
+            
+            return new ResponseEntity<>(response, HttpStatus.OK);
+        } catch (Exception e) {
+            logger.error("Error fetching affected bookings", e);
+            return createErrorResponse("Failed to get affected bookings: " + e.getMessage());
         }
     }
     
@@ -232,43 +278,6 @@ public class MaintenanceController {
         return maintenanceService.getMaintenanceScheduleById(maintenanceId)
             .map(schedule -> new ResponseEntity<Object>(schedule, HttpStatus.OK))
             .orElse(new ResponseEntity<Object>("Maintenance schedule not found", HttpStatus.NOT_FOUND));
-    }
-    
-    /**
-     * Update an existing maintenance schedule
-     */
-    @PutMapping("/update/{maintenanceId}")
-    public ResponseEntity<Object> updateMaintenanceSchedule(
-            @PathVariable Long maintenanceId, 
-            @RequestBody MaintenanceSchedule maintenanceSchedule) {
-        logger.info("Updating maintenance schedule with ID: {}", maintenanceId);
-        try {
-            return maintenanceService.getMaintenanceScheduleById(maintenanceId)
-                .map(existingSchedule -> {
-                    maintenanceSchedule.setMaintenanceId(maintenanceId);
-                    MaintenanceSchedule updatedSchedule = maintenanceService.updateMaintenanceSchedule(maintenanceSchedule);
-                    return new ResponseEntity<Object>(updatedSchedule, HttpStatus.OK);
-                })
-                .orElse(new ResponseEntity<Object>("Maintenance schedule not found", HttpStatus.NOT_FOUND));
-        } catch (MaintenanceOverlapException e) {
-            Map<String, String> errorResponse = new HashMap<>();
-            errorResponse.put("error", e.getMessage());
-            return new ResponseEntity<>(errorResponse, HttpStatus.BAD_REQUEST);
-        }
-    }
-    
-    /**
-     * Delete a maintenance schedule
-     */
-    @DeleteMapping("/delete/{maintenanceId}")
-    public ResponseEntity<String> deleteMaintenanceSchedule(@PathVariable Long maintenanceId) {
-        logger.info("Deleting maintenance schedule with ID: {}", maintenanceId);
-        if (maintenanceService.getMaintenanceScheduleById(maintenanceId).isPresent()) {
-            maintenanceService.deleteMaintenanceSchedule(maintenanceId);
-            return new ResponseEntity<>("Maintenance schedule deleted successfully", HttpStatus.OK);
-        } else {
-            return new ResponseEntity<>("Maintenance schedule not found", HttpStatus.NOT_FOUND);
-        }
     }
     
     /**

@@ -174,7 +174,7 @@ public class BookingService {
         }
     
         // To set to pending or instant approve based on facility type
-        BookingStatus bookingStatus = facility.getResourceTypeId().equals("5")
+        BookingStatus bookingStatus = facility.getResourceTypeId().equals(5L)
                 ? BookingStatus.PENDING // Sports & Recreation requires approval
                 : BookingStatus.APPROVED;
     

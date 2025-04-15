@@ -4,12 +4,23 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
+import com.group8.rbs.entities.Booking;
+import com.group8.rbs.entities.Facility;
 import com.group8.rbs.entities.MaintenanceSchedule;
+import com.group8.rbs.enums.BookingStatus;
+import com.group8.rbs.repository.BookingRepository;
+import com.group8.rbs.repository.FacilityRepository;
 import com.group8.rbs.repository.MaintenanceRepository;
 import com.group8.rbs.exception.MaintenanceOverlapException;
+import com.group8.rbs.service.email.CustomEmailService;
+
+import jakarta.mail.MessagingException;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -22,11 +33,108 @@ public class MaintenanceService {
     
     private static final Logger logger = LoggerFactory.getLogger(MaintenanceService.class);
     private final MaintenanceRepository maintenanceRepository;
+    private final BookingRepository bookingRepository;
+    private final FacilityRepository facilityRepository;
     private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd");
     
     @Autowired
-    public MaintenanceService(MaintenanceRepository maintenanceRepository) {
+    public MaintenanceService(
+            MaintenanceRepository maintenanceRepository,
+            BookingRepository bookingRepository,
+            FacilityRepository facilityRepository) {
         this.maintenanceRepository = maintenanceRepository;
+        this.bookingRepository = bookingRepository;
+        this.facilityRepository = facilityRepository;
+    }
+    
+    /**
+     * Find bookings affected by a planned maintenance
+     */
+    public List<Booking> findBookingsAffectedByMaintenance(Long facilityId, String startDateStr, String endDateStr) {
+        LocalDate startDate = LocalDate.parse(startDateStr, DATE_FORMATTER);
+        LocalDate endDate = LocalDate.parse(endDateStr, DATE_FORMATTER);
+        
+        // Convert LocalDate to LocalDateTime for the start of the day
+        LocalDateTime startDateTime = startDate.atStartOfDay();
+        // Convert LocalDate to LocalDateTime for the end of the day
+        LocalDateTime endDateTime = endDate.atTime(LocalTime.MAX);
+        
+        // Find bookings within the date range that are approved or pending
+        List<BookingStatus> statuses = List.of(BookingStatus.APPROVED, BookingStatus.CONFIRMED, BookingStatus.PENDING);
+        
+        return bookingRepository.findByFacility_FacilityIdAndBookedDateTimeBetweenAndStatusIn(
+            facilityId, startDateTime, endDateTime, statuses);
+    }
+    
+    /**
+     * Cancel bookings affected by maintenance and send email notifications
+     * @return Number of bookings cancelled
+     */
+    @Transactional
+    public int cancelBookingsForMaintenance(
+            List<Booking> bookings, 
+            MaintenanceSchedule maintenance,
+            CustomEmailService emailService) {
+        
+        if (bookings == null || bookings.isEmpty()) {
+            return 0;
+        }
+        
+        // Get facility information for the email
+        Optional<Facility> facilityOpt = facilityRepository.findById(maintenance.getFacilityId());
+        if (!facilityOpt.isPresent()) {
+            logger.error("Facility not found for ID: {}", maintenance.getFacilityId());
+            return 0;
+        }
+        
+        Facility facility = facilityOpt.get();
+        int cancelledCount = 0;
+        
+        for (Booking booking : bookings) {
+            try {
+                // Update booking status to CANCELLED
+                booking.setStatus(BookingStatus.CANCELLED);
+                bookingRepository.save(booking);
+                
+                // Send email notification
+                String toEmail = booking.getAccount().getEmail();
+                String subject = "Booking Cancelled Due to Maintenance";
+                
+                String body = "<html>" +
+                    "<body>" +
+                    "<p>Dear " + booking.getAccount().getName() + ",</p>" +
+                    "<p>We regret to inform you that your booking has been cancelled due to scheduled maintenance.</p>" +
+                    "<p><strong>Booking ID:</strong> " + booking.getBookingId() + "</p>" +
+                    "<p><strong>Facility:</strong> " + facility.getResourceName() + "</p>" +
+                    "<p><strong>Location:</strong> " + facility.getLocation() + "</p>" +
+                    "<p><strong>Date:</strong> " + booking.getBookedDateTime().toLocalDate() + "</p>" +
+                    "<p><strong>Time Slot:</strong> " + booking.getTimeSlot() + "</p>" +
+                    "<p><strong>Maintenance Period:</strong> " + maintenance.getStartDate() + " to " + maintenance.getEndDate() + "</p>" +
+                    "<p>Maintenance Details: " + maintenance.getDescription() + "</p>" +
+                    "<p>We apologize for any inconvenience this may cause. Please feel free to make a new booking for a different time or facility.</p>" +
+                    "<br>" +
+                    "<p>Best regards,</p>" +
+                    "<p>Resource Booking System</p>" +
+                    "</body>" +
+                    "</html>";
+                
+                boolean emailSent = emailService.sendEmail(toEmail, subject, body);
+                
+                if (emailSent) {
+                    logger.info("Cancellation email sent successfully to {}", toEmail);
+                    cancelledCount++;
+                } else {
+                    logger.warn("Failed to send cancellation email to {}", toEmail);
+                }
+                
+            } catch (MessagingException e) {
+                logger.error("Error sending cancellation email for booking ID {}: {}", booking.getBookingId(), e.getMessage());
+            } catch (Exception e) {
+                logger.error("Error cancelling booking ID {}: {}", booking.getBookingId(), e.getMessage());
+            }
+        }
+        
+        return cancelledCount;
     }
     
     /**
@@ -140,6 +248,20 @@ public class MaintenanceService {
      */
     public boolean isFacilityUnderMaintenance(Long facilityId) {
         return maintenanceRepository.existsByFacilityIdAndCurrentDate(facilityId);
+    }
+    
+    /**
+     * Get active maintenance schedules (currently ongoing)
+     */
+    public List<MaintenanceSchedule> getActiveMaintenance() {
+        return maintenanceRepository.findActiveMaintenance();
+    }
+    
+    /**
+     * Get upcoming maintenance schedules (future dates)
+     */
+    public List<MaintenanceSchedule> getUpcomingMaintenance() {
+        return maintenanceRepository.findUpcomingMaintenance();
     }
     
     /**

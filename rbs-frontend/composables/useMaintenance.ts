@@ -16,9 +16,22 @@ interface MaintenanceDetails {
   facilityId: number;
 }
 
+// Define types for affected bookings
+interface AffectedBooking {
+  bookingId: number;
+  studentId: string;
+  studentName: string;
+  bookedDatetime: string;
+  timeslot: string;
+  status: string;
+  email: string;
+}
+
 export function useMaintenance() {
   const maintenanceLoading = ref<boolean>(false);
   const facilitiesUnderMaintenance = reactive<MaintenanceStatusMap>({});
+  const affectedBookings = ref<AffectedBooking[]>([]);
+  const affectedBookingsCount = ref<number>(0);
   
   /**
    * Check if a facility is under maintenance for a specific date
@@ -154,12 +167,64 @@ export function useMaintenance() {
     }
   };
   
+  /**
+   * Check how many bookings would be affected by a maintenance schedule
+   * @param facilityId The facility ID
+   * @param startDate Start date in YYYY-MM-DD format
+   * @param endDate End date in YYYY-MM-DD format
+   * @returns Number of bookings that would be affected
+   */
+  const checkAffectedBookings = async (
+    facilityId: number | string,
+    startDate: string,
+    endDate: string
+  ): Promise<number> => {
+    try {
+      maintenanceLoading.value = true;
+      
+      const response = await axios.get(
+        `http://localhost:8080/api/maintenance/affected-bookings`, {
+          params: {
+            facilityId,
+            startDate,
+            endDate
+          }
+        }
+      );
+      
+      // Store the affected bookings data
+      affectedBookingsCount.value = response.data.count || 0;
+      affectedBookings.value = response.data.bookings || [];
+      
+      return affectedBookingsCount.value;
+    } catch (error) {
+      console.error('Error checking affected bookings:', error);
+      return 0;
+    } finally {
+      maintenanceLoading.value = false;
+    }
+  };
+  
+  /**
+   * Clear the maintenance status cache
+   */
+  const clearMaintenanceCache = () => {
+    // Clear the maintenance status cache
+    Object.keys(facilitiesUnderMaintenance).forEach((key) => {
+      delete facilitiesUnderMaintenance[key];
+    });
+  };
+  
   return {
     maintenanceLoading,
     facilitiesUnderMaintenance,
+    affectedBookings,
+    affectedBookingsCount,
     checkMaintenanceStatus,
     checkMultipleFacilities,
     isUnderMaintenance,
-    getMaintenanceDetails
+    getMaintenanceDetails,
+    checkAffectedBookings,
+    clearMaintenanceCache
   };
 }

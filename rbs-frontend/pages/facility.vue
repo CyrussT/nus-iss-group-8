@@ -26,7 +26,10 @@ const {
   isUnderMaintenance, 
   maintenanceLoading,
   facilitiesUnderMaintenance,
-  getMaintenanceDetails
+  getMaintenanceDetails,
+  checkAffectedBookings,
+  affectedBookings,
+  affectedBookingsCount
 } = maintenanceModule;
 
 // Computed property for today's date in YYYY-MM-DD format for min attribute
@@ -43,6 +46,10 @@ const maintenanceData = ref({
   createdBy: ''
 });
 
+// Store facility maintenance history
+const facilityUpcomingMaintenance = ref<any[]>([]);
+const facilityMaintenanceHistoryLoading = ref(false);
+
 // Validation states
 const validationErrors = ref({
   startDate: '',
@@ -52,6 +59,9 @@ const validationErrors = ref({
 
 // Number of rows for the textarea
 const textareaRows = 3;
+
+// Flag to show when we're checking for affected bookings
+const checkingAffectedBookings = ref(false);
 
 // Maintenance status tracking
 const facilityMaintenanceStatus = ref<Record<number, boolean>>({});
@@ -91,7 +101,7 @@ const openModal = (facilityData: Partial<Facility> | null = null) => {
   isModalOpen.value = true;
 };
 
-const openMaintenanceModal = (row: any) => {
+const openMaintenanceModal = async (row: any) => {
   selectedFacility.value = row;
   
   // Reset validation errors
@@ -109,7 +119,7 @@ const openMaintenanceModal = (row: any) => {
     console.error('Error accessing user email:', e);
   }
   
-  // Reset maintenance data
+  // Reset maintenance data and affected bookings
   maintenanceData.value = {
     facilityId: row.facilityId,
     startDate: formatDateForInput(new Date()),
@@ -117,7 +127,67 @@ const openMaintenanceModal = (row: any) => {
     description: '',
     createdBy: userEmail
   };
+  
+  // Check for affected bookings with initial date values
+  await checkForAffectedBookings();
+  
+  // Get upcoming maintenance for this facility
+  await fetchFacilityMaintenanceSchedules(row.facilityId);
+  
   isMaintenanceModalOpen.value = true;
+};
+
+// Function to fetch upcoming maintenance for a specific facility
+const fetchFacilityMaintenanceSchedules = async (facilityId: number) => {
+  try {
+    facilityMaintenanceHistoryLoading.value = true;
+    
+    // Call the API to get maintenance schedules for this facility
+    const response = await axios.get(`http://localhost:8080/api/maintenance/facility/${facilityId}`);
+    
+    if (response.data && Array.isArray(response.data)) {
+      // Sort by start date - first upcoming (future), then past
+      const now = new Date();
+      const today = formatDateForInput(now);
+      
+      // Filter to get only upcoming maintenance (start date >= today)
+      facilityUpcomingMaintenance.value = response.data
+        .filter((m: any) => m.startDate >= today && m.startDate !== currentMaintenanceDetails.value?.startDate)
+        .sort((a: any, b: any) => new Date(a.startDate).getTime() - new Date(b.startDate).getTime())
+        .slice(0, 3); // Just show the next 3 upcoming maintenance periods
+    } else {
+      facilityUpcomingMaintenance.value = [];
+    }
+  } catch (error) {
+    console.error("Error fetching facility maintenance schedules:", error);
+    facilityUpcomingMaintenance.value = [];
+  } finally {
+    facilityMaintenanceHistoryLoading.value = false;
+  }
+};
+
+// Function to check for affected bookings when maintenance dates change
+const checkForAffectedBookings = async () => {
+  if (!maintenanceData.value.facilityId || 
+      !maintenanceData.value.startDate || 
+      !maintenanceData.value.endDate) {
+    return;
+  }
+  
+  try {
+    checkingAffectedBookings.value = true;
+    
+    // Use the composable function to check affected bookings
+    await checkAffectedBookings(
+      maintenanceData.value.facilityId,
+      maintenanceData.value.startDate,
+      maintenanceData.value.endDate
+    );
+  } catch (error) {
+    console.error('Error checking for affected bookings:', error);
+  } finally {
+    checkingAffectedBookings.value = false;
+  }
 };
 
 // Function to handle maintenance button click
@@ -200,6 +270,7 @@ const formatDateForInput = (date: Date): string => {
 const closeMaintenanceModal = () => {
   isMaintenanceModalOpen.value = false;
   selectedFacility.value = null;
+  facilityUpcomingMaintenance.value = [];
 };
 
 const closeReleaseConfirmModal = () => {
@@ -309,6 +380,9 @@ watch(() => maintenanceData.value.startDate, (newValue) => {
         validationErrors.value.endDate = '';
       }
     }
+    
+    // Check for affected bookings when date changes
+    checkForAffectedBookings();
   }
 });
 
@@ -322,6 +396,9 @@ watch(() => maintenanceData.value.endDate, (newValue) => {
     } else {
       validationErrors.value.endDate = '';
     }
+    
+    // Check for affected bookings when date changes
+    checkForAffectedBookings();
   }
 });
 
@@ -342,7 +419,14 @@ const saveMaintenance = async () => {
     
     // Send data to the API
     await axios.post("http://localhost:8080/api/maintenance/schedule", maintenanceData.value);
-    alert("Facility scheduled for maintenance successfully!");
+    
+    // Show success message including cancelled bookings information
+    if (affectedBookingsCount.value > 0) {
+      alert(`Facility scheduled for maintenance successfully! ${affectedBookingsCount.value} existing bookings have been cancelled, and notifications have been sent to the affected users.`);
+    } else {
+      alert("Facility scheduled for maintenance successfully!");
+    }
+    
     closeMaintenanceModal();
     await fetchFacilities();
     
@@ -393,8 +477,6 @@ onMounted(async () => {
     <h1 class="text-2xl font-bold mb-4">Facility Management</h1>
 
     <div class="grid grid-cols-2 gap-4">
-
-
       <UInputMenu v-model="searchQuery.resourceTypeId" :options="resourceTypeOptions" option-attribute="name"
         value-attribute="id" placeholder="Type or select resource type" size="md" class="w-full"
         clearable />
@@ -404,17 +486,14 @@ onMounted(async () => {
       <UInput v-model="searchQuery.capacity" type="number" placeholder="Capacity" />
 
       <div class="col-span-2 flex justify-end gap-2">
-
         <UButton @click="() => { currentPage = 1; fetchFacilities(); }" color="blue" variant="solid"
           icon="i-ic:baseline-search" label="Search" class="px-4 py-2 gap-2" />
-
 
         <UButton @click="resetSearch" color="gray" variant="solid" icon="i-ic:round-restart-alt" label="Reset"
           class="px-4 py-2 gap-2 hover:bg-red-500" />
 
         <UButton @click="openModal()" color="green" variant="solid" icon="i-ic:baseline-plus" label="Add Facility"
           class="px-4 py-2 gap-2" />
-
       </div>
     </div>
 
@@ -434,7 +513,6 @@ onMounted(async () => {
 
           <template #actions-data="{ row }">
             <div class="flex justify-center gap-2">
-
               <UButton @click="viewFacility(row.facilityId)" color="blue" variant="solid" icon="i-heroicons-eye"
                 label="View" />
 
@@ -450,7 +528,6 @@ onMounted(async () => {
                 :label="isUnderMaintenance(row.facilityId) ? 'Release' : 'Maintenance'" 
                 class="px-3 py-1 gap-2"
               />
-
             </div>
           </template>
         </UTable>
@@ -475,12 +552,10 @@ onMounted(async () => {
       </h2>
       <div class="grid grid-cols-3 gap-4 items-center">
         <label class="text-gray-700 font-medium col-span-1">Resource Type:</label>
-
           
       <UInputMenu v-model="facility.resourceTypeId" :options="resourceTypeOptions" option-attribute="name"
         value-attribute="id" placeholder="Type or select resource type" size="md" class="col-span-2 w-full"
         clearable />
-
 
         <label class="text-gray-700 font-medium col-span-1">Resource Name:</label>
         <UInput v-model="facility.resourceName" class="col-span-2 w-full" />
@@ -491,7 +566,6 @@ onMounted(async () => {
         <label class="text-gray-700 font-medium col-span-1">Capacity:</label>
         <UInput v-model.number="facility.capacity" type="number" class="col-span-2 w-full" />
       </div>
-
 
       <div class="mt-9 flex justify-end gap-3">
         <button @click="closeModal" class="bg-gray-400 text-white px-4 py-2 rounded hover:bg-gray-600">
@@ -517,8 +591,48 @@ onMounted(async () => {
       
       <div v-if="selectedFacility" class="mb-6 p-4 bg-gray-50 rounded-lg">
         <p class="font-medium">Facility: {{ selectedFacility.resourceName }}</p>
-        <p class="text-sm text-gray-600">Resource Type Name: {{ getResourceTypeName(Number(selectedFacility.resourceTypeId)) }}</p>
+        <p class="text-sm text-gray-600">Resource Type: {{ getResourceTypeName(Number(selectedFacility.resourceTypeId)) }}</p>
         <p class="text-sm text-gray-600">Location: {{ selectedFacility.location }}</p>
+      </div>
+      
+      <!-- Upcoming maintenance for this facility -->
+      <div v-if="facilityUpcomingMaintenance.length > 0" class="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+        <div class="flex items-start mb-2">
+          <UIcon name="i-heroicons-calendar" class="text-blue-500 mr-2 flex-shrink-0" />
+          <h3 class="font-medium text-blue-800">Upcoming Maintenance for this Facility</h3>
+        </div>
+        
+        <div class="space-y-3 mt-2">
+          <div v-for="maintenance in facilityUpcomingMaintenance" :key="maintenance.maintenanceId" 
+              class="border-l-4 border-blue-400 pl-3 py-1 bg-white rounded-md">
+            <div class="text-sm">
+              <p class="font-medium text-blue-700">{{ formatDateForDisplay(maintenance.startDate) }} to {{ formatDateForDisplay(maintenance.endDate) }}</p>
+              <p class="text-gray-600 line-clamp-2">{{ maintenance.description }}</p>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Affected Bookings Warning -->
+      <div v-if="affectedBookingsCount > 0" class="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
+        <div class="flex items-start">
+          <UIcon name="i-heroicons-exclamation-triangle" class="text-red-500 mr-3 flex-shrink-0 mt-0.5" />
+          <div>
+            <h3 class="font-medium text-red-700 mb-1">Warning: {{ affectedBookingsCount }} Booking{{ affectedBookingsCount > 1 ? 's' : '' }} Will Be Cancelled</h3>
+            <p class="text-sm text-red-600 mb-2">
+              Scheduling maintenance during this period will automatically cancel {{ affectedBookingsCount }} 
+              existing booking{{ affectedBookingsCount > 1 ? 's' : '' }} and send notification emails to affected users.
+            </p>
+            <div v-if="affectedBookings.length > 0" class="mt-3 bg-white p-3 rounded border border-red-100 text-sm max-h-40 overflow-y-auto">
+              <p class="font-medium mb-2">Affected bookings:</p>
+              <ul class="list-disc pl-5 space-y-1">
+                <li v-for="booking in affectedBookings" :key="booking.bookingId">
+                  {{ booking.studentName }} ({{ booking.email }}) - {{ new Date(booking.bookedDatetime).toLocaleDateString() }} / {{ booking.timeslot }}
+                </li>
+              </ul>
+            </div>
+          </div>
+        </div>
       </div>
       
       <div class="grid grid-cols-3 gap-4 items-start">
@@ -574,7 +688,7 @@ onMounted(async () => {
       
       <div v-if="selectedFacility" class="mb-6 p-4 bg-gray-100 rounded-lg">
         <p class="font-medium">Facility: {{ selectedFacility.resourceName }}</p>
-        <p class="text-sm text-gray-600">Resource Type Name: {{ getResourceTypeName(Number(selectedFacility.resourceTypeId)) }}</p>
+        <p class="text-sm text-gray-600">Resource Type: {{ getResourceTypeName(Number(selectedFacility.resourceTypeId)) }}</p>
         <p class="text-sm text-gray-600">Location: {{ selectedFacility.location }}</p>
       </div>
       
@@ -597,7 +711,7 @@ onMounted(async () => {
           <UIcon name="i-heroicons-exclamation-triangle" class="text-yellow-500 mr-3 flex-shrink-0 mt-0.5" />
           <p class="text-sm text-gray-700">
             You are about to release this facility from maintenance earlier than scheduled. 
-            The maintenance end date will be set to today, and the facility will be available for booking the next day.
+            The maintenance end date will be set to today, and the facility will be available for booking immediately.
           </p>
         </div>
       </div>
@@ -628,5 +742,15 @@ onMounted(async () => {
 @keyframes fadeIn {
   from { opacity: 0; transform: translateY(-5px); }
   to { opacity: 1; transform: translateY(0); }
+}
+
+/* Loading animation */
+.animate-spin {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
 }
 </style>
