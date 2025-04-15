@@ -18,7 +18,6 @@ const props = defineProps({
       location: '',
       status: '',
       description: '',
-      attendees: '',
       isPast: false,
       studentId: '',
       studentName: ''
@@ -26,7 +25,12 @@ const props = defineProps({
   }
 });
 
-const emit = defineEmits(['update:modelValue']);
+const emit = defineEmits(['update:model-value']);
+
+// Check if the booking is a maintenance event
+const isMaintenanceEvent = computed(() => {
+  return props.booking.status === 'MAINTENANCE' || props.booking.id?.toString().startsWith('maintenance-');
+});
 
 // Format date for display
 const formatDate = (date) => {
@@ -68,6 +72,8 @@ const getStatusColor = (status) => {
       return 'red';
     case 'CANCELLED':
       return 'gray';
+    case 'MAINTENANCE':
+      return 'orange';
     default:
       return 'gray';
   }
@@ -85,11 +91,11 @@ const closeModal = () => {
         <div class="flex items-center justify-between">
           <div class="flex items-center">
             <UIcon 
-              :name="booking.isPast ? 'i-heroicons-lock-closed' : 'i-heroicons-calendar'" 
+              :name="isMaintenanceEvent ? 'i-heroicons-wrench' : (booking.isPast ? 'i-heroicons-lock-closed' : 'i-heroicons-calendar')" 
               class="mr-2 text-gray-500"
               size="lg" 
             />
-            <h2 class="text-xl font-bold">{{ "View Booking Details" }}</h2>
+            <h2 class="text-xl font-bold">{{ isMaintenanceEvent ? 'Maintenance Information' : 'Booking Details' }}</h2>
           </div>
           <div class="flex items-center">
             <UBadge 
@@ -105,18 +111,16 @@ const closeModal = () => {
       </template>
       
       <div class="space-y-4">
-        <div>
-          <h3 class="text-lg font-medium mb-1">
-            {{ "Booked by: " + booking.studentId + " - " + booking.studentName}}
-          </h3>
+        <!-- Title Section -->
+        <div class="border-b pb-3">
+          <h3 class="text-xl font-bold mb-1">{{ isMaintenanceEvent ? 'Facility Maintenance' : (booking.title || 'Untitled Booking') }}</h3>
           <p class="text-gray-600">
             {{ formatDate(booking.start) }}
             <span v-if="booking.end"> - {{ formatTime(booking.end) }}</span>
           </p>
         </div>
         
-        <UDivider />
-        
+        <!-- Booking Details -->
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
             <label class="block text-sm font-medium text-gray-500 mb-1">Resource</label>
@@ -135,6 +139,28 @@ const closeModal = () => {
           </div>
         </div>
         
+        <!-- Maintenance Alert -->
+        <div v-if="isMaintenanceEvent" class="bg-orange-50 p-4 rounded-md border border-orange-200">
+          <div class="flex items-center mb-2">
+            <UIcon name="i-heroicons-wrench" class="mr-2 text-orange-500" />
+            <h4 class="font-medium text-orange-700">Facility Under Maintenance</h4>
+          </div>
+          <p class="text-orange-600 text-sm">
+            This facility is currently unavailable for booking due to scheduled maintenance. 
+            Please check back after the maintenance period or select a different facility.
+          </p>
+        </div>
+        
+        <!-- User Info - only show for regular bookings -->
+        <div v-if="!isMaintenanceEvent" class="bg-gray-50 p-3 rounded-md">
+          <label class="block text-sm font-medium text-gray-500 mb-1">Booked by</label>
+          <div class="flex items-center">
+            <UIcon name="i-heroicons-user" class="mr-2 text-gray-400" />
+            <p>{{ booking.studentName }} ({{ booking.studentId }})</p>
+          </div>
+        </div>
+        
+        <!-- Description Section -->
         <div v-if="booking.description">
           <label class="block text-sm font-medium text-gray-500 mb-1">Description</label>
           <UCard class="bg-gray-50 p-3">
@@ -142,11 +168,9 @@ const closeModal = () => {
           </UCard>
         </div>
         
-        <div v-if="booking.attendees">
-          <label class="block text-sm font-medium text-gray-500 mb-1">Attendees</label>
-          <UCard class="bg-gray-50 p-3">
-            <p class="whitespace-pre-wrap">{{ booking.attendees }}</p>
-          </UCard>
+        <!-- Booking ID for reference -->
+        <div class="text-center text-xs text-gray-400 mt-2">
+          {{ isMaintenanceEvent ? 'Maintenance ID' : 'Booking ID' }}: {{ booking.id }}
         </div>
       </div>
       

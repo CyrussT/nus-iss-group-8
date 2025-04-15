@@ -1,4 +1,4 @@
-import { ref } from "vue";
+import { ref, onMounted } from "vue";
 import axios from "axios";
 
 export interface Booking {
@@ -12,7 +12,7 @@ export interface Booking {
 
 export interface Facility {
   facilityId?: number;
-  resourceTypeId: number | undefined; // ✅ updated to match select binding
+  resourceTypeId: number | undefined;
   resourceName: string;
   location: string;
   capacity: number;
@@ -21,7 +21,7 @@ export interface Facility {
 
 export const useFacility = () => {
   const facility = ref<Facility>({
-    resourceTypeId: undefined, // ✅ use undefined for dropdown compatibility
+    resourceTypeId: undefined,
     resourceName: "",
     location: "",
     capacity: 1,
@@ -38,9 +38,8 @@ export const useFacility = () => {
     };
   };
 
-  // ✅ search query for filtering
   const searchQuery = ref({
-    resourceTypeId: undefined, // ✅ renamed and aligned with dropdown
+    resourceTypeId: undefined,
     resourceName: "",
     location: "",
     capacity: "",
@@ -53,6 +52,32 @@ export const useFacility = () => {
   const totalPages = ref(1);
   const totalItems = ref(0);
 
+  const resourceTypeOptions = ref<{ id: number; name: string }[]>([]);
+
+  const fetchResourceTypes = async () => {
+    try {
+      const { data } = await axios.get("http://localhost:8080/api/facility-types/all");
+      if (Array.isArray(data)) {
+        resourceTypeOptions.value = data.map(item => ({
+          id: item.id,
+          name: item.name,
+        }));
+        console.log("Loaded resource types:", resourceTypeOptions.value);
+      } else {
+        console.warn("Unexpected data format for resource types:", data);
+      }
+    } catch (error) {
+      console.error("Failed to fetch resource types:", error);
+      resourceTypeOptions.value = [];
+    }
+  };
+
+  const getResourceTypeName = (id: number | string) => {
+    const numericId = Number(id);
+    const match = resourceTypeOptions.value.find(type => type.id === numericId);
+    return match ? match.name : "-";
+  };
+
   const fetchFacilities = async () => {
     try {
       loading.value = true;
@@ -63,12 +88,14 @@ export const useFacility = () => {
           size: pageSize.value,
         },
       });
-      facilities.value = response.data.content.map((f: any) => ({
-        ...f,
-        resourceTypeName: getResourceTypeName(f.resourceTypeId), // 👈 this is key!
-      }));
-      
-      // facilities.value = response.data.content;
+
+      facilities.value = response.data.content.map((f: any) => {
+        return {
+          ...f,
+          resourceTypeName: getResourceTypeName(f.resourceTypeId),
+        };
+      });
+
       totalPages.value = response.data.totalPages;
       totalItems.value = response.data.totalElements;
     } catch (error) {
@@ -97,33 +124,13 @@ export const useFacility = () => {
     }
   };
 
-  const resourceTypeOptions = ref<{ id: number; name: string }[]>([]);
-
-  const fetchResourceTypes = async () => {
-    try {
-      const { data } = await axios.get('http://localhost:8080/api/facility-types/all');
-      if (Array.isArray(data)) {
-        resourceTypeOptions.value = data.map(item => ({
-          id: item.id,
-          name: item.name
-        }));
-        console.log("Loaded resource types:", resourceTypeOptions.value);
-      } else {
-        console.warn('Unexpected data format for resource types:', data);
-      }
-    } catch (error) {
-      console.error('Failed to fetch resource types:', error);
-      resourceTypeOptions.value = [];
-    }
-  };
-
-  const getResourceTypeName = (id: number) => {
-    const match = resourceTypeOptions.value.find((type) => type.id === id);
-    return match ? match.name : "Unknown";
-  };
+  // You can optionally call fetchResourceTypes & fetchFacilities in onMounted if used in setup
+  onMounted(async () => {
+    await fetchResourceTypes();
+    await fetchFacilities();
+  });
 
   return {
-    getResourceTypeName,
     facility,
     resetFacility,
     searchQuery,
@@ -137,5 +144,6 @@ export const useFacility = () => {
     totalItems,
     fetchResourceTypes,
     resourceTypeOptions,
+    getResourceTypeName,
   };
 };

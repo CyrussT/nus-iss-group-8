@@ -9,7 +9,8 @@ import { useFacility } from "@/composables/useFacility";
 
 const route = useRoute();
 const router = useRouter();
-const { facility, fetchFacilityDetails } = useFacility();
+const { facility, fetchFacilityDetails, getResourceTypeName } = useFacility();
+const resourceTypeName = ref("");
 
 const goBack = () => {
   router.push("/facility");
@@ -24,6 +25,13 @@ onMounted(() => {
     router.push("/facility"); // Redirect if ID is invalid
   }
 });
+
+watch (
+  () => facility.value.resourceTypeId,
+  (newResourceTypeId) => {
+    resourceTypeName.value = getResourceTypeName(Number(newResourceTypeId));
+  }
+);
 
 // Pagination state
 const currentPage = ref(1);
@@ -55,8 +63,8 @@ const sortOrder = ref<"asc" | "desc">("asc");
             <td class="p-4">{{ facility.facilityId }}</td>
           </tr>
           <tr class="border-b">
-            <td class="font-semibold text-gray-700 p-4">Type:</td>
-            <td class="p-4">{{ facility.resourceType }}</td>
+            <td class="font-semibold text-gray-700 p-4">Resource Type Name:</td>
+            <td class="p-4">{{ resourceTypeName }}</td>
           </tr>
           <tr class="border-b">
             <td class="font-semibold text-gray-700 p-4">Name:</td>
