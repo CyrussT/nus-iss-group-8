@@ -27,7 +27,7 @@ const props = defineProps({
 const emit = defineEmits(['search', 'reset']);
 
 const searchQuery = ref({
-  resourceType: "",
+  resourceTypeId: "",
   resourceName: "",
   location: "",
   capacity: ""
@@ -40,7 +40,7 @@ const handleSearch = () => {
 const resetSearchFields = () => {
   // Reset search form fields
   searchQuery.value = {
-    resourceType: "",
+    resourceTypeId: "",
     resourceName: "",
     location: "",
     capacity: ""
@@ -86,7 +86,7 @@ onBeforeUnmount(() => {
       <div>
         <label class="block text-sm font-medium text-gray-700 mb-1">Resource Type</label>
         <UInputMenu
-          v-model="searchQuery.resourceType"
+          v-model="searchQuery.resourceTypeId"
           :options="resourceTypeOptions"
           option-attribute="facilityType"
           value-attribute="facilityTypeId"

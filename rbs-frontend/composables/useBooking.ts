@@ -3,7 +3,7 @@ import axios from "axios";
 import type { Booking, Facility } from "./useFacility"; // Import interfaces from useFacility.ts
 
 export interface SearchCriteria {
-  resourceType?: string;
+  resourceTypeId?: string;
   resourceName?: string;
   location?: string;
   capacity?: string | number;
@@ -110,8 +110,8 @@ export function useBooking() {
       const params = new URLSearchParams();
       
       // Explicitly check for each potential property
-      if (criteria.resourceType) {
-        params.append('resourceType', criteria.resourceType.toString());
+      if (criteria.resourceTypeId) {
+        params.append('resourceTypeId', criteria.resourceTypeId.toString());
       }
       
       if (criteria.resourceName) {
