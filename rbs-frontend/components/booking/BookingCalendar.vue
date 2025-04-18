@@ -36,6 +36,17 @@ const {
   facilitiesUnderMaintenance
 } = maintenanceModule;
 
+// Get the color mode (light/dark)
+const colorMode = ref(null);
+try {
+  // Check if the colorMode composable is available
+  const { useColorMode } = useColorMode();
+  colorMode.value = useColorMode();
+} catch (e) {
+  // Fallback if colorMode composable isn't available
+  colorMode.value = ref('light');
+}
+
 // Helper function to check if a date is in the past
 const isInPast = (date) => {
   if (!date) return false;
@@ -306,6 +317,7 @@ const calendarOptions = ref({
       setTimeout(() => {
         forceDisablePrevButton();
         applyMaintenanceStyling();
+        applyDarkModeIfNeeded();
       }, 0);
     }
   },
@@ -330,6 +342,7 @@ const calendarOptions = ref({
     setTimeout(() => {
       forceDisablePrevButton();
       applyMaintenanceStyling();
+      applyDarkModeIfNeeded();
     }, 0);
   },
   
@@ -462,9 +475,180 @@ const calendarOptions = ref({
     setTimeout(() => {
       forceDisablePrevButton();
       applyMaintenanceStyling();
+      applyDarkModeIfNeeded();
     }, 200);
   }
 });
+
+// Dark mode detection
+const isDarkMode = computed(() => {
+  // Handle different ways dark mode might be stored
+  if (typeof colorMode.value === 'object' && colorMode.value && colorMode.value.value) {
+    return colorMode.value.value === 'dark';
+  }
+  
+  if (typeof colorMode.value === 'string') {
+    return colorMode.value === 'dark';
+  }
+  
+  // Fallback to checking system preference or DOM
+  if (typeof window !== 'undefined') {
+    // Check data-theme attribute if it exists
+    const htmlEl = document.documentElement;
+    if (htmlEl.getAttribute('data-theme') === 'dark') {
+      return true;
+    }
+    
+    // Check for dark class on html or body
+    if (htmlEl.classList.contains('dark') || document.body.classList.contains('dark')) {
+      return true;
+    }
+    
+    // Check media query as last resort
+    return window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+  }
+  
+  return false;
+});
+
+// Apply dark mode styling to the calendar
+const applyDarkModeIfNeeded = () => {
+  if (!calendarRef.value) return;
+  
+  setTimeout(() => {
+    try {
+      const calendarApi = calendarRef.value.getApi();
+      const calendarEl = calendarApi.el;
+      
+      // First, remove any existing dark mode styles
+      const existingDarkStyles = calendarEl.querySelector('.dark-mode-styles');
+      if (existingDarkStyles) {
+        existingDarkStyles.remove();
+      }
+      
+      // If we're in dark mode, add the styles
+      if (isDarkMode.value) {
+        const styleEl = document.createElement('style');
+        styleEl.className = 'dark-mode-styles';
+        styleEl.textContent = `
+          /* Calendar container */
+          .fc {
+            background-color: #1e1e2d !important;
+            color: #e2e8f0 !important;
+          }
+          
+          /* Header toolbar */
+          .fc .fc-toolbar {
+            background-color: #1e1e2d !important;
+            color: #e2e8f0 !important;
+          }
+          
+          /* Calendar buttons */
+          .fc .fc-button {
+            background-color: #2d3748 !important;
+            border-color: #4a5568 !important;
+            color: #e2e8f0 !important;
+          }
+          
+          .fc .fc-button:hover {
+            background-color: #4a5568 !important;
+          }
+          
+          .fc .fc-button-primary:not(:disabled).fc-button-active,
+          .fc .fc-button-primary:not(:disabled):active {
+            background-color: #553c9a !important;
+            border-color: #6b46c1 !important;
+          }
+          
+          /* Disabled button */
+          .fc .fc-button-disabled {
+            background-color: #2d3748 !important;
+            border-color: #4a5568 !important;
+            color: #a0aec0 !important;
+            opacity: 0.5 !important;
+          }
+          
+          /* Calendar title */
+          .fc .fc-toolbar-title {
+            color: #e2e8f0 !important;
+          }
+          
+          /* Resource area (left side) */
+          .fc .fc-resource-timeline-divider,
+          .fc .fc-resource-area,
+          .fc .fc-resource-area th,
+          .fc .fc-resource-area td {
+            background-color: #2d3748 !important;
+            color: #e2e8f0 !important;
+            border-color: #4a5568 !important;
+          }
+          
+          /* Day header cells */
+          .fc .fc-col-header,
+          .fc .fc-col-header-cell {
+            background-color: #2d3748 !important;
+            color: #e2e8f0 !important;
+            border-color: #4a5568 !important;
+          }
+          
+          /* Time grid slots */
+          .fc .fc-timeline-slot,
+          .fc .fc-timeline-slot-lane {
+            border-color: #4a5568 !important;
+          }
+          
+          /* Time grid slots - alternating colors */
+          .fc .fc-timeline-slot:nth-child(even) .fc-timeline-slot-lane {
+            background-color: #2d3748 !important;
+          }
+          
+          .fc .fc-timeline-slot:nth-child(odd) .fc-timeline-slot-lane {
+            background-color: #1e1e2d !important;
+          }
+          
+          /* Now indicator */
+          .fc .fc-timeline-now-indicator-line {
+            border-color: #e53e3e !important;
+          }
+          
+          .fc .fc-timeline-now-indicator-arrow {
+            border-color: #e53e3e !important;
+            border-bottom-color: transparent !important;
+            border-top-color: transparent !important;
+          }
+          
+          /* Resource groups */
+          .fc .fc-resource-group {
+            background-color: #2d3748 !important;
+            color: #e2e8f0 !important;
+            border-color: #4a5568 !important;
+          }
+          
+          /* Cell hover state */
+          .fc .fc-timeline-slot-lane:hover {
+            background-color: #2d3748 !important;
+          }
+          
+          /* Event styles for dark mode */
+          .fc-event.past-event {
+            opacity: 0.5 !important;
+            background-image: repeating-linear-gradient(
+              45deg,
+              rgba(255, 255, 255, 0.1),
+              rgba(255, 255, 255, 0.1) 10px,
+              rgba(0, 0, 0, 0.1) 10px,
+              rgba(0, 0, 0, 0.1) 20px
+            ) !important;
+          }
+        `;
+        
+        calendarEl.appendChild(styleEl);
+      }
+    } catch (error) {
+      console.error('Error applying dark mode styling:', error);
+    }
+  }, 100);
+};
 
 // Function to apply maintenance styling
 const applyMaintenanceStyling = () => {
@@ -510,6 +694,19 @@ const applyMaintenanceStyling = () => {
             cursor: not-allowed !important;
           }
           
+          /* Dark mode maintenance styling */
+          .dark .resource-under-maintenance .fc-timeline-slot-lane,
+          html[data-theme="dark"] .resource-under-maintenance .fc-timeline-slot-lane {
+            background-color: #ffcc66 !important;
+            background-image: repeating-linear-gradient(
+              45deg,
+              rgba(0, 0, 0, 0.2),
+              rgba(0, 0, 0, 0.2) 10px,
+              rgba(255, 204, 102, 0.3) 10px,
+              rgba(255, 204, 102, 0.3) 20px
+            ) !important;
+          }
+          
           /* Maintenance indicator in the resource title */
           .maintenance-indicator {
             margin-left: 5px;
@@ -517,6 +714,12 @@ const applyMaintenanceStyling = () => {
             color: #e67e22;
             font-weight: bold;
             animation: wrench-rotate 2s infinite ease-in-out;
+          }
+          
+          /* Dark mode maintenance indicator */
+          .dark .maintenance-indicator,
+          html[data-theme="dark"] .maintenance-indicator {
+            color: #f39c12;
           }
           
           @keyframes wrench-rotate {
@@ -530,6 +733,14 @@ const applyMaintenanceStyling = () => {
             background-color: #f6c46a !important;
             border-color: #e0b25e !important;
             cursor: not-allowed !important;
+          }
+          
+          /* Dark mode maintenance event */
+          .dark .maintenance-event,
+          html[data-theme="dark"] .maintenance-event {
+            background-color: #ffcc66 !important;
+            border-color: #e6b800 !important;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.5) !important;
           }
           
           .maintenance-event .fc-event-title {
@@ -552,6 +763,12 @@ const applyMaintenanceStyling = () => {
             opacity: 0.7;
             pointer-events: none;
             white-space: nowrap;
+          }
+          
+          /* Dark mode maintenance overlay */
+          .dark .maintenance-overlay,
+          html[data-theme="dark"] .maintenance-overlay {
+            color: #ffcc66;
           }
         `;
         
@@ -659,9 +876,17 @@ watch(() => calendarRef.value, (newCalendarRef) => {
     setTimeout(() => {
       forceDisablePrevButton();
       applyMaintenanceStyling();
+      applyDarkModeIfNeeded();
     }, 200);
   }
 });
+
+// Watch for color mode changes
+watch(() => colorMode.value, () => {
+  if (calendarRef.value) {
+    applyDarkModeIfNeeded();
+  }
+}, { deep: true });
 
 // Update calendar resources
 const updateCalendarResources = (resourcesList) => {
@@ -683,6 +908,9 @@ const updateCalendarResources = (resourcesList) => {
       
       // Apply maintenance styling
       applyMaintenanceStyling();
+      
+      // Apply dark mode styling if needed
+      applyDarkModeIfNeeded();
       
       // Force a refetch to ensure proper rendering
       calendarApi.refetchResources();
@@ -714,6 +942,7 @@ const updateCalendarEvents = (eventsList) => {
     setTimeout(() => {
       forceDisablePrevButton();
       applyMaintenanceStyling();
+      applyDarkModeIfNeeded();
     }, 200);
   }
 };
@@ -771,7 +1000,10 @@ const forceRefresh = () => {
     });
     
     // Apply maintenance styling after refresh
-    setTimeout(applyMaintenanceStyling, 300);
+    setTimeout(() => {
+      applyMaintenanceStyling();
+      applyDarkModeIfNeeded();
+    }, 300);
   }
 };
 
@@ -799,7 +1031,8 @@ defineExpose({
   forceRefresh,
   handleResetSearch,
   isResourceUnderMaintenance,
-  applyMaintenanceStyling
+  applyMaintenanceStyling,
+  applyDarkModeIfNeeded
 });
 
 onMounted(() => {
@@ -815,14 +1048,15 @@ onMounted(() => {
       forceDisablePrevButton();
       addPointerCursorToEvents();
       applyMaintenanceStyling();
+      applyDarkModeIfNeeded();
     }
   }, 300);
 });
 </script>
 
 <template>
-  <UCard>
-    <div v-if="loading" class="py-8 text-center">
+  <UCard class="calendar-wrapper-card">
+    <div v-if="loading" class="py-8 text-center dark:text-gray-300">
       <p>Loading resources...</p>
     </div>
     <div v-else class="calendar-wrapper">
@@ -837,6 +1071,19 @@ onMounted(() => {
 </template>
 
 <style scoped>
+.calendar-wrapper-card {
+  /* Apply global dark mode styling */
+  background-color: var(--card-bg, #ffffff);
+  color: var(--card-text, #1e293b);
+}
+
+:global(.dark) .calendar-wrapper-card {
+  --card-bg: #1e1e2d;
+  --card-text: #e2e8f0;
+  border-color: #4a5568;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
+}
+
 .calendar-wrapper {
   width: 100%;
   overflow-x: auto;
@@ -866,8 +1113,16 @@ onMounted(() => {
   border-right: 1px solid #ddd;
 }
 
+:deep(.dark .fc-timeline-slot) {
+  border-right: 1px solid #4a5568;
+}
+
 :deep(.fc-resource-timeline-divider) {
   background: #f5f5f5;
+}
+
+:deep(.dark .fc-resource-timeline-divider) {
+  background: #2d3748;
 }
 
 :deep(.fc-timeline-now-indicator-line) {
@@ -884,6 +1139,11 @@ onMounted(() => {
   background-color: #f0f0f0;
 }
 
+:deep(.dark .fc-resource-group) {
+  background-color: #2d3748;
+  color: #e2e8f0;
+}
+
 /* Enhanced event styling */
 :deep(.fc-event) {
   height: 26px !important; /* Increased event height */
@@ -897,10 +1157,18 @@ onMounted(() => {
   transition: transform 0.1s ease-in-out, box-shadow 0.1s ease-in-out;
 }
 
+:deep(.dark .fc-event) {
+  box-shadow: 0 1px 3px rgba(0,0,0,0.2) !important;
+}
+
 /* Subtle hover effect for events */
 :deep(.fc-event:hover) {
   transform: translateY(-1px) !important;
   box-shadow: 0 3px 5px rgba(0,0,0,0.12) !important;
+}
+
+:deep(.dark .fc-event:hover) {
+  box-shadow: 0 3px 5px rgba(0,0,0,0.3) !important;
 }
 
 :deep(.fc-event-main) {
@@ -925,6 +1193,16 @@ onMounted(() => {
     rgba(255, 255, 255, 0.1) 10px,
     rgba(255, 255, 255, 0.2) 10px,
     rgba(255, 255, 255, 0.2) 20px
+  ) !important;
+}
+
+:deep(.dark .past-event) {
+  background-image: repeating-linear-gradient(
+    45deg,
+    rgba(0, 0, 0, 0.1),
+    rgba(0, 0, 0, 0.1) 10px,
+    rgba(0, 0, 0, 0.2) 10px,
+    rgba(0, 0, 0, 0.2) 20px
   ) !important;
 }
 
@@ -956,6 +1234,11 @@ onMounted(() => {
   cursor: not-allowed !important;
 }
 
+:deep(.dark .maintenance-event) {
+  background-color: #ffcc66 !important;
+  border-color: #e6b800 !important;
+}
+
 :deep(.maintenance-event .fc-event-title) {
   display: block !important;
   text-align: center;
@@ -974,6 +1257,17 @@ onMounted(() => {
     rgba(255, 255, 255, 0.3) 20px
   ) !important;
   cursor: not-allowed !important;
+}
+
+:deep(.dark .resource-under-maintenance .fc-timeline-slot-lane) {
+  background-color: #ffcc66 !important;
+  background-image: repeating-linear-gradient(
+    45deg,
+    rgba(0, 0, 0, 0.2),
+    rgba(0, 0, 0, 0.2) 10px,
+    rgba(0, 0, 0, 0.3) 10px,
+    rgba(0, 0, 0, 0.3) 20px
+  ) !important;
 }
 
 /* Animation for maintenance indicator */
