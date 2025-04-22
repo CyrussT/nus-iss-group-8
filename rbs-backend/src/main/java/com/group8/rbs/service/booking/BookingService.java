@@ -19,7 +19,6 @@ import com.group8.rbs.repository.FacilityTypeRepository;
 import jakarta.transaction.Transactional;
 
 import org.springframework.stereotype.Service;
-import org.springframework.util.StringUtils;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -61,38 +60,16 @@ public class BookingService {
     }
 
     public List<FacilitySearchDTO> searchFacilities(FacilitySearchDTO searchCriteria) {
+
+        String resourceTypeId = searchCriteria.getResourceTypeId() != null 
+            ? searchCriteria.getResourceTypeId().toString() 
+            : null;
         // Filter the facilities based on search criteria
-        List<Facility> filteredFacilities = facilityRepository.findAll().stream()
-        .filter(facility -> {
-            // Resource Type filter
-            if (searchCriteria.getResourceTypeId() != null && 
-            !searchCriteria.getResourceTypeId().equals(facility.getResourceTypeId())) {
-            return false;
-        }
-        
-                    // Resource Name filter
-                    if (StringUtils.hasText(searchCriteria.getResourceName()) &&
-                            !facility.getResourceName().toLowerCase().contains(
-                                    searchCriteria.getResourceName().toLowerCase())) {
-                        return false;
-                    }
-
-                    // Location filter
-                    if (StringUtils.hasText(searchCriteria.getLocation()) &&
-                            !facility.getLocation().toLowerCase().contains(
-                                    searchCriteria.getLocation().toLowerCase())) {
-                        return false;
-                    }
-
-                    // Capacity filter
-                    if (searchCriteria.getCapacity() != null &&
-                            facility.getCapacity() < searchCriteria.getCapacity()) {
-                        return false;
-                    }
-
-                    return true;
-                })
-                .collect(Collectors.toList());
+        List<Facility> filteredFacilities = facilityRepository.searchFacilities(
+            resourceTypeId,
+            searchCriteria.getResourceName(),
+            searchCriteria.getLocation(),
+            searchCriteria.getCapacity());
 
         // If date filter is provided, use it to filter bookings within each facility
         if (searchCriteria.getDate() != null) {
@@ -157,60 +134,68 @@ public class BookingService {
     }
 
     public BookingResponseDTO createBooking(BookingDTO requestDTO) {
-    // Find the facility
-    Facility facility = facilityRepository.findById(requestDTO.getFacilityId())
-            .orElseThrow(() -> new RuntimeException("Facility not found"));
+        // Find the facility
+        Facility facility = facilityRepository.findById(requestDTO.getFacilityId())
+                .orElseThrow(() -> new RuntimeException("Facility not found"));
+        
+        // Find the account
+        Optional<Account> account = accountRepository.findByEmail(requestDTO.getAccountEmail());
     
-    // Find the account
-    Optional<Account> account = accountRepository.findByEmail(requestDTO.getAccountEmail());
-
-    if (account.isEmpty()) {
-        throw new RuntimeException("Account not found");
+        if (account.isEmpty()) {
+            throw new RuntimeException("Account not found");
+        }
+    
+        // Parse the bookedDateTime from the request
+        // The frontend now sends the datetime in SG timezone
+        LocalDateTime bookedDateTime = requestDTO.getBookedDateTime();
+        
+        // Log the datetime for debugging purposes
+        System.out.println("Received booking datetime: " + bookedDateTime);
+    
+        // Check if the time slot is available
+        if (!isTimeSlotAvailable(requestDTO.getFacilityId(), bookedDateTime, requestDTO.getTimeSlot())) {
+            throw new RuntimeException("This time slot is already booked");
+        }
+        
+        // Parse the credits needed from the request
+        Double creditsNeeded;
+        try {
+            creditsNeeded = Double.parseDouble(requestDTO.getCreditsUsed());
+        } catch (NumberFormatException e) {
+            throw new RuntimeException("Invalid credits used value: " + requestDTO.getCreditsUsed(), e);
+        }
+        // Attempt to deduct credits - this will only succeed if sufficient credits exist
+        int updatedRows = creditRepository.checkAndDeductCredits(account.get().getAccountId(), creditsNeeded);
+        
+        if (updatedRows == 0) {
+            // Get current balance for a better error message
+            Double currentBalance = creditRepository.findCreditBalanceByAccountId(account.get().getAccountId());
+            throw new RuntimeException("Insufficient credits. Required: " + creditsNeeded + 
+                                      ", Available: " + currentBalance);
+        }
+    
+        // To set to pending or instant approve based on facility type
+        BookingStatus bookingStatus = facility.getResourceTypeId().equals(5L)
+                ? BookingStatus.PENDING // Sports & Recreation requires approval
+                : BookingStatus.APPROVED;
+    
+        // Create the booking entity
+        Booking booking = Booking.builder()
+                .facility(facility)
+                .account(account.get())
+                .bookedDateTime(bookedDateTime) // Use the bookedDateTime directly
+                .timeSlot(requestDTO.getTimeSlot())
+                .title(requestDTO.getTitle())
+                .description(requestDTO.getDescription())
+                .status(bookingStatus)
+                .build();
+        
+        // Save to database
+        Booking savedBooking = bookingRepository.save(booking);
+        
+        // Return the response DTO
+        return bookingMapper.toResponseDTO(savedBooking);
     }
-
-    // Check if the time slot is available
-    if (!isTimeSlotAvailable(requestDTO.getFacilityId(), requestDTO.getBookedDateTime(), requestDTO.getTimeSlot())) {
-        throw new RuntimeException("This time slot is already booked");
-    }
-    
-    // Parse the credits needed from the request
-    Double creditsNeeded;
-    try {
-        creditsNeeded = Double.parseDouble(requestDTO.getCreditsUsed());
-    } catch (NumberFormatException e) {
-        throw new RuntimeException("Invalid credits used value: " + requestDTO.getCreditsUsed(), e);
-    }
-    // Attempt to deduct credits - this will only succeed if sufficient credits exist
-    int updatedRows = creditRepository.checkAndDeductCredits(account.get().getAccountId(), creditsNeeded);
-    
-    if (updatedRows == 0) {
-        // Get current balance for a better error message
-        Double currentBalance = creditRepository.findCreditBalanceByAccountId(account.get().getAccountId());
-        throw new RuntimeException("Insufficient credits. Required: " + creditsNeeded + 
-                                   ", Available: " + currentBalance);
-    }
-
-    // To set to pending or instant approve based on facility type
-    BookingStatus bookingStatus = facility.getResourceTypeId().equals(5L)
-    ? BookingStatus.PENDING
-    : BookingStatus.APPROVED;
-
-
-      // Create the booking entity
-      Booking booking = Booking.builder()
-              .facility(facility)
-              .account(account.get())
-              .bookedDateTime(requestDTO.getBookedDateTime())
-              .timeSlot(requestDTO.getTimeSlot())
-              .status(bookingStatus)
-              .build();
-    
-    // Save to database
-    Booking savedBooking = bookingRepository.save(booking);
-    
-    // Return the response DTO
-    return bookingMapper.toResponseDTO(savedBooking);
-}
 
     // Helper method to check if a time slot is available
     private boolean isTimeSlotAvailable(Long facilityId, LocalDateTime bookedDateTime, String timeSlot) {

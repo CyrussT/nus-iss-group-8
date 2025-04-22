@@ -1,5 +1,5 @@
 <script setup>
-import { ref, defineEmits } from 'vue';
+import { ref, defineEmits, onMounted, onBeforeUnmount } from 'vue';
 
 const props = defineProps({
   loading: {
@@ -27,7 +27,7 @@ const props = defineProps({
 const emit = defineEmits(['search', 'reset']);
 
 const searchQuery = ref({
-  resourceType: "",
+  resourceTypeId: "",
   resourceName: "",
   location: "",
   capacity: ""
@@ -37,19 +37,43 @@ const handleSearch = () => {
   emit('search', { ...searchQuery.value });
 };
 
-const handleReset = () => {
+const resetSearchFields = () => {
+  // Reset search form fields
   searchQuery.value = {
-    resourceType: "",
+    resourceTypeId: "",
     resourceName: "",
     location: "",
     capacity: ""
   };
+  console.log("Search fields have been reset");
+};
+
+const handleReset = () => {
+  // Reset local search fields
+  resetSearchFields();
+  
+  // Emit the reset event to parent
   emit('reset');
 };
+
+// Listen for external reset events 
+const handleExternalReset = () => {
+  resetSearchFields();
+};
+
+// Set up event listener for external reset
+onMounted(() => {
+  document.addEventListener('reset-search-fields', handleExternalReset);
+});
+
+// Clean up event listener
+onBeforeUnmount(() => {
+  document.removeEventListener('reset-search-fields', handleExternalReset);
+});
 </script>
 
 <template>
-  <UCard class="p-4">
+  <UCard class="booking-search-bar p-4">
     <template #header>
       <div class="flex items-center">
         <UIcon name="i-heroicons-magnifying-glass" class="mr-2 text-gray-500" />
@@ -62,7 +86,7 @@ const handleReset = () => {
       <div>
         <label class="block text-sm font-medium text-gray-700 mb-1">Resource Type</label>
         <UInputMenu
-          v-model="searchQuery.resourceType"
+          v-model="searchQuery.resourceTypeId"
           :options="resourceTypeOptions"
           option-attribute="facilityType"
           value-attribute="facilityTypeId"
