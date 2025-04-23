@@ -1,26 +1,55 @@
 <script setup lang="ts">
-const auth = useAuthStore();
-const router = useRouter();
-const colorMode = useColorMode();
-const showManageDropdown = ref(false); // Controls dropdown visibility
+const auth = useAuthStore()
+const router = useRouter()
+const colorMode = useColorMode()
+const showManageDropdown = ref(false)
 
 const toggleColorMode = () => {
   colorMode.preference = colorMode.value === "dark" ? "light" : "dark";
 };
 
-const userRole = computed(() => auth.user.value?.role);
+const userRole = ref<string | null>(null)
 
-const isAdmin = computed(() => userRole.value === "ADMINISTRATOR");
-const isStudent = computed(() => userRole.value === "STUDENT");
+watch(
+  () => auth.user.value?.role,
+  (newRole) => {
+    userRole.value = newRole || null
+  },
+  { immediate: true }
+)
 
-console.log("User role:", userRole.value);
+const isAdmin = computed(() => userRole.value === 'ADMINISTRATOR')
+const isStudent = computed(() => userRole.value === 'STUDENT')
 
 const handleLogout = () => {
-  auth.logout();
-  router.push("/login");
-};
+  auth.logout()
+  router.push('/login')
+}
 
+interface NavigationMenuItem {
+  label: string
+  to?: string
+  active?: boolean
+  target?: '_blank' | '_self' | '_parent' | '_top'
+}
 
+const items = computed<NavigationMenuItem[]>(() => {
+  const baseItems: NavigationMenuItem[] = []
+
+  if (isAdmin.value) {
+    baseItems.push(
+      { label: 'Facility', to: '/facility' },
+      { label: 'Manage Students', to: '/student-list' },
+      { label: 'Booking Requests', to: '/booking-review-list' }
+    )
+  }
+
+  if (isStudent.value) {
+    baseItems.push({ label: 'Booking', to: '/booking' })
+  }
+
+  return baseItems
+})
 </script>
 
 <template>
@@ -29,41 +58,26 @@ const handleLogout = () => {
       <NuxtLink to="/">Resource Booking System</NuxtLink>
     </h1>
 
-    <nav class="flex gap-4 relative">
-      <template v-if="isAdmin">
-        <NuxtLink to="/facility" class="text-sm font-semibold text-blue-500 hover:underline">
-          Facility
-        </NuxtLink>
+    <!-- Navigation -->
+    <UHorizontalNavigation :links="items" class="justify-center" />
 
-        <NuxtLink to="/student-list" class="text-sm font-semibold text-blue-500 hover:underline">
-          Manage Students
-        </NuxtLink>
-
-        <NuxtLink to="/booking-review-list" class="text-sm font-semibold text-blue-500 hover:underline">
-          Booking Requests
-        </NuxtLink>
-      </template>
-      <template v-if="isStudent">
-        <NuxtLink to="/booking" class="text-sm font-semibold text-blue-500 hover:underline">
-          Booking
-        </NuxtLink>
-        <NuxtLink to="/student-booking" class="text-sm font-semibold text-blue-500 hover:underline">
-          My Bookings
-        </NuxtLink>
-      </template>
-    </nav>
-
-
-
-
+    <!-- Right controls -->
     <div class="flex items-center gap-4">
       <UButton variant="ghost" @click="toggleColorMode">
-        <UIcon v-if="colorMode.preference === 'light'" name="i-heroicons:moon" class="w-5 h-5" />
-        <UIcon v-else name="i-heroicons:sun" class="w-5 h-5" />
+        <UIcon
+          v-if="colorMode.preference === 'light'"
+          name="i-heroicons:moon"
+          class="w-5 h-5"
+        />
+        <UIcon
+          v-else
+          name="i-heroicons:sun"
+          class="w-5 h-5"
+        />
       </UButton>
 
       <UButton :ui="{ rounded: 'rounded-full' }" size="lg" @click="handleLogout">
-        <a> Logout </a>
+        Logout
       </UButton>
     </div>
   </header>
