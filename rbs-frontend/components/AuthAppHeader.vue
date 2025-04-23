@@ -59,21 +59,22 @@ const items = computed<NavigationMenuItem[]>(() => {
     </h1>
 
     <!-- Navigation -->
-    <UHorizontalNavigation :links="items" class="justify-center" />
+    <div class="flex items-center gap-4">
+      <UHorizontalNavigation :links="items" class="justify-center" :ui="{
+        base: 'text-sm font-semibold',
+        link: {
+          inactive: 'text-gray-600 hover:text-green-600',
+          active: 'text-green-600'
+        }
+      }" />
+
+    </div>
 
     <!-- Right controls -->
     <div class="flex items-center gap-4">
       <UButton variant="ghost" @click="toggleColorMode">
-        <UIcon
-          v-if="colorMode.preference === 'light'"
-          name="i-heroicons:moon"
-          class="w-5 h-5"
-        />
-        <UIcon
-          v-else
-          name="i-heroicons:sun"
-          class="w-5 h-5"
-        />
+        <UIcon v-if="colorMode.preference === 'light'" name="i-heroicons:moon" class="w-5 h-5" />
+        <UIcon v-else name="i-heroicons:sun" class="w-5 h-5" />
       </UButton>
 
       <UButton :ui="{ rounded: 'rounded-full' }" size="lg" @click="handleLogout">
