@@ -61,9 +61,10 @@ public class BookingService {
 
     public List<FacilitySearchDTO> searchFacilities(FacilitySearchDTO searchCriteria) {
 
-        String resourceTypeId = searchCriteria.getResourceTypeId() != null 
-            ? searchCriteria.getResourceTypeId().toString() 
-            : null;
+        Long resourceTypeId = searchCriteria.getResourceTypeId() != null 
+        ? searchCriteria.getResourceTypeId() 
+        : null;
+            
         // Filter the facilities based on search criteria
         List<Facility> filteredFacilities = facilityRepository.searchFacilities(
             resourceTypeId,
