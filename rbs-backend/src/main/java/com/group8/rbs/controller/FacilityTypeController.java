@@ -7,11 +7,11 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.group8.rbs.dto.facility.FacilityTypeDTO;
-import com.group8.rbs.entities.FacilityType;
 import com.group8.rbs.repository.FacilityTypeRepository;
 
 import java.util.List;
 import java.util.stream.Collectors;
+
 @RestController
 @RequestMapping("/api/facility-types")
 public class FacilityTypeController {
@@ -23,11 +23,11 @@ public class FacilityTypeController {
     @GetMapping("/all")
     public ResponseEntity<List<FacilityTypeDTO>> getAllFacilityTypes() {
         List<FacilityTypeDTO> facilityTypes = facilityTypeRepository.findAll()
-            .stream()
-            .map(ft -> new FacilityTypeDTO(ft.getId(), ft.getName()))
-            .collect(Collectors.toList());
+                .stream()
+                .map(ft -> new FacilityTypeDTO(ft.getId(), ft.getName()))
+                .collect(Collectors.toList());
 
-    return ResponseEntity.ok(facilityTypes);
+        return ResponseEntity.ok(facilityTypes);
+    }
+
 }
-
-}    

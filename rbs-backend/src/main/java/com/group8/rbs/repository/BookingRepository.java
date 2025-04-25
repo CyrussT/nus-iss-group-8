@@ -1,7 +1,5 @@
 package com.group8.rbs.repository;
 
-import java.util.Optional;
-
 import com.group8.rbs.entities.Booking;
 import com.group8.rbs.enums.BookingStatus;
 
@@ -10,7 +8,6 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
-import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 

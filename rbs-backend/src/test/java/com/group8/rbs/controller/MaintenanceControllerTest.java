@@ -10,7 +10,6 @@ import com.group8.rbs.service.maintenance.MaintenanceService;
 import com.group8.rbs.service.security.JwtService;
 
 import org.junit.jupiter.api.Test;
-import org.mockito.Mockito;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;

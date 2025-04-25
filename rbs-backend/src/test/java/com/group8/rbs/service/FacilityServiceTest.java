@@ -7,7 +7,6 @@ import com.group8.rbs.entities.Facility;
 import com.group8.rbs.enums.BookingStatus;
 import com.group8.rbs.entities.Account;
 import com.group8.rbs.entities.Booking;
-import com.group8.rbs.dto.booking.BookingResponseDTO;
 import com.group8.rbs.exception.FacilityException;
 import com.group8.rbs.mapper.FacilityMapper;
 import com.group8.rbs.repository.FacilityRepository;
@@ -157,6 +156,7 @@ class FacilityServiceTest {
         assertThrows(FacilityException.FacilityNotFoundException.class, () -> facilityService.deleteFacility(1L));
     }
 
+    @SuppressWarnings("unchecked")
     @Test
     void testSearchFacilities() {
         FacilitySearchDTO searchDTO = new FacilitySearchDTO();
