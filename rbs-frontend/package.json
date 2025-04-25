@@ -25,7 +25,7 @@
     "vue": "latest"
   },
   "dependencies": {
-    "@fullcalendar/core": "^6.1.15",
+    "@fullcalendar/core": "^6.1.17",
     "@fullcalendar/interaction": "^6.1.15",
     "@fullcalendar/resource-timeline": "^6.1.15",
     "@fullcalendar/vue3": "^6.1.15",
