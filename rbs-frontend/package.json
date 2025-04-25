@@ -27,7 +27,7 @@
   "dependencies": {
     "@fullcalendar/core": "^6.1.15",
     "@fullcalendar/interaction": "^6.1.15",
-    "@fullcalendar/resource-timeline": "^6.1.15",
+    "@fullcalendar/resource-timeline": "^6.1.17",
     "@fullcalendar/vue3": "^6.1.15",
     "axios": "^1.7.9",
     "nuxt-app": "file:",
