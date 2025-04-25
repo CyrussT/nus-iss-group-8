@@ -25,7 +25,7 @@ public interface FacilityRepository extends JpaRepository<Facility, Long>,JpaSpe
     "AND (:location IS NULL OR f.LOCATION = :location) " +
     "AND (:capacity IS NULL OR f.CAPACITY = :capacity) " +
     "ORDER BY f.RESOURCE_NAME", nativeQuery = true)
-    List<Facility> searchFacilities(@Param("resourceType") String resourceType,
+    List<Facility> searchFacilities(@Param("resourceType") Long resourceType,
                                 @Param("resourceName") String resourceName,
                                 @Param("location") String location,
                                 @Param("capacity") Integer capacity);
