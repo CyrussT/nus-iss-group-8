@@ -20,6 +20,7 @@ import jakarta.transaction.Transactional;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
@@ -61,6 +62,8 @@ public class BookingService {
         this.accountRepository = accountRepository;
         this.creditRepository = creditRepository;
     }
+    @Autowired
+    private BookingWebSocketService bookingWebSocketService;
 
     public List<FacilitySearchDTO> searchFacilities(FacilitySearchDTO searchCriteria) {
 
@@ -314,6 +317,7 @@ public class BookingService {
             Booking booking = optionalBooking.get();
             booking.setStatus(status);
             bookingRepository.save(booking);
+            bookingWebSocketService.sendBookingUpdate(bookingId);
             return true; // Return true if update was successful
         } else {
             return false; // Return false if booking not found
