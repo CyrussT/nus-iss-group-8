@@ -846,7 +846,7 @@ watch(() => facilitiesUnderMaintenance, () => {
       <!-- Hint about calendar clicking -->
       <div class="text-xs text-gray-600 dark:text-gray-400 mt-3 flex items-center p-2 bg-blue-50 dark:bg-blue-900/30 rounded-md">
         <UIcon name="i-heroicons-information-circle" class="mr-2 text-blue-500 dark:text-blue-400" size="sm" />
-        <span>Click on an empty timeslot in the calendar grid to create a new booking. Click on a colored slot to view its details. Facilities under maintenance cannot be booked.</span>
+        <span>Click on an empty timeslot in the calendar grid to create a new booking. Click on a coloured slot to view its details. Facilities under maintenance cannot be booked.</span>
       </div>
     </div>
     
