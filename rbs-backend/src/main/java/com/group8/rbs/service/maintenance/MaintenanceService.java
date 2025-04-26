@@ -148,7 +148,7 @@ public class MaintenanceService {
         
         for (MaintenanceSchedule schedule : existingSchedules) {
             // Skip the current maintenance schedule being updated (if any)
-            if (excludeMaintenanceId != null && schedule.getMaintenanceId().equals(excludeMaintenanceId)) {
+            if (schedule.getMaintenanceId().equals(excludeMaintenanceId)) {
                 continue;
             }
             
@@ -221,22 +221,6 @@ public class MaintenanceService {
     }
     
     /**
-     * Update an existing maintenance schedule
-     */
-    public MaintenanceSchedule updateMaintenanceSchedule(MaintenanceSchedule maintenanceSchedule) {
-        // Check for overlapping maintenance
-        if (hasOverlappingMaintenance(
-                maintenanceSchedule.getFacilityId(), 
-                maintenanceSchedule.getStartDate(), 
-                maintenanceSchedule.getEndDate(),
-                maintenanceSchedule.getMaintenanceId())) {
-            throw new MaintenanceOverlapException("This facility already has scheduled maintenance during the selected dates");
-        }
-        
-        return maintenanceRepository.save(maintenanceSchedule);
-    }
-    
-    /**
      * Delete a maintenance schedule
      */
     public void deleteMaintenanceSchedule(Long maintenanceId) {
@@ -248,20 +232,6 @@ public class MaintenanceService {
      */
     public boolean isFacilityUnderMaintenance(Long facilityId) {
         return maintenanceRepository.existsByFacilityIdAndCurrentDate(facilityId);
-    }
-    
-    /**
-     * Get active maintenance schedules (currently ongoing)
-     */
-    public List<MaintenanceSchedule> getActiveMaintenance() {
-        return maintenanceRepository.findActiveMaintenance();
-    }
-    
-    /**
-     * Get upcoming maintenance schedules (future dates)
-     */
-    public List<MaintenanceSchedule> getUpcomingMaintenance() {
-        return maintenanceRepository.findUpcomingMaintenance();
     }
     
     /**

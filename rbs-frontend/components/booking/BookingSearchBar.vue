@@ -76,15 +76,15 @@ onBeforeUnmount(() => {
   <UCard class="booking-search-bar p-4">
     <template #header>
       <div class="flex items-center">
-        <UIcon name="i-heroicons-magnifying-glass" class="mr-2 text-gray-500" />
-        <h3 class="text-lg font-medium">Find Available Resources</h3>
+        <UIcon name="i-heroicons-magnifying-glass" class="mr-2 text-gray-500 dark:text-gray-400" />
+        <h3 class="text-lg font-medium dark:text-white">Find Available Resources</h3>
       </div>
     </template>
 
     <div class="mb-4 grid grid-cols-1 md:grid-cols-2 gap-4">
       <!-- Resource Type with UInputMenu -->
       <div>
-        <label class="block text-sm font-medium text-gray-700 mb-1">Resource Type</label>
+        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Resource Type</label>
         <UInputMenu
           v-model="searchQuery.resourceTypeId"
           :options="resourceTypeOptions"
@@ -100,7 +100,7 @@ onBeforeUnmount(() => {
 
       <!-- Resource Name with regular UInput - no autocomplete -->
       <div>
-        <label class="block text-sm font-medium text-gray-700 mb-1">Resource Name</label>
+        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Resource Name</label>
         <UInput
           v-model="searchQuery.resourceName"
           placeholder="Enter resource name"
@@ -113,7 +113,7 @@ onBeforeUnmount(() => {
 
       <!-- Location with UInputMenu -->
       <div>
-        <label class="block text-sm font-medium text-gray-700 mb-1">Location</label>
+        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Location</label>
         <UInputMenu
           v-model="searchQuery.location"
           :options="locationOptions"
@@ -127,7 +127,7 @@ onBeforeUnmount(() => {
 
       <!-- Capacity -->
       <div>
-        <label class="block text-sm font-medium text-gray-700 mb-1">Minimum Capacity</label>
+        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Minimum Capacity</label>
         <UInput 
           v-model="searchQuery.capacity" 
           type="number" 
@@ -159,3 +159,55 @@ onBeforeUnmount(() => {
     </div>
   </UCard>
 </template>
+
+<style scoped>
+/* Dark mode overrides for the search bar */
+:deep(.dark .booking-search-bar) {
+  background-color: #1e1e2d;
+  border-color: #4a5568;
+}
+
+:deep(.dark .u-input) {
+  background-color: #2d3748;
+  border-color: #4a5568;
+  color: #e2e8f0;
+}
+
+:deep(.dark .u-input::placeholder) {
+  color: #a0aec0;
+}
+
+:deep(.dark .u-input-icon) {
+  color: #a0aec0;
+}
+
+:deep(.dark .u-input-menu) {
+  background-color: #2d3748;
+  border-color: #4a5568;
+}
+
+:deep(.dark .u-input-menu__item) {
+  color: #e2e8f0;
+}
+
+:deep(.dark .u-input-menu__item:hover) {
+  background-color: #4a5568;
+}
+
+:deep(.dark .u-input-menu__item--selected) {
+  background-color: #553c9a;
+}
+
+:deep(.dark .u-button--soft.u-button--gray) {
+  background-color: #2d3748;
+  color: #e2e8f0;
+}
+
+:deep(.dark .u-button--soft.u-button--gray:hover) {
+  background-color: #4a5568;
+}
+
+:deep(.dark input[type="number"]) {
+  color-scheme: dark;
+}
+</style>

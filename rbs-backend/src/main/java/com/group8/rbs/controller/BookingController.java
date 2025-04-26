@@ -9,6 +9,8 @@ import com.group8.rbs.service.booking.BookingService;
 import com.group8.rbs.service.email.CustomEmailService;
 import jakarta.mail.MessagingException;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -23,6 +25,7 @@ import java.util.Map;
 @RestController
 @RequestMapping("/api/bookings")
 public class BookingController {
+    private static final Logger logger = LoggerFactory.getLogger(BookingController.class);
     private final BookingService bookingService;
     private final CustomEmailService emailService;
     private static final ZoneId SG_ZONE = ZoneId.of("Asia/Singapore");
@@ -62,14 +65,14 @@ public class BookingController {
 
     @PostMapping
     public ResponseEntity<BookingResponseDTO> createBooking(@RequestBody BookingDTO request) throws MessagingException {
-        System.out.println("Received booking request: " + request);
+        logger.info("Received booking request: " + request);
         
         // If the bookedDateTime has a timezone offset in the string (like +08:00),
         // it will be parsed correctly by default. If not, we assume it's in Singapore time
         LocalDateTime bookingDateTime = request.getBookedDateTime();
         
         // Log the parsed datetime for debugging
-        System.out.println("Parsed booking datetime: " + bookingDateTime);
+        logger.info("Parsed booking datetime: " + bookingDateTime);
         
         BookingResponseDTO response = bookingService.createBooking(request);
 
@@ -104,9 +107,9 @@ public class BookingController {
             boolean emailSent = emailService.sendEmail(toEmail, subject, body);
 
             if (emailSent) {
-                System.out.println("Booking confirmation email sent successfully.");
+                logger.info("Booking confirmation email sent successfully.");
             } else {
-                System.out.println("Failed to send booking confirmation email.");
+                logger.info("Failed to send booking confirmation email.");
             }
 
             return ResponseEntity.ok(response);
@@ -156,10 +159,10 @@ public class BookingController {
             boolean emailSent = emailService.sendEmail(toEmail, subject, body);
 
             if (emailSent) {
-                System.out.println("Email sent successfully after cancellation.");
+                logger.info("Email sent successfully after cancellation.");
                 return ResponseEntity.ok("Booking deleted successfully and confirmation email sent.");
             } else {
-                System.out.println("Failed to send email after cancellation.");
+                logger.info("Failed to send email after cancellation.");
                 return ResponseEntity.ok("Booking deleted successfully, but failed to send confirmation email.");
             }
         } else {
@@ -217,10 +220,10 @@ public class BookingController {
             boolean emailSent = emailService.sendEmail(toEmail, subject, body);
 
             if (emailSent) {
-                System.out.println("Email sent successfully after rejection.");
+                logger.info("Email sent successfully after rejection.");
                 return ResponseEntity.ok("Booking rejected successfully and rejection email sent.");
             } else {
-                System.out.println("Failed to send email after rejection.");
+                logger.info("Failed to send email after rejection.");
                 return ResponseEntity.ok("Booking rejected successfully, but failed to send rejection email.");
             }
         }

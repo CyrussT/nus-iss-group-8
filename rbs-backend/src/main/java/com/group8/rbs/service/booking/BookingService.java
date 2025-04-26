@@ -18,10 +18,13 @@ import com.group8.rbs.repository.FacilityTypeRepository;
 
 import jakarta.transaction.Transactional;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
@@ -32,6 +35,7 @@ import java.util.stream.Collectors;
 @Service
 @Transactional
 public class BookingService {
+    private static final Logger logger = LoggerFactory.getLogger(BookingService.class);
     private final BookingRepository bookingRepository;
     private final BookingMapper bookingMapper;
     private final FacilityRepository facilityRepository;
@@ -60,9 +64,10 @@ public class BookingService {
 
     public List<FacilitySearchDTO> searchFacilities(FacilitySearchDTO searchCriteria) {
 
-        String resourceTypeId = searchCriteria.getResourceTypeId() != null 
-            ? searchCriteria.getResourceTypeId().toString() 
-            : null;
+        Long resourceTypeId = searchCriteria.getResourceTypeId() != null 
+        ? searchCriteria.getResourceTypeId() 
+        : null;
+            
         // Filter the facilities based on search criteria
         List<Facility> filteredFacilities = facilityRepository.searchFacilities(
             resourceTypeId,
@@ -149,7 +154,7 @@ public class BookingService {
         LocalDateTime bookedDateTime = requestDTO.getBookedDateTime();
         
         // Log the datetime for debugging purposes
-        System.out.println("Received booking datetime: " + bookedDateTime);
+        logger.info("Received booking datetime: " + bookedDateTime);
     
         // Check if the time slot is available
         if (!isTimeSlotAvailable(requestDTO.getFacilityId(), bookedDateTime, requestDTO.getTimeSlot())) {
@@ -233,7 +238,7 @@ public class BookingService {
         List<Booking> bookings = bookingRepository.findUpcomingApprovedOrConfirmedBookings(
                 accountId, List.of(BookingStatus.APPROVED, BookingStatus.CONFIRMED), now);
 
-        System.out.println("Found " + bookings.size() + " upcoming approved/confirmed bookings");
+        logger.info("Found " + bookings.size() + " upcoming approved/confirmed bookings");
 
         return bookings.stream()
                 .map(bookingMapper::toResponseDTO)
@@ -246,7 +251,7 @@ public class BookingService {
         List<Booking> bookings = bookingRepository.findByAccount_AccountIdAndStatusAndBookedDateTimeAfter(
                 accountId, BookingStatus.PENDING, now);
 
-        System.out.println("Found " + bookings.size() + " pending bookings");
+        logger.info("Found " + bookings.size() + " pending bookings");
         return bookings.stream()
                 .map(bookingMapper::toResponseDTO)
                 .collect(Collectors.toList());
@@ -254,21 +259,31 @@ public class BookingService {
 
     public List<BookingResponseDTO> getBookingHistory(Long accountId, String status) {
         LocalDateTime now = LocalDateTime.now();
-        System.out.println("Fetching booking history for studentId: " + accountId);
+        logger.info("Fetching booking history for studentId: " + accountId);
+        logger.info("Current Server Time: " + now);
 
         List<Booking> bookings;
 
         if (status != null && !status.isEmpty()) {
             BookingStatus bookingStatus = BookingStatus.valueOf(status.toUpperCase());
-            System.out.println("Filtering by status: " + bookingStatus);
+            logger.info("Filtering by status: " + bookingStatus);
             bookings = bookingRepository.findByAccount_AccountIdAndStatusAndBookedDateTimeBefore(
                     accountId, bookingStatus, now);
         } else {
-            System.out.println("Fetching all past bookings (no status filter)");
+            logger.info("Fetching all past bookings (no status filter)");
             bookings = bookingRepository.findByAccount_AccountIdAndBookedDateTimeBefore(accountId, now);
         }
 
-        System.out.println("Found " + bookings.size() + " past bookings");
+        for (Booking booking : bookings) {
+            LocalDateTime bookedTime = booking.getBookedDateTime(); // assuming your getter is named this way
+            logger.info("Booking ID: " + booking.getBookingId());
+            logger.info("Booked DateTime: " + bookedTime);
+            logger.info("Formatted DateTime: " + bookedTime.format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")));
+            logger.info("----------");
+        }
+
+        logger.info("Found " + bookings.size() + " past bookings");
+        
         return bookings.stream().map(bookingMapper::toResponseDTO).collect(Collectors.toList());
     }
 
