@@ -40,11 +40,11 @@ const {
 const colorMode = ref(null);
 try {
   // Check if the colorMode composable is available
-  const { useColorMode } = useColorMode();
-  colorMode.value = useColorMode();
+  const useColorMode = useColorMode();
+  colorMode.value = useColorMode;
 } catch (e) {
   // Fallback if colorMode composable isn't available
-  colorMode.value = ref('light');
+  colorMode.value = 'light';
 }
 
 // Helper function to check if a date is in the past
