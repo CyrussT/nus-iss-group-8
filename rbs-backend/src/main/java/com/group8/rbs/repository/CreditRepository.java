@@ -27,5 +27,5 @@ public interface CreditRepository extends JpaRepository<Credit, Long> {
     @Transactional
     @Query("UPDATE Credit c SET c.creditBalance = c.creditBalance + :amount " +
            "WHERE c.accountId = :accountId")
-    int addCredits(@Param("accountId") Long accountId, @Param("amount") Double amount);
+    int addCredits(@Param("accountId") Long accountId, @Param("amount") Integer amount);
 }
