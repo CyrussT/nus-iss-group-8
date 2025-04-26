@@ -187,7 +187,7 @@ public class MaintenanceService {
         
         // Get facility information for the email
         Optional<Facility> facilityOpt = facilityRepository.findById(maintenance.getFacilityId());
-        if (!facilityOpt.isPresent()) {
+        if (facilityOpt.isEmpty()) {
             logger.error("Facility not found for ID: {}", maintenance.getFacilityId());
             return 0;
         }
@@ -345,13 +345,6 @@ public class MaintenanceService {
      */
     public Optional<MaintenanceSchedule> getMaintenanceScheduleById(Long maintenanceId) {
         return maintenanceRepository.findById(maintenanceId);
-    }
-    
-    /**
-     * Delete a maintenance schedule
-     */
-    public void deleteMaintenanceSchedule(Long maintenanceId) {
-        maintenanceRepository.deleteById(maintenanceId);
     }
     
     /**
