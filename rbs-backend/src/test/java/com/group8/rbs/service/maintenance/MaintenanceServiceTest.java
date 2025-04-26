@@ -432,7 +432,7 @@ public class MaintenanceServiceTest {
         assertEquals(BookingStatus.CANCELLED, testBooking.getStatus());
         
         // Verify credit service was called to add credits back
-        verify(creditService).addCredits(eq(1L), anyDouble());
+        verify(creditService).addCredits(eq(1L), any(Integer.class));
         
         // Verify email was sent
         verify(emailService).sendEmail(eq("test@example.com"), anyString(), anyString());
@@ -472,7 +472,7 @@ public class MaintenanceServiceTest {
         assertEquals(BookingStatus.CANCELLED, testBooking.getStatus());
         
         // Verify credit service was still called to add credits back
-        verify(creditService).addCredits(eq(1L), anyDouble());
+        verify(creditService).addCredits(eq(1L), any(Integer.class));
         
         // Verify booking was saved
         verify(bookingRepository).save(testBooking);
@@ -556,16 +556,16 @@ public class MaintenanceServiceTest {
             method.setAccessible(true);
             
             // Test with 1-hour time slot (should be 1.0 credit)
-            Double result1 = (Double) method.invoke(maintenanceService, "10:00 - 11:00");
-            assertEquals(1.0, result1);
+            Integer result1 = (Integer) method.invoke(maintenanceService, "10:00 - 11:00");
+            assertEquals(60, result1);
             
             // Test with 2-hour time slot (should be 2.0 credits)
-            Double result2 = (Double) method.invoke(maintenanceService, "10:00 - 12:00");
-            assertEquals(2.0, result2);
+            Integer result2 = (Integer) method.invoke(maintenanceService, "10:00 - 12:00");
+            assertEquals(120, result2);
             
             // Test with 30-minute time slot (should be 0.5 credits)
-            Double result3 = (Double) method.invoke(maintenanceService, "10:00 - 10:30");
-            assertEquals(0.5, result3);
+            Integer result3 = (Integer) method.invoke(maintenanceService, "10:00 - 10:30");
+            assertEquals(30, result3);
             
         } catch (Exception e) {
             fail("Failed to test calculateBookingCost method: " + e.getMessage());
