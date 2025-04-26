@@ -37,7 +37,7 @@ public class CreditService {
      * @return true if successful, false otherwise
      */
     @Transactional
-    public boolean addCredits(Long accountId, Double amount) {
+    public boolean addCredits(Long accountId, Integer amount) {
         if (accountId == null || amount == null || amount <= 0) {
             logger.warn("Invalid parameters for adding credits: accountId={}, amount={}", accountId, amount);
             return false;

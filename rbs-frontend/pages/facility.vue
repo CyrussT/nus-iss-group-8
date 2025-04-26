@@ -9,7 +9,9 @@ import type { Facility } from "@/composables/useFacility";
 import { useFacility } from "@/composables/useFacility";
 import { useMaintenance } from "~/composables/useMaintenance";
 import axios from "axios";
+import { useToast } from "#imports";
 
+const toast = useToast();
 const auth = useAuthStore();
 const router = useRouter();
 const isModalOpen = ref(false);
@@ -222,14 +224,29 @@ const releaseFacilityFromMaintenance = async () => {
     await fetchFacilities();
     await updateAllMaintenanceStatus();
     
-    // Success message
-    alert(`${selectedFacility.value.resourceName} has been successfully released from maintenance.`);
+    // Show toast notification
+    toast.add({
+      title: 'Success',
+      description: `${selectedFacility.value.resourceName} has been successfully released from maintenance.`,
+      color: 'green'
+    });
+
   } catch (error: any) {
     console.error("Error releasing facility from maintenance:", error);
     if (error.response && error.response.data && error.response.data.error) {
-      alert(error.response.data.error);
+      // Show toast notification
+      toast.add({
+        title: 'Error',
+        description: `${error.response.data.error}`,
+        color: 'red'
+      });
     } else {
-      alert("Failed to release facility from maintenance. Please try again.");
+      // Show toast notification
+      toast.add({
+        title: 'Error',
+        description: `Failed to release facility from maintenance. Please try again.`,
+        color: 'red'
+      });
     }
   } finally {
     releasingMaintenance.value = false;
@@ -422,9 +439,20 @@ const saveMaintenance = async () => {
     
     // Show success message including cancelled bookings information
     if (affectedBookingsCount.value > 0) {
-      alert(`Facility scheduled for maintenance successfully! ${affectedBookingsCount.value} existing bookings have been cancelled, and notifications have been sent to the affected users.`);
+      // Show toast notification
+      toast.add({
+        title: 'Success',
+        description: `Facility scheduled for maintenance successfully! ${affectedBookingsCount.value} existing bookings have been cancelled, and notifications have been sent to the affected users.`,
+        color: 'green'
+      });
+      
     } else {
-      alert("Facility scheduled for maintenance successfully!");
+      // Show toast notification
+      toast.add({
+        title: 'Success',
+        description: `Facility scheduled for maintenance successfully!`,
+        color: 'green'
+      });
     }
     
     closeMaintenanceModal();
@@ -438,7 +466,12 @@ const saveMaintenance = async () => {
       // If the API returns a specific error message
       validationErrors.value.startDate = error.response.data.error;
     } else {
-      alert("Failed to schedule maintenance. Please try again.");
+      // Show toast notification
+      toast.add({
+        title: 'Error',
+        description: `Failed to schedule maintenance. Please try again.`,
+        color: 'red'
+      });
     }
   }
 };
@@ -447,16 +480,31 @@ const saveFacility = async () => {
   try {
     if (isEditing.value) {
       await axios.put(`http://localhost:8080/api/facilities/update/${facility.value.facilityId}`, facility.value);
-      alert("Facility Updated Successfully!");
+      // Show toast notification
+      toast.add({
+        title: 'Success',
+        description: `Facility Updated Successfully!`,
+        color: 'green'
+      });
     } else {
       await axios.post("http://localhost:8080/api/facilities/create", facility.value);
-      alert("Facility Created Successfully!");
+      // Show toast notification
+      toast.add({
+        title: 'Success',
+        description: `Facility Created Successfully!`,
+        color: 'green'
+      });
     }
     closeModal();
     fetchFacilities();
   } catch (error) {
     console.error("Error saving facility:", error);
-    alert("Failed to save facility. Please try again.");
+    // Show toast notification
+    toast.add({
+        title: 'Error',
+        description: `Failed to save facility. Please try again.`,
+        color: 'red'
+      });
   }
 };
 
@@ -711,7 +759,7 @@ onMounted(async () => {
           <UIcon name="i-heroicons-exclamation-triangle" class="text-yellow-500 mr-3 flex-shrink-0 mt-0.5" />
           <p class="text-sm text-gray-700">
             You are about to release this facility from maintenance earlier than scheduled. 
-            The maintenance end date will be set to today, and the facility will be available for booking immediately.
+            The maintenance end date will be set to today, and the facility will be available for booking from tomorrow.
           </p>
         </div>
       </div>

@@ -63,10 +63,10 @@ public class MaintenanceService {
      * @param timeSlot The time slot in format "HH:mm - HH:mm"
      * @return The calculated cost or 0 if the time slot couldn't be parsed
      */
-    private Double calculateBookingCost(String timeSlot) {
+    private Integer calculateBookingCost(String timeSlot) {
         if (timeSlot == null || timeSlot.isEmpty()) {
             logger.warn("Empty time slot provided for cost calculation");
-            return 0.0;
+            return 0;
         }
         
         try {
@@ -89,23 +89,20 @@ public class MaintenanceService {
                                      (startTime.getHour() * 60 + startTime.getMinute());
                 }
                 
-                // Calculate cost (0.5 credits per 30 minutes)
-                double cost = (durationMinutes / 30.0) * 0.5;
-                
-                logger.info("Calculated cost for time slot {}: {} credits ({} minutes)", 
-                           timeSlot, cost, durationMinutes);
-                return cost;
+                logger.info("Credits used for time slot {}:  ({} minutes)", 
+                           timeSlot, durationMinutes);
+                return durationMinutes;
             } else {
                 logger.warn("Could not parse time slot format: {}", timeSlot);
-                return 0.0;
+                return 0;
             }
         } catch (DateTimeParseException e) {
             logger.error("Error parsing time slot {}: {}", timeSlot, e.getMessage());
-            return 0.0;
+            return 0;
         } catch (Exception e) {
             logger.error("Unexpected error calculating booking cost for time slot {}: {}", 
                         timeSlot, e.getMessage());
-            return 0.0;
+            return 0;
         }
     }
     
@@ -203,7 +200,7 @@ public class MaintenanceService {
                 
                 // Calculate booking cost based on time slot and re-credit the user's account
                 String timeSlot = booking.getTimeSlot();
-                Double bookingCost = calculateBookingCost(timeSlot);
+                Integer bookingCost = calculateBookingCost(timeSlot);
                 
                 if (bookingCost > 0) {
                     Long accountId = booking.getAccount().getAccountId();
