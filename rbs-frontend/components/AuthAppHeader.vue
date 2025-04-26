@@ -39,7 +39,6 @@ const items = computed<NavigationMenuItem[]>(() => {
   if (isAdmin.value) {
     baseItems.push(
       { label: 'Facility', to: '/facility' },
-      { label: 'Manage Students', to: '/student-list' },
       { label: 'Booking Requests', to: '/booking-review-list' }
     )
   }

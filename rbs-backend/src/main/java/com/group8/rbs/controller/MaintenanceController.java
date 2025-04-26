@@ -16,6 +16,7 @@ import com.group8.rbs.service.maintenance.MaintenanceService;
 import com.group8.rbs.service.email.CustomEmailService;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.util.HashMap;
@@ -87,9 +88,12 @@ public class MaintenanceController {
             // Get the facility ID
             Long facilityId = Long.valueOf(requestMap.get("facilityId").toString());
             
-            // Check for affected bookings
+            // Get the current time for booking cancellation logic
+            LocalDateTime creationTime = LocalDateTime.now();
+            
+            // Check for affected bookings - using the current time as the cutoff
             List<Booking> affectedBookings = maintenanceService.findBookingsAffectedByMaintenance(
-                facilityId, startDateStr, endDateStr);
+                facilityId, startDateStr, endDateStr, creationTime);
             
             // Create a new maintenance schedule
             MaintenanceSchedule maintenanceSchedule = new MaintenanceSchedule();
@@ -161,8 +165,11 @@ public class MaintenanceController {
             @RequestParam String startDate,
             @RequestParam String endDate) {
         try {
+            // Use current time as the reference point for cancellations
+            LocalDateTime now = LocalDateTime.now();
+            
             List<Booking> affectedBookings = maintenanceService.findBookingsAffectedByMaintenance(
-                facilityId, startDate, endDate);
+                facilityId, startDate, endDate, now);
             
             Map<String, Object> response = new HashMap<>();
             response.put("count", affectedBookings.size());
