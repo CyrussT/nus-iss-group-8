@@ -44,14 +44,6 @@ public interface MaintenanceRepository extends JpaRepository<MaintenanceSchedule
     List<MaintenanceSchedule> findActiveMaintenance();
     
     /**
-     * Find completed maintenance schedules
-     */
-    @Query(value = "SELECT m FROM MaintenanceSchedule m " +
-           "WHERE FUNCTION('date', m.endDate) < FUNCTION('date', CURRENT_TIMESTAMP) " +
-           "ORDER BY m.endDate DESC")
-    List<MaintenanceSchedule> findCompletedMaintenance();
-    
-    /**
      * Find facilities that are under maintenance on a specific date from a list of facility IDs
      * 
      * @param facilityIds List of facility IDs to check
