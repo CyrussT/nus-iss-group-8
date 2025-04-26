@@ -11,10 +11,7 @@ import org.springframework.web.bind.annotation.RestController;
 import com.group8.rbs.dto.auth.AuthResponse;
 import com.group8.rbs.dto.auth.LoginRequest;
 import com.group8.rbs.dto.auth.RegisterRequest;
-import com.group8.rbs.exception.AuthException;
 import com.group8.rbs.service.security.AuthService;
-import com.group8.rbs.util.SecurityUtils;
-
 import lombok.RequiredArgsConstructor;
 
 @RestController
