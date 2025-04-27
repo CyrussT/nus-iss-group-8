@@ -29,7 +29,7 @@ public class Facility {
     @Column(name = "FACILITY_ID")
     private Long facilityId;
 
-    @Column(name = "RESOURCE_TYPE", nullable = false)
+    @Column(name = "RESOURCE_TYPE", nullable = false, columnDefinition = "BIGINT")
     private Long resourceTypeId;
 
     @Column(name = "RESOURCE_NAME", nullable = false)

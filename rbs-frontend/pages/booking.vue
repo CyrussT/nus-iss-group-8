@@ -12,6 +12,11 @@ import BookingCreateModal from '~/components/booking/BookingCreateModal.vue';
 import BookingDetailsModal from '~/components/booking/BookingDetailsModal.vue';
 import { useBooking } from '#imports';
 import { useMaintenance } from '~/composables/useMaintenance';
+import { Client } from '@stomp/stompjs';
+
+
+
+
 
 const auth = useAuthStore();
 const { apiUrl } = useApi();
@@ -27,6 +32,29 @@ const {
   facilities, 
   searchLoading 
 } = bookingModule;
+
+
+const connectWebSocket = () => {
+    const stompClient = new Client({
+        brokerURL: 'ws://localhost:8080/ws',
+        reconnectDelay: 5000,
+        onConnect: () => {
+            console.log('Connected to WebSocket!');
+            stompClient.subscribe('/topic/bookings', async (message) => {
+                console.log('Received booking update', message.body);
+                await handleSearch(currentSearchCriteria.value); // fetch updated bookings from backend
+                processBookings(); // reprocess calendar
+                
+            });
+            
+        },
+        onDisconnect: () => {
+            console.log('Disconnected from WebSocket.');
+        },
+    });
+
+    stompClient.activate();
+};
 
 // Get maintenance related functions
 const maintenanceModule = useMaintenance();
@@ -762,6 +790,7 @@ onMounted(async () => {
   } finally {
     loading.value = false;
   }
+    connectWebSocket();
 });
 
 // Watch for calendar reference to ensure we can apply maintenance styling

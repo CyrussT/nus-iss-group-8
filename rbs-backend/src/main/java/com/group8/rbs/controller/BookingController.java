@@ -157,6 +157,8 @@ public class BookingController {
                     "</html>";
 
             boolean emailSent = emailService.sendEmail(toEmail, subject, body);
+            // up user credit
+            
 
             if (emailSent) {
                 logger.info("Email sent successfully after cancellation.");

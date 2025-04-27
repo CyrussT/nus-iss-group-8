@@ -199,6 +199,8 @@ public class BookingService {
         
         // Save to database
         Booking savedBooking = bookingRepository.save(booking);
+
+        bookingWebSocketService.sendBookingUpdate(savedBooking.getBookingId());
         
         // Return the response DTO
         return bookingMapper.toResponseDTO(savedBooking);
