@@ -1,12 +1,7 @@
 package com.group8.rbs.service.booking;
 
 import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyDouble;
-import static org.mockito.ArgumentMatchers.anyList;
-import static org.mockito.ArgumentMatchers.anyLong;
-import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
 import java.time.LocalDate;
@@ -92,9 +87,13 @@ public class BookingServiceTest {
     private FacilitySearchDTO searchDTO;
     private List<Facility> facilities;
     private List<FacilitySearchDTO> facilitySearchResults;
+    private LocalDateTime now;
 
     @BeforeEach
     void setUp() {
+        // Current date/time
+        now = LocalDateTime.now();
+        
         // Setup Account
         account = Account.builder()
                 .accountId(1L)
@@ -118,7 +117,7 @@ public class BookingServiceTest {
                 .bookingId(1L)
                 .account(account)
                 .facility(facility)
-                .bookedDateTime(LocalDateTime.now().plusDays(1))
+                .bookedDateTime(now.plusDays(1))
                 .timeSlot("14:00 - 15:00")
                 .title("Test Booking")
                 .description("Test Description")
@@ -129,7 +128,7 @@ public class BookingServiceTest {
         bookingDTO = new BookingDTO();
         bookingDTO.setFacilityId(1L);
         bookingDTO.setAccountEmail("test@example.com");
-        bookingDTO.setBookedDateTime(LocalDateTime.now().plusDays(1));
+        bookingDTO.setBookedDateTime(now.plusDays(1));
         bookingDTO.setTimeSlot("14:00 - 15:00");
         bookingDTO.setTitle("Test Booking");
         bookingDTO.setDescription("Test Description");
@@ -142,7 +141,7 @@ public class BookingServiceTest {
                 .studentName("Test Student")
                 .facilityName("Test Facility")
                 .location("Test Location")
-                .bookedDatetime(LocalDateTime.now().plusDays(1))
+                .bookedDatetime(now.plusDays(1))
                 .timeslot("14:00 - 15:00")
                 .status("APPROVED")
                 .email("test@example.com")
@@ -232,11 +231,13 @@ public class BookingServiceTest {
     @DisplayName("Search facilities with date filter should filter bookings by date")
     void searchFacilitiesWithDateFilterShouldFilterBookingsByDate() {
         // Create facility with bookings
+        LocalDate today = LocalDate.now();
+        
         Booking booking1 = Booking.builder()
                 .bookingId(1L)
                 .facility(facility)
                 .account(account)
-                .bookedDateTime(LocalDate.now().atTime(10, 0))
+                .bookedDateTime(today.atTime(10, 0))
                 .timeSlot("10:00 - 11:00")
                 .status(BookingStatus.APPROVED)
                 .build();
@@ -245,7 +246,7 @@ public class BookingServiceTest {
                 .bookingId(2L)
                 .facility(facility)
                 .account(account)
-                .bookedDateTime(LocalDate.now().plusDays(1).atTime(10, 0))
+                .bookedDateTime(today.plusDays(1).atTime(10, 0))
                 .timeSlot("10:00 - 11:00")
                 .status(BookingStatus.APPROVED)
                 .build();
@@ -666,5 +667,234 @@ public class BookingServiceTest {
         assertFalse(result.isEmpty());
         assertEquals(1, result.size());
         verify(bookingRepository).findByStatus(any(BookingStatus.class));
+    }
+    
+    // NEW TESTS FOR BETTER COVERAGE
+    
+    @Test
+    @DisplayName("Get bookings by status should return empty list when no bookings found")
+    void getBookingsByStatusShouldReturnEmptyListWhenNoBookingsFound() {
+        when(bookingRepository.findByStatus(any(BookingStatus.class)))
+                .thenReturn(Collections.emptyList());
+        
+        List<BookingResponseDTO> result = bookingService.getBookingsByStatus("PENDING");
+        
+        assertNotNull(result);
+        assertTrue(result.isEmpty());
+        verify(bookingRepository).findByStatus(BookingStatus.PENDING);
+    }
+    
+    @Test
+    @DisplayName("Get locations should return all distinct locations")
+    void getLocationsShouldReturnAllDistinctLocations() {
+        List<String> expectedLocations = Arrays.asList("Building A", "Building B", "Building C");
+        when(facilityRepository.findAllLocations()).thenReturn(expectedLocations);
+        
+        List<String> result = bookingService.getLocations();
+        
+        assertNotNull(result);
+        assertEquals(expectedLocations.size(), result.size());
+        assertEquals(expectedLocations, result);
+        verify(facilityRepository).findAllLocations();
+    }
+    
+    @Test
+    @DisplayName("Get resource names should return all distinct resource names")
+    void getResourceNamesShouldReturnAllDistinctResourceNames() {
+        List<String> expectedNames = Arrays.asList("Room 101", "Lab 202", "Hall 303");
+        when(facilityRepository.findAllResourceNames()).thenReturn(expectedNames);
+        
+        List<String> result = bookingService.getResourceNames();
+        
+        assertNotNull(result);
+        assertEquals(expectedNames.size(), result.size());
+        assertEquals(expectedNames, result);
+        verify(facilityRepository).findAllResourceNames();
+    }
+    
+    @Test
+    @DisplayName("Create booking should throw exception when credit deduction fails")
+    void createBookingShouldThrowExceptionWhenCreditDeductionFails() {
+        // Mock account repository
+        when(accountRepository.findByEmail(anyString())).thenReturn(Optional.of(account));
+        
+        // Mock validation chain - successful validation
+        when(validationChain.validate(any(BookingDTO.class), any(Account.class)))
+            .thenReturn(ValidationResult.success());
+        
+        // Store facility in validation context
+        BookingValidationContext.setFacility(facility);
+        
+        // Mock credit repository to fail the credit deduction (return 0 rows affected)
+        when(creditRepository.checkAndDeductCredits(anyLong(), anyDouble())).thenReturn(0);
+        
+        try {
+            // Call method under test and expect exception
+            Exception exception = assertThrows(RuntimeException.class, 
+                    () -> bookingService.createBooking(bookingDTO));
+            
+            // Verify exception contains expected message
+            assertTrue(exception.getMessage().contains("Insufficient credits"));
+            
+            // Verify credit repository was called but booking was not saved
+            verify(creditRepository).checkAndDeductCredits(eq(1L), eq(60.0));
+            verify(bookingRepository, never()).save(any(Booking.class));
+        } finally {
+            // Clean up context
+            BookingValidationContext.clear();
+        }
+    }
+    
+    @Test
+    @DisplayName("Search facilities should handle empty facility list")
+    void searchFacilitiesShouldHandleEmptyFacilityList() {
+        // Mock repository to return empty list
+        when(facilityRepository.searchFacilities(any(), any(), any(), any()))
+                .thenReturn(Collections.emptyList());
+        
+        List<FacilitySearchDTO> result = bookingService.searchFacilities(searchDTO);
+        
+        assertNotNull(result);
+        assertTrue(result.isEmpty());
+        verify(facilityRepository).searchFacilities(any(), any(), any(), any());
+        verify(bookingFacilityMapper, never()).toResponseDTO(any(Facility.class));
+    }
+    
+    @Test
+    @DisplayName("Search facilities should filter bookings by date and status")
+    void searchFacilitiesShouldFilterBookingsByDateAndStatus() {
+        // Create facility with various booking statuses
+        LocalDate today = LocalDate.now();
+        
+        Booking approvedBooking = Booking.builder()
+                .bookingId(1L)
+                .facility(facility)
+                .account(account)
+                .bookedDateTime(today.atTime(10, 0))
+                .timeSlot("10:00 - 11:00")
+                .status(BookingStatus.APPROVED)
+                .build();
+                
+        Booking pendingBooking = Booking.builder()
+                .bookingId(2L)
+                .facility(facility)
+                .account(account)
+                .bookedDateTime(today.atTime(12, 0))
+                .timeSlot("12:00 - 13:00")
+                .status(BookingStatus.PENDING)
+                .build();
+                
+        Booking cancelledBooking = Booking.builder()
+                .bookingId(3L)
+                .facility(facility)
+                .account(account)
+                .bookedDateTime(today.atTime(14, 0))
+                .timeSlot("14:00 - 15:00")
+                .status(BookingStatus.CANCELLED)
+                .build();
+                
+        Booking rejectedBooking = Booking.builder()
+                .bookingId(4L)
+                .facility(facility)
+                .account(account)
+                .bookedDateTime(today.atTime(16, 0))
+                .timeSlot("16:00 - 17:00")
+                .status(BookingStatus.REJECTED)
+                .build();
+        
+        // Set all bookings on the facility
+        facility.setBookings(Arrays.asList(
+                approvedBooking, pendingBooking, cancelledBooking, rejectedBooking
+        ));
+        
+        when(facilityRepository.searchFacilities(any(), any(), any(), any()))
+                .thenReturn(Arrays.asList(facility));
+        
+        // Mock bookingFacilityMapper to return a simple DTO
+        when(bookingFacilityMapper.toResponseDTO(any(Facility.class))).thenReturn(facilitySearchResults.get(0));
+        
+        // Set the date in the search criteria
+        searchDTO.setDate(today);
+        
+        // Call the search method
+        List<FacilitySearchDTO> result = bookingService.searchFacilities(searchDTO);
+        
+        // Verify result
+        assertNotNull(result);
+        assertEquals(1, result.size());
+        
+        // Verify the facility mapper was called with a facility where bookings have been filtered
+        verify(bookingFacilityMapper).toResponseDTO(argThat(f -> {
+            if (f.getBookings() == null) return false;
+            
+            // There should be only 2 bookings left after filtering (approved and pending)
+            return f.getBookings().size() == 2 && 
+                f.getBookings().stream().allMatch(b -> 
+                    b.getStatus() == BookingStatus.APPROVED || 
+                    b.getStatus() == BookingStatus.PENDING || 
+                    b.getStatus() == BookingStatus.CONFIRMED);
+        }));
+    }
+    
+    @Test
+    @DisplayName("Create booking should use the validated facility from context")
+    void createBookingShouldUseTheValidatedFacilityFromContext() {
+        // Mock account repository
+        when(accountRepository.findByEmail(anyString())).thenReturn(Optional.of(account));
+        
+        // Mock validation chain - successful validation
+        when(validationChain.validate(any(BookingDTO.class), any(Account.class)))
+            .thenReturn(ValidationResult.success());
+        
+        // Store facility in validation context with specific attributes to verify it's used
+        Facility customFacility = Facility.builder()
+                .facilityId(42L)
+                .resourceTypeId(7L)
+                .resourceName("Custom Test Facility")
+                .build();
+        BookingValidationContext.setFacility(customFacility);
+        
+        // Mock credit repository
+        when(creditRepository.checkAndDeductCredits(anyLong(), anyDouble())).thenReturn(1);
+        
+        // Mock booking repository - capture the saved booking to verify facility
+        when(bookingRepository.save(any(Booking.class))).thenAnswer(invocation -> {
+            Booking savedBooking = invocation.getArgument(0);
+            return savedBooking;
+        });
+        
+        // Mock booking mapper
+        when(bookingMapper.toResponseDTO(any(Booking.class))).thenReturn(bookingResponseDTO);
+        
+        try {
+            // Call method under test
+            bookingService.createBooking(bookingDTO);
+            
+            // Verify the facility from context was used to create the booking
+            ArgumentCaptor<Booking> bookingCaptor = ArgumentCaptor.forClass(Booking.class);
+            verify(bookingRepository).save(bookingCaptor.capture());
+            
+            Booking capturedBooking = bookingCaptor.getValue();
+            assertNotNull(capturedBooking.getFacility());
+            assertEquals(42L, capturedBooking.getFacility().getFacilityId());
+            assertEquals("Custom Test Facility", capturedBooking.getFacility().getResourceName());
+            assertEquals(7L, capturedBooking.getFacility().getResourceTypeId());
+        } finally {
+            // Clean up context
+            BookingValidationContext.clear();
+        }
+    }
+    
+    @Test
+    @DisplayName("Get resource types should handle empty results")
+    void getResourceTypesShouldHandleEmptyResults() {
+        // Mock empty result
+        when(facilityTypeRepository.findAllFacilityTypeOptions()).thenReturn(Collections.emptyList());
+        
+        List<FacilityNameOptionsResponse> result = bookingService.getResourceTypes();
+        
+        assertNotNull(result);
+        assertTrue(result.isEmpty());
+        verify(facilityTypeRepository).findAllFacilityTypeOptions();
     }
 }
