@@ -64,57 +64,59 @@ public class BookingController {
     }
 
     @PostMapping
-    public ResponseEntity<BookingResponseDTO> createBooking(@RequestBody BookingDTO request) throws MessagingException {
+    public ResponseEntity<?> createBooking(@RequestBody BookingDTO request) throws MessagingException {
         logger.info("Received booking request: " + request);
         
-        // If the bookedDateTime has a timezone offset in the string (like +08:00),
-        // it will be parsed correctly by default. If not, we assume it's in Singapore time
-        LocalDateTime bookingDateTime = request.getBookedDateTime();
-        
-        // Log the parsed datetime for debugging
-        logger.info("Parsed booking datetime: " + bookingDateTime);
-        
-        BookingResponseDTO response = bookingService.createBooking(request);
+        try {
+            BookingResponseDTO response = bookingService.createBooking(request);
+            
+            if (response != null && response.getBookingId() != null) {
+                // Construct email details
+                String toEmail = request.getAccountEmail();
+                String subject = "RBS Booking Confirmation";
+                // Determine booking status
+                String statusMessage = response.getStatus().equalsIgnoreCase("PENDING")
+                        ? "Your booking is currently pending approval."
+                        : "Your booking has been successfully approved.";
 
-        if (response != null && response.getBookingId() != null) {
-            // Construct email details
-            String toEmail = request.getAccountEmail();
-            String subject = "RBS Booking Confirmation";
-            // Determine booking status
-            String statusMessage = response.getStatus().equalsIgnoreCase("PENDING")
-                    ? "Your booking is currently pending approval."
-                    : "Your booking has been successfully approved.";
+                DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
+                String formattedDate = response.getBookedDatetime().toLocalDate().format(formatter);
 
-            DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
-            String formattedDate = response.getBookedDatetime().toLocalDate().format(formatter);
+                String body = "<html>" +
+                        "<body>" +
+                        "<p>Dear Student,</p>" +
+                        "<p>" + statusMessage + "</p>" +
+                        "<p><strong>Booking ID:</strong> " + response.getBookingId() + "</p>" +
+                        "<p><strong>Date:</strong> " + formattedDate + "</p>" +
+                        "<p><strong>Facility:</strong> " + response.getFacilityName() + "</p>" +
+                        "<p><strong>Timeslot:</strong> " + response.getTimeslot() + "</p>" +
+                        "<p><strong>Status:</strong> " + response.getStatus() + "</p>" +
+                        "<br>" +
+                        "<p>Best regards,</p>" +
+                        "<p>Resource Booking System</p>" +
+                        "</body>" +
+                        "</html>";
 
-            String body = "<html>" +
-                    "<body>" +
-                    "<p>Dear Student,</p>" +
-                    "<p>" + statusMessage + "</p>" +
-                    "<p><strong>Booking ID:</strong> " + response.getBookingId() + "</p>" +
-                    "<p><strong>Date:</strong> " + formattedDate + "</p>" +
-                    "<p><strong>Facility:</strong> " + response.getFacilityName() + "</p>" +
-                    "<p><strong>Timeslot:</strong> " + response.getTimeslot() + "</p>" +
-                    "<p><strong>Status:</strong> " + response.getStatus() + "</p>" +
-                    "<br>" +
-                    "<p>Best regards,</p>" +
-                    "<p>Resource Booking System</p>" +
-                    "</body>" +
-                    "</html>";
+                // Send email
+                boolean emailSent = emailService.sendEmail(toEmail, subject, body);
 
-            // Send email
-            boolean emailSent = emailService.sendEmail(toEmail, subject, body);
+                if (emailSent) {
+                    logger.info("Booking confirmation email sent successfully.");
+                } else {
+                    logger.info("Failed to send booking confirmation email.");
+                }
 
-            if (emailSent) {
-                logger.info("Booking confirmation email sent successfully.");
+                return ResponseEntity.ok(response);
             } else {
-                logger.info("Failed to send booking confirmation email.");
+                return ResponseEntity.status(500).body(Map.of("error", "Failed to create booking"));
             }
-
-            return ResponseEntity.ok(response);
-        } else {
-            return ResponseEntity.status(500).body(null);
+        } catch (RuntimeException e) {
+            // Return the validation error with HTTP 400
+            logger.warn("Validation error: {}", e.getMessage());
+            return ResponseEntity.status(400).body(Map.of("error", e.getMessage()));
+        } catch (Exception e) {
+            logger.error("Unexpected error creating booking", e);
+            return ResponseEntity.status(500).body(Map.of("error", "An unexpected error occurred"));
         }
     }
 
