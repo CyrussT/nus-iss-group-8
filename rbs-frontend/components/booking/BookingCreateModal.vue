@@ -637,8 +637,8 @@ const isBookingOverlapping = () => {
       }
       
       // Parse times
-      const [existingStartHour, existingStartMinute] = existingStartTime.trim().split(':').map(Number);
-      const [existingEndHour, existingEndMinute] = existingEndTime.trim().split(':').map(Number);
+      const [existingStartHour, existingStartMinute] = existingStartTime.trim().split(":").map(Number);
+      const [existingEndHour, existingEndMinute] = existingEndTime.trim().split(":").map(Number);
       
       // Create Date objects for existing booking
       const existingStartDate = new Date(bookedDate);
@@ -906,22 +906,22 @@ defineExpose({
   <UModal :model-value="modelValue" @update:model-value="closeModal" prevent-close>
     <UCard class="p-2">
       <div class="mb-4">
-        <h2 class="text-xl font-bold mb-2">Create Booking</h2>
-        <p class="text-gray-600 whitespace-normal break-words">
+        <h2 class="text-xl font-bold mb-2 dark:text-white">Create Booking</h2>
+        <p class="text-gray-600 dark:text-gray-300 whitespace-normal break-words">
           {{ formattedTimeDisplay }}
         </p>
       </div>
       
       <!-- Maintenance Warning Banner (if applicable) -->
-      <div v-if="isSelectedResourceUnderMaintenance" class="mb-4 p-3 bg-orange-100 border border-orange-300 rounded-md">
+      <div v-if="isSelectedResourceUnderMaintenance" class="mb-4 p-3 bg-orange-100 dark:bg-orange-900/30 border border-orange-300 dark:border-orange-700 rounded-md">
         <div class="flex items-start">
-          <UIcon name="i-heroicons-exclamation-triangle" class="text-orange-500 mr-2 flex-shrink-0 mt-0.5" />
+          <UIcon name="i-heroicons-exclamation-triangle" class="text-orange-500 dark:text-orange-400 mr-2 flex-shrink-0 mt-0.5" />
           <div>
-            <p class="font-medium text-orange-700">Facility Under Maintenance</p>
-            <p class="text-sm text-orange-600">
+            <p class="font-medium text-orange-700 dark:text-orange-300">Facility Under Maintenance</p>
+            <p class="text-sm text-orange-600 dark:text-orange-400">
               This facility is currently unavailable for booking due to scheduled maintenance.
             </p>
-            <p v-if="maintenanceDetails" class="text-xs mt-1 text-orange-600">
+            <p v-if="maintenanceDetails" class="text-xs mt-1 text-orange-600 dark:text-orange-400">
               Maintenance period: {{ maintenanceDetails.startDate }} to {{ maintenanceDetails.endDate }}
             </p>
           </div>
@@ -931,7 +931,7 @@ defineExpose({
       <div class="space-y-4">
         <!-- Room Selection with InputMenu for searchable dropdown -->
         <div v-if="!props.resourceId">
-          <label class="block text-sm font-medium mb-1">Room *</label>
+          <label class="block text-sm font-medium mb-1 dark:text-gray-200">Room *</label>
           <UInputMenu
             v-model="bookingForm.resourceId"
             :options="filteredFacilityOptions"
@@ -944,10 +944,10 @@ defineExpose({
             :color="validationErrors.resourceId ? 'red' : undefined"
             @update:model-value="handleResourceSelection"
           />
-          <p v-if="validationErrors.resourceId" class="text-red-500 text-sm mt-1">
+          <p v-if="validationErrors.resourceId" class="text-red-500 dark:text-red-400 text-sm mt-1">
             {{ validationErrors.resourceId }}
           </p>
-          <p v-else-if="maintenanceDetails" class="text-orange-500 text-sm mt-1">
+          <p v-else-if="maintenanceDetails" class="text-orange-500 dark:text-orange-400 text-sm mt-1">
             The selected facility is under maintenance until {{ maintenanceDetails.endDate }}.
           </p>
         </div>
@@ -956,7 +956,7 @@ defineExpose({
         <div v-if="!isFromCalendar" class="grid grid-cols-1 md:grid-cols-2 gap-4">
           <!-- Date Picker -->
           <div>
-            <label class="block text-sm font-medium mb-1">Date *</label>
+            <label class="block text-sm font-medium mb-1 dark:text-gray-200">Date *</label>
             <UInput
               v-model="bookingForm.bookingDate"
               type="date"
@@ -966,14 +966,14 @@ defineExpose({
               :disabled="isSelectedResourceUnderMaintenance"
               required
             />
-            <p v-if="validationErrors.bookingDate" class="text-red-500 text-sm mt-1">
+            <p v-if="validationErrors.bookingDate" class="text-red-500 dark:text-red-400 text-sm mt-1">
               {{ validationErrors.bookingDate }}
             </p>
           </div>
           
           <!-- Time Dropdown -->
           <div>
-            <label class="block text-sm font-medium mb-1">Time *</label>
+            <label class="block text-sm font-medium mb-1 dark:text-gray-200">Time *</label>
             <USelect
               v-model="bookingForm.bookingTime"
               :options="availableTimeSlots"
@@ -983,10 +983,10 @@ defineExpose({
               :disabled="isSelectedResourceUnderMaintenance"
               required
             />
-            <p v-if="validationErrors.bookingTime" class="text-red-500 text-sm mt-1">
+            <p v-if="validationErrors.bookingTime" class="text-red-500 dark:text-red-400 text-sm mt-1">
               {{ validationErrors.bookingTime }}
             </p>
-            <p v-else-if="isSelectedTimeInPast" class="text-red-500 text-sm mt-1">
+            <p v-else-if="isSelectedTimeInPast" class="text-red-500 dark:text-red-400 text-sm mt-1">
               This time is in the past. Please select a future time.
             </p>
           </div>
@@ -994,7 +994,7 @@ defineExpose({
         
         <!-- Title field -->
         <div>
-          <label class="block text-sm font-medium mb-1">Title *</label>
+          <label class="block text-sm font-medium mb-1 dark:text-gray-200">Title *</label>
           <UInput 
             v-model="bookingForm.title" 
             placeholder="Meeting title" 
@@ -1003,14 +1003,14 @@ defineExpose({
             :color="validationErrors.title ? 'red' : undefined"
             :disabled="isSelectedResourceUnderMaintenance"
           />
-          <p v-if="validationErrors.title" class="text-red-500 text-sm mt-1">
+          <p v-if="validationErrors.title" class="text-red-500 dark:text-red-400 text-sm mt-1">
             {{ validationErrors.title }}
           </p>
         </div>
         
         <!-- Duration dropdown -->
         <div>
-          <label class="block text-sm font-medium mb-1">Duration</label>
+          <label class="block text-sm font-medium mb-1 dark:text-gray-200">Duration</label>
           <USelect
             v-model="bookingForm.duration"
             :options="availableDurationOptions"
@@ -1020,20 +1020,20 @@ defineExpose({
             :color="validationErrors.duration ? 'red' : undefined"
             :disabled="isSelectedResourceUnderMaintenance"
           />
-          <p v-if="validationErrors.duration" class="text-red-500 text-sm mt-1">
+          <p v-if="validationErrors.duration" class="text-red-500 dark:text-red-400 text-sm mt-1">
             {{ validationErrors.duration }}
           </p>
-          <p v-else-if="props.availableCredits !== undefined && props.availableCredits !== null && availableDurationOptions.length === 0" class="text-red-500 text-sm mt-1">
+          <p v-else-if="props.availableCredits !== undefined && props.availableCredits !== null && availableDurationOptions.length === 0" class="text-red-500 dark:text-red-400 text-sm mt-1">
             You don't have enough credits for any booking. Each booking requires at least 30 minutes.
           </p>
-          <p v-else-if="wouldEndAfter7PM" class="text-red-500 text-sm mt-1">
+          <p v-else-if="wouldEndAfter7PM" class="text-red-500 dark:text-red-400 text-sm mt-1">
             Selected duration would extend beyond 7:00 PM closing time.
           </p>
         </div>
         
         <!-- Description field -->
         <div>
-          <label class="block text-sm font-medium mb-1">Description</label>
+          <label class="block text-sm font-medium mb-1 dark:text-gray-200">Description</label>
           <UTextarea
             v-model="bookingForm.description"
             placeholder="Add details about this booking"
@@ -1068,7 +1068,8 @@ defineExpose({
 
 <style scoped>
 /* Add animation for error messages */
-.text-red-500 {
+.text-red-500,
+.dark .text-red-400 {
   animation: fadeIn 0.3s ease-in-out;
 }
 
@@ -1086,5 +1087,40 @@ defineExpose({
   0%, 100% { transform: rotate(0deg); }
   25% { transform: rotate(-15deg); }
   75% { transform: rotate(15deg); }
+}
+
+/* Additional dark mode styles for inputs */
+:deep(.dark input[type="date"]) {
+  color-scheme: dark;
+}
+
+:deep(.dark .u-input, .dark .u-textarea, .dark .u-select) {
+  background-color: #1e1e2d;
+  border-color: #4a5568;
+  color: #e2e8f0;
+}
+
+:deep(.dark .u-input::placeholder, .dark .u-textarea::placeholder) {
+  color: #a0aec0;
+}
+
+:deep(.dark .u-select-button) {
+  background-color: #1e1e2d;
+  border-color: #4a5568;
+  color: #e2e8f0;
+}
+
+:deep(.dark .u-select-dropdown) {
+  background-color: #1e1e2d;
+  border-color: #4a5568;
+  color: #e2e8f0;
+}
+
+:deep(.dark .u-select-option) {
+  color: #e2e8f0;
+}
+
+:deep(.dark .u-select-option:hover) {
+  background-color: #2d3748;
 }
 </style>

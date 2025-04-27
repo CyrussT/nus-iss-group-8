@@ -15,6 +15,7 @@ import com.group8.rbs.repository.FacilityRepository;
 import com.group8.rbs.repository.MaintenanceRepository;
 import com.group8.rbs.exception.MaintenanceOverlapException;
 import com.group8.rbs.service.email.CustomEmailService;
+import com.group8.rbs.service.credit.CreditService;
 
 import jakarta.mail.MessagingException;
 
@@ -22,11 +23,14 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 @Service
 public class MaintenanceService {
@@ -35,39 +39,137 @@ public class MaintenanceService {
     private final MaintenanceRepository maintenanceRepository;
     private final BookingRepository bookingRepository;
     private final FacilityRepository facilityRepository;
+    private final CreditService creditService;
     private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd");
+    private static final DateTimeFormatter TIME_FORMATTER = DateTimeFormatter.ofPattern("HH:mm");
+    private static final Pattern TIME_SLOT_PATTERN = Pattern.compile("(\\d{2}:\\d{2})\\s*-\\s*(\\d{2}:\\d{2})");
     
     @Autowired
     public MaintenanceService(
             MaintenanceRepository maintenanceRepository,
             BookingRepository bookingRepository,
-            FacilityRepository facilityRepository) {
+            FacilityRepository facilityRepository,
+            CreditService creditService) {
         this.maintenanceRepository = maintenanceRepository;
         this.bookingRepository = bookingRepository;
         this.facilityRepository = facilityRepository;
+        this.creditService = creditService;
     }
     
     /**
-     * Find bookings affected by a planned maintenance
+     * Calculate the booking cost based on the time slot
+     * Each half hour (30 minutes) costs 0.5 credits
+     * 
+     * @param timeSlot The time slot in format "HH:mm - HH:mm"
+     * @return The calculated cost or 0 if the time slot couldn't be parsed
      */
-    public List<Booking> findBookingsAffectedByMaintenance(Long facilityId, String startDateStr, String endDateStr) {
+    private Integer calculateBookingCost(String timeSlot) {
+        if (timeSlot == null || timeSlot.isEmpty()) {
+            logger.warn("Empty time slot provided for cost calculation");
+            return 0;
+        }
+        
+        try {
+            Matcher matcher = TIME_SLOT_PATTERN.matcher(timeSlot);
+            if (matcher.find()) {
+                String startTimeStr = matcher.group(1);
+                String endTimeStr = matcher.group(2);
+                
+                LocalTime startTime = LocalTime.parse(startTimeStr, TIME_FORMATTER);
+                LocalTime endTime = LocalTime.parse(endTimeStr, TIME_FORMATTER);
+                
+                // Calculate duration in minutes
+                int durationMinutes;
+                if (endTime.isBefore(startTime)) {
+                    // Handle overnight bookings (not common but possible)
+                    durationMinutes = (24 * 60) - (startTime.getHour() * 60 + startTime.getMinute()) +
+                                      (endTime.getHour() * 60 + endTime.getMinute());
+                } else {
+                    durationMinutes = (endTime.getHour() * 60 + endTime.getMinute()) -
+                                     (startTime.getHour() * 60 + startTime.getMinute());
+                }
+                
+                logger.info("Credits used for time slot {}:  ({} minutes)", 
+                           timeSlot, durationMinutes);
+                return durationMinutes;
+            } else {
+                logger.warn("Could not parse time slot format: {}", timeSlot);
+                return 0;
+            }
+        } catch (DateTimeParseException e) {
+            logger.error("Error parsing time slot {}: {}", timeSlot, e.getMessage());
+            return 0;
+        } catch (Exception e) {
+            logger.error("Unexpected error calculating booking cost for time slot {}: {}", 
+                        timeSlot, e.getMessage());
+            return 0;
+        }
+    }
+    
+    /**
+     * Find bookings affected by a planned maintenance, starting from the creation time
+     * on the start date (not from the beginning of the day)
+     * 
+     * @param facilityId Facility ID to check
+     * @param startDateStr Start date of maintenance (yyyy-MM-dd)
+     * @param endDateStr End date of maintenance (yyyy-MM-dd)
+     * @param creationTime Time when maintenance was created (or current time if null)
+     * @return List of affected bookings
+     */
+    public List<Booking> findBookingsAffectedByMaintenance(
+            Long facilityId, 
+            String startDateStr, 
+            String endDateStr,
+            LocalDateTime creationTime) {
+        
         LocalDate startDate = LocalDate.parse(startDateStr, DATE_FORMATTER);
         LocalDate endDate = LocalDate.parse(endDateStr, DATE_FORMATTER);
         
-        // Convert LocalDate to LocalDateTime for the start of the day
-        LocalDateTime startDateTime = startDate.atStartOfDay();
-        // Convert LocalDate to LocalDateTime for the end of the day
+        // If creation time is null, use current time
+        if (creationTime == null) {
+            creationTime = LocalDateTime.now();
+        }
+        
+        logger.info("Finding bookings affected by maintenance for facility ID: {}, from: {} to: {}, creation time: {}", 
+                facilityId, startDateStr, endDateStr, creationTime);
+        
+        // Define the time range for cancellation
+        LocalDateTime startDateTime;
+        
+        // If the maintenance start date is today or in the past
+        if (startDate.isEqual(creationTime.toLocalDate()) || startDate.isBefore(creationTime.toLocalDate())) {
+            // Use the creation time as the starting point
+            startDateTime = creationTime;
+            logger.info("Using creation time as start time: {}", startDateTime);
+        } else {
+            // For future dates, use the start of day
+            startDateTime = startDate.atStartOfDay();
+            logger.info("Using start of day as start time: {}", startDateTime);
+        }
+        
+        // End datetime is still end of the end date
         LocalDateTime endDateTime = endDate.atTime(LocalTime.MAX);
         
-        // Find bookings within the date range that are approved or pending
+        // Find bookings within the date range that are approved, confirmed or pending
         List<BookingStatus> statuses = List.of(BookingStatus.APPROVED, BookingStatus.CONFIRMED, BookingStatus.PENDING);
         
-        return bookingRepository.findByFacility_FacilityIdAndBookedDateTimeBetweenAndStatusIn(
+        List<Booking> affectedBookings = bookingRepository.findByFacility_FacilityIdAndBookedDateTimeBetweenAndStatusIn(
             facilityId, startDateTime, endDateTime, statuses);
+        
+        logger.info("Found {} bookings affected by maintenance", affectedBookings.size());
+        
+        return affectedBookings;
     }
     
     /**
-     * Cancel bookings affected by maintenance and send email notifications
+     * Convenience method for backward compatibility
+     */
+    public List<Booking> findBookingsAffectedByMaintenance(Long facilityId, String startDateStr, String endDateStr) {
+        return findBookingsAffectedByMaintenance(facilityId, startDateStr, endDateStr, LocalDateTime.now());
+    }
+    
+    /**
+     * Cancel bookings affected by maintenance, send email notifications, and refund credits
      * @return Number of bookings cancelled
      */
     @Transactional
@@ -82,7 +184,7 @@ public class MaintenanceService {
         
         // Get facility information for the email
         Optional<Facility> facilityOpt = facilityRepository.findById(maintenance.getFacilityId());
-        if (!facilityOpt.isPresent()) {
+        if (facilityOpt.isEmpty()) {
             logger.error("Facility not found for ID: {}", maintenance.getFacilityId());
             return 0;
         }
@@ -95,6 +197,22 @@ public class MaintenanceService {
                 // Update booking status to CANCELLED
                 booking.setStatus(BookingStatus.CANCELLED);
                 bookingRepository.save(booking);
+                
+                // Calculate booking cost based on time slot and re-credit the user's account
+                String timeSlot = booking.getTimeSlot();
+                Integer bookingCost = calculateBookingCost(timeSlot);
+                
+                if (bookingCost > 0) {
+                    Long accountId = booking.getAccount().getAccountId();
+                    try {
+                        creditService.addCredits(accountId, bookingCost);
+                        logger.info("Re-credited {} credits to account ID: {} for booking ID: {}", 
+                                   bookingCost, accountId, booking.getBookingId());
+                    } catch (Exception e) {
+                        logger.error("Failed to re-credit account ID: {} for booking ID: {}, amount: {}", 
+                                     accountId, booking.getBookingId(), bookingCost, e);
+                    }
+                }
                 
                 // Send email notification
                 String toEmail = booking.getAccount().getEmail();
@@ -110,8 +228,14 @@ public class MaintenanceService {
                     "<p><strong>Date:</strong> " + booking.getBookedDateTime().toLocalDate() + "</p>" +
                     "<p><strong>Time Slot:</strong> " + booking.getTimeSlot() + "</p>" +
                     "<p><strong>Maintenance Period:</strong> " + maintenance.getStartDate() + " to " + maintenance.getEndDate() + "</p>" +
-                    "<p>Maintenance Details: " + maintenance.getDescription() + "</p>" +
-                    "<p>We apologize for any inconvenience this may cause. Please feel free to make a new booking for a different time or facility.</p>" +
+                    "<p>Maintenance Details: " + maintenance.getDescription() + "</p>";
+                
+                // Add information about refund if applicable
+                if (bookingCost > 0) {
+                    body += "<p><strong>Credit Refund:</strong> " + bookingCost + " hrs of credits have been returned to your account.</p>";
+                }
+                
+                body += "<p>We apologize for any inconvenience this may cause. Please feel free to make a new booking for a different time or facility.</p>" +
                     "<br>" +
                     "<p>Best regards,</p>" +
                     "<p>Resource Booking System</p>" +
@@ -148,7 +272,7 @@ public class MaintenanceService {
         
         for (MaintenanceSchedule schedule : existingSchedules) {
             // Skip the current maintenance schedule being updated (if any)
-            if (excludeMaintenanceId != null && schedule.getMaintenanceId().equals(excludeMaintenanceId)) {
+            if (schedule.getMaintenanceId().equals(excludeMaintenanceId)) {
                 continue;
             }
             
@@ -221,47 +345,10 @@ public class MaintenanceService {
     }
     
     /**
-     * Update an existing maintenance schedule
-     */
-    public MaintenanceSchedule updateMaintenanceSchedule(MaintenanceSchedule maintenanceSchedule) {
-        // Check for overlapping maintenance
-        if (hasOverlappingMaintenance(
-                maintenanceSchedule.getFacilityId(), 
-                maintenanceSchedule.getStartDate(), 
-                maintenanceSchedule.getEndDate(),
-                maintenanceSchedule.getMaintenanceId())) {
-            throw new MaintenanceOverlapException("This facility already has scheduled maintenance during the selected dates");
-        }
-        
-        return maintenanceRepository.save(maintenanceSchedule);
-    }
-    
-    /**
-     * Delete a maintenance schedule
-     */
-    public void deleteMaintenanceSchedule(Long maintenanceId) {
-        maintenanceRepository.deleteById(maintenanceId);
-    }
-    
-    /**
      * Check if a facility is currently under maintenance
      */
     public boolean isFacilityUnderMaintenance(Long facilityId) {
         return maintenanceRepository.existsByFacilityIdAndCurrentDate(facilityId);
-    }
-    
-    /**
-     * Get active maintenance schedules (currently ongoing)
-     */
-    public List<MaintenanceSchedule> getActiveMaintenance() {
-        return maintenanceRepository.findActiveMaintenance();
-    }
-    
-    /**
-     * Get upcoming maintenance schedules (future dates)
-     */
-    public List<MaintenanceSchedule> getUpcomingMaintenance() {
-        return maintenanceRepository.findUpcomingMaintenance();
     }
     
     /**

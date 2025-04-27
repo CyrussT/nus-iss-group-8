@@ -76,11 +76,11 @@ const selectedBooking = reactive({
 
 // Legend items for booking status colors with more accessible colors
 const legendItems = [
-  { status: 'OCCUPIED', color: '#ff9999', label: 'Occupied' },     
-  { status: 'PENDING', color: '#b8b8b8', label: 'Pending' },       
-  { status: 'MY_BOOKING', color: '#b088ff', label: 'My Booking (Approved)' }, 
-  { status: 'MY_PENDING_BOOKING', color: '#7fa2e6', label: 'My Booking (Pending)' },
-  { status: 'MAINTENANCE', color: '#f6c46a', label: 'Maintenance' } // Updated color and label for maintenance
+  { status: 'OCCUPIED', color: '#ff9999', darkColor: '#ff6666', label: 'Occupied' },     
+  { status: 'PENDING', color: '#b8b8b8', darkColor: '#a0a0a0', label: 'Pending' },       
+  { status: 'MY_BOOKING', color: '#b088ff', darkColor: '#c09fff', label: 'My Booking (Approved)' }, 
+  { status: 'MY_PENDING_BOOKING', color: '#7fa2e6', darkColor: '#8fb8ff', label: 'My Booking (Pending)' },
+  { status: 'MAINTENANCE', color: '#f6c46a', darkColor: '#ffcc66', label: 'Maintenance' }
 ];
 
 // Format minutes to 0.5 hour increments
@@ -806,7 +806,7 @@ watch(() => facilitiesUnderMaintenance, () => {
 
 <template>
   <div class="mx-auto w-3/4 mt-8">
-    <h1 class="text-2xl font-bold">Booking Management</h1>
+    <h1 class="text-2xl font-bold dark:text-white">Booking Management</h1>
     
     <!-- Search UI component -->
     <BookingSearchBar
@@ -821,12 +821,12 @@ watch(() => facilitiesUnderMaintenance, () => {
     />
     
     <!-- Legend for booking status colors and available credits -->
-    <div class="mt-4 p-4 bg-white rounded-md shadow">
+    <div class="mt-4 p-4 bg-white dark:bg-gray-800 rounded-md shadow dark:shadow-gray-700">
       <div class="flex justify-between items-center mb-3">
-        <h3 class="text-sm font-medium">Booking Status Legend:</h3>
+        <h3 class="text-sm font-medium dark:text-white">Booking Status Legend:</h3>
         <div class="flex items-center">
-          <span class="text-sm font-medium mr-2">Available Credits:</span>
-          <span class="text-sm bg-blue-100 text-blue-800 px-3 py-1 rounded font-semibold">
+          <span class="text-sm font-medium mr-2 dark:text-gray-300">Available Credits:</span>
+          <span class="text-sm bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-100 px-3 py-1 rounded font-semibold">
             {{ formatCredits }}
           </span>
         </div>
@@ -834,27 +834,27 @@ watch(() => facilitiesUnderMaintenance, () => {
       
       <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 mb-3">
         <div v-for="item in legendItems" :key="item.status" 
-            class="flex items-center p-2 rounded-md border border-gray-100 hover:bg-gray-50 transition-colors">
+            class="flex items-center p-2 rounded-md border border-gray-100 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
           <div 
-            class="w-7 h-7 rounded-md mr-3 border border-gray-200" 
-            :style="{ backgroundColor: item.color }"
+            class="w-7 h-7 rounded-md mr-3 border border-gray-200 dark:border-gray-600" 
+            :style="{ backgroundColor: $colorMode.value === 'dark' ? item.darkColor : item.color }"
           ></div>
-          <span class="text-sm font-medium">{{ item.label }}</span>
+          <span class="text-sm font-medium dark:text-gray-200">{{ item.label }}</span>
         </div>
       </div>
       
       <!-- Hint about calendar clicking -->
-      <div class="text-xs text-gray-600 mt-3 flex items-center p-2 bg-blue-50 rounded-md">
-        <UIcon name="i-heroicons-information-circle" class="mr-2 text-blue-500" size="sm" />
-        <span>Click on an empty timeslot in the calendar grid to create a new booking. Click on a colored slot to view its details. Facilities under maintenance cannot be booked.</span>
+      <div class="text-xs text-gray-600 dark:text-gray-400 mt-3 flex items-center p-2 bg-blue-50 dark:bg-blue-900/30 rounded-md">
+        <UIcon name="i-heroicons-information-circle" class="mr-2 text-blue-500 dark:text-blue-400" size="sm" />
+        <span>Click on an empty timeslot in the calendar grid to create a new booking. Click on a coloured slot to view its details. Facilities under maintenance cannot be booked.</span>
       </div>
     </div>
     
     <!-- Centralized No results message - only shown when search is performed but no facilities found -->
-    <div v-if="hasSearched && (!facilities || facilities.length === 0) && !loading && !searchLoading" class="mt-4 p-6 bg-white rounded-md shadow text-center">
-      <UIcon name="i-heroicons-magnifying-glass" class="mx-auto mb-3 text-gray-400" size="lg" />
-      <h3 class="text-xl font-medium text-gray-700 mb-2">No Facilities Found</h3>
-      <p class="text-gray-500 mb-4">No resources match your search criteria for the selected date.</p>
+    <div v-if="hasSearched && (!facilities || facilities.length === 0) && !loading && !searchLoading" class="mt-4 p-6 bg-white dark:bg-gray-800 rounded-md shadow dark:shadow-gray-700 text-center">
+      <UIcon name="i-heroicons-magnifying-glass" class="mx-auto mb-3 text-gray-400 dark:text-gray-500" size="lg" />
+      <h3 class="text-xl font-medium text-gray-700 dark:text-gray-200 mb-2">No Facilities Found</h3>
+      <p class="text-gray-500 dark:text-gray-400 mb-4">No resources match your search criteria for the selected date.</p>
       <div class="flex justify-center space-x-3">
         <UButton color="gray" variant="soft" @click="handleReset">
           Reset Search
@@ -936,6 +936,12 @@ watch(() => facilitiesUnderMaintenance, () => {
   box-shadow: 0 1px 3px rgba(0,0,0,0.12) !important;
 }
 
+:deep(.dark .maintenance-event) {
+  background-color: #ffcc66 !important; /* Brighter color for dark mode */
+  border-color: #e6b800 !important;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.5) !important;
+}
+
 :deep(.maintenance-event .fc-event-main) {
   cursor: not-allowed !important;
 }
@@ -945,10 +951,18 @@ watch(() => facilitiesUnderMaintenance, () => {
   box-shadow: 0 1px 3px rgba(0,0,0,0.12) !important;
 }
 
+:deep(.dark .maintenance-event:hover) {
+  box-shadow: 0 1px 3px rgba(0,0,0,0.5) !important;
+}
+
 :deep(.maintenance-event .fc-event-title) {
   display: block !important;
   text-align: center;
   font-weight: bold;
+  color: #000;
+}
+
+:deep(.dark .maintenance-event .fc-event-title) {
   color: #000;
 }
 
@@ -963,5 +977,16 @@ watch(() => facilitiesUnderMaintenance, () => {
     rgba(246, 196, 106, 0.3) 20px
   ) !important;
   position: relative;
+}
+
+:deep(.dark .resource-under-maintenance .fc-timeline-slot-lane) {
+  background-color: rgba(255, 204, 102, 0.3) !important;
+  background-image: repeating-linear-gradient(
+    45deg,
+    rgba(0, 0, 0, 0.2),
+    rgba(0, 0, 0, 0.2) 10px,
+    rgba(255, 204, 102, 0.3) 10px,
+    rgba(255, 204, 102, 0.3) 20px
+  ) !important;
 }
 </style>
