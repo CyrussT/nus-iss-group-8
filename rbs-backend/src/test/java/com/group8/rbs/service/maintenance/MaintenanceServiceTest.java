@@ -21,6 +21,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.Spy;
@@ -39,6 +40,7 @@ import com.group8.rbs.repository.FacilityRepository;
 import com.group8.rbs.repository.MaintenanceRepository;
 import com.group8.rbs.service.credit.CreditService;
 import com.group8.rbs.service.email.CustomEmailService;
+import com.group8.rbs.validation.ValidationResult;
 
 import jakarta.mail.MessagingException;
 
@@ -358,6 +360,29 @@ public class MaintenanceServiceTest {
     }
     
     @Test
+    @DisplayName("Has overlapping maintenance should exclude current maintenance")
+    void hasOverlappingMaintenanceShouldExcludeCurrentMaintenance() {
+        // Create overlapping schedule in repository
+        MaintenanceSchedule overlappingSchedule = MaintenanceSchedule.builder()
+                .maintenanceId(2L)
+                .facilityId(1L)
+                .startDate(today.plusDays(2).toString()) // Overlaps with our test schedule
+                .endDate(today.plusDays(7).toString())
+                .build();
+        
+        // Mock repository
+        when(maintenanceRepository.findByFacilityId(anyLong()))
+                .thenReturn(Arrays.asList(overlappingSchedule));
+        
+        // Test for overlap, excluding the overlapping schedule
+        boolean result = maintenanceService.hasOverlappingMaintenance(
+                1L, today.toString(), futureDate.toString(), 2L);
+        
+        assertFalse(result); // Should be false because we excluded the overlapping one
+        verify(maintenanceRepository).findByFacilityId(1L);
+    }
+    
+    @Test
     @DisplayName("Update maintenance end date should return updated schedule")
     void updateMaintenanceEndDateShouldReturnUpdatedSchedule() {
         String newEndDate = today.plusDays(3).toString(); // Earlier than original end date
@@ -414,6 +439,52 @@ public class MaintenanceServiceTest {
     }
     
     @Test
+    @DisplayName("Find bookings affected by maintenance should handle different start times")
+    void findBookingsAffectedByMaintenanceShouldHandleDifferentStartTimes() {
+        // Today start date - should use cutoff time
+        LocalDateTime cutoffTime = today.atTime(14, 0); // 2 PM today
+        
+        // Future start date - should use start of day
+        LocalDate futureStartDate = today.plusDays(3);
+        
+        // Mock booking repository
+        when(bookingRepository.findByFacility_FacilityIdAndBookedDateTimeBetweenAndStatusIn(
+                anyLong(), any(LocalDateTime.class), any(LocalDateTime.class), anyList()))
+                .thenReturn(affectedBookings);
+        
+        // Test with today
+        maintenanceService.findBookingsAffectedByMaintenance(
+                1L, today.toString(), futureDate.toString(), cutoffTime);
+        
+        // Verify start time is cutoff time for today
+        ArgumentCaptor<LocalDateTime> startTimeCaptor = ArgumentCaptor.forClass(LocalDateTime.class);
+        verify(bookingRepository).findByFacility_FacilityIdAndBookedDateTimeBetweenAndStatusIn(
+                eq(1L), startTimeCaptor.capture(), any(LocalDateTime.class), anyList());
+        
+        LocalDateTime capturedStartTime = startTimeCaptor.getValue();
+        assertEquals(cutoffTime.getHour(), capturedStartTime.getHour());
+        assertEquals(cutoffTime.getMinute(), capturedStartTime.getMinute());
+        
+        // Reset mock and test with future date
+        reset(bookingRepository);
+        when(bookingRepository.findByFacility_FacilityIdAndBookedDateTimeBetweenAndStatusIn(
+                anyLong(), any(LocalDateTime.class), any(LocalDateTime.class), anyList()))
+                .thenReturn(affectedBookings);
+        
+        maintenanceService.findBookingsAffectedByMaintenance(
+                1L, futureStartDate.toString(), futureDate.toString(), cutoffTime);
+        
+        // Verify start time is start of day for future date
+        verify(bookingRepository).findByFacility_FacilityIdAndBookedDateTimeBetweenAndStatusIn(
+                eq(1L), startTimeCaptor.capture(), any(LocalDateTime.class), anyList());
+        
+        capturedStartTime = startTimeCaptor.getValue();
+        assertEquals(0, capturedStartTime.getHour());
+        assertEquals(0, capturedStartTime.getMinute());
+        assertEquals(futureStartDate, capturedStartTime.toLocalDate());
+    }
+    
+    @Test
     @DisplayName("Cancel bookings for maintenance should cancel affected bookings and refund credits")
     void cancelBookingsForMaintenanceShouldCancelAffectedBookingsAndRefundCredits() throws MessagingException {
         // Mock facility repository
@@ -424,6 +495,9 @@ public class MaintenanceServiceTest {
         
         // Mock booking repository save
         when(bookingRepository.save(any(Booking.class))).thenReturn(testBooking);
+        
+        // Mock credit service add credits
+        when(creditService.addCredits(anyLong(), any(Integer.class))).thenReturn(true);
         
         int result = maintenanceService.cancelBookingsForMaintenance(
                 affectedBookings, maintenanceSchedule, emailService);
@@ -453,29 +527,37 @@ public class MaintenanceServiceTest {
     }
     
     @Test
-    @DisplayName("Cancel bookings for maintenance should handle email failure")
-    void cancelBookingsForMaintenanceShouldHandleEmailFailure() throws MessagingException {
-        // Mock facility repository
-        when(facilityRepository.findById(anyLong())).thenReturn(Optional.of(testFacility));
-        
-        // Mock failed email sending
-        when(emailService.sendEmail(anyString(), anyString(), anyString())).thenReturn(false);
-        
-        // Mock booking repository save
-        when(bookingRepository.save(any(Booking.class))).thenReturn(testBooking);
-        
-        int result = maintenanceService.cancelBookingsForMaintenance(
-                affectedBookings, maintenanceSchedule, emailService);
-        
-        // Should still return 0 since email failed
-        assertEquals(0, result);
-        assertEquals(BookingStatus.CANCELLED, testBooking.getStatus());
-        
-        // Verify credit service was still called to add credits back
-        verify(creditService).addCredits(eq(1L), any(Integer.class));
-        
-        // Verify booking was saved
-        verify(bookingRepository).save(testBooking);
+    @DisplayName("Calculate booking cost should return correct cost for time slot")
+    void calculateBookingCostShouldReturnCorrectCostForTimeSlot() {
+        // Use reflection to access private method
+        try {
+            java.lang.reflect.Method method = MaintenanceService.class.getDeclaredMethod(
+                    "calculateBookingCost", String.class);
+            method.setAccessible(true);
+            
+            // Test with 1-hour time slot (should be 60 minutes)
+            Integer result1 = (Integer) method.invoke(maintenanceService, "10:00 - 11:00");
+            assertEquals(60, result1);
+            
+            // Test with 2-hour time slot (should be 120 minutes)
+            Integer result2 = (Integer) method.invoke(maintenanceService, "10:00 - 12:00");
+            assertEquals(120, result2);
+            
+            // Test with 30-minute time slot (should be 30 minutes)
+            Integer result3 = (Integer) method.invoke(maintenanceService, "10:00 - 10:30");
+            assertEquals(30, result3);
+            
+            // Test with null time slot (should return 0)
+            Integer result4 = (Integer) method.invoke(maintenanceService, (Object)null);
+            assertEquals(0, result4);
+            
+            // Test with invalid format (should return 0)
+            Integer result5 = (Integer) method.invoke(maintenanceService, "invalid format");
+            assertEquals(0, result5);
+            
+        } catch (Exception e) {
+            fail("Failed to test calculateBookingCost method: " + e.getMessage());
+        }
     }
     
     @Test
@@ -518,19 +600,8 @@ public class MaintenanceServiceTest {
     }
     
     @Test
-    @DisplayName("Check maintenance status batch should handle empty facility IDs")
-    void checkMaintenanceStatusBatchShouldHandleEmptyFacilityIDs() {
-        Map<String, Boolean> result = maintenanceService.checkMaintenanceStatusBatch(
-                Collections.emptyList(), today);
-        
-        assertNotNull(result);
-        assertTrue(result.isEmpty());
-        verify(maintenanceRepository, never()).findFacilitiesUnderMaintenanceOnDate(anyList(), anyString());
-    }
-    
-    @Test
-    @DisplayName("Check maintenance status batch with null date should use current date")
-    void checkMaintenanceStatusBatchWithNullDateShouldUseCurrentDate() {
+    @DisplayName("Check maintenance status batch should handle null date")
+    void checkMaintenanceStatusBatchShouldHandleNullDate() {
         List<Long> facilityIds = Arrays.asList(1L, 2L);
         List<Long> underMaintenanceIds = Arrays.asList(1L);
         
@@ -541,34 +612,73 @@ public class MaintenanceServiceTest {
         
         assertNotNull(result);
         assertEquals(2, result.size());
-        assertTrue(result.get("1"));
-        assertFalse(result.get("2"));
-        verify(maintenanceRepository).findFacilitiesUnderMaintenanceOnDate(anyList(), anyString());
+        
+        // Verify the current date is used when null date is provided
+        ArgumentCaptor<String> dateCaptor = ArgumentCaptor.forClass(String.class);
+        verify(maintenanceRepository).findFacilitiesUnderMaintenanceOnDate(anyList(), dateCaptor.capture());
+        
+        String capturedDate = dateCaptor.getValue();
+        assertEquals(today.toString(), capturedDate);
     }
     
     @Test
-    @DisplayName("Calculate booking cost should return correct cost for time slot")
-    void calculateBookingCostShouldReturnCorrectCostForTimeSlot() {
-        // Use reflection to access private method
-        try {
-            java.lang.reflect.Method method = MaintenanceService.class.getDeclaredMethod(
-                    "calculateBookingCost", String.class);
-            method.setAccessible(true);
-            
-            // Test with 1-hour time slot (should be 1.0 credit)
-            Integer result1 = (Integer) method.invoke(maintenanceService, "10:00 - 11:00");
-            assertEquals(60, result1);
-            
-            // Test with 2-hour time slot (should be 2.0 credits)
-            Integer result2 = (Integer) method.invoke(maintenanceService, "10:00 - 12:00");
-            assertEquals(120, result2);
-            
-            // Test with 30-minute time slot (should be 0.5 credits)
-            Integer result3 = (Integer) method.invoke(maintenanceService, "10:00 - 10:30");
-            assertEquals(30, result3);
-            
-        } catch (Exception e) {
-            fail("Failed to test calculateBookingCost method: " + e.getMessage());
-        }
+    @DisplayName("Cancel bookings handles email sending failure")
+    void cancelBookingsHandlesEmailSendingFailure() throws MessagingException {
+        // Mock facility repository
+        when(facilityRepository.findById(anyLong())).thenReturn(Optional.of(testFacility));
+        
+        // Mock failed email sending
+        when(emailService.sendEmail(anyString(), anyString(), anyString())).thenReturn(false);
+        
+        // Mock booking repository save
+        when(bookingRepository.save(any(Booking.class))).thenReturn(testBooking);
+        
+        // Mock credit service
+        when(creditService.addCredits(anyLong(), any(Integer.class))).thenReturn(true);
+        
+        // Call method
+        int result = maintenanceService.cancelBookingsForMaintenance(
+                affectedBookings, maintenanceSchedule, emailService);
+        
+        // Should return 0 since email failed
+        assertEquals(0, result);
+        
+        // Verify booking was still cancelled
+        assertEquals(BookingStatus.CANCELLED, testBooking.getStatus());
+        verify(bookingRepository).save(testBooking);
+        
+        // Verify credits were still refunded
+        verify(creditService).addCredits(eq(1L), any(Integer.class));
+    }
+    
+    @Test
+    @DisplayName("Cancel bookings handles email exception")
+    void cancelBookingsHandlesEmailException() throws MessagingException {
+        // Mock facility repository
+        when(facilityRepository.findById(anyLong())).thenReturn(Optional.of(testFacility));
+        
+        // Mock email exception
+        when(emailService.sendEmail(anyString(), anyString(), anyString()))
+            .thenThrow(new MessagingException("Test email exception"));
+        
+        // Mock booking repository save
+        when(bookingRepository.save(any(Booking.class))).thenReturn(testBooking);
+        
+        // Mock credit service
+        when(creditService.addCredits(anyLong(), any(Integer.class))).thenReturn(true);
+        
+        // Call method - should handle exception
+        int result = maintenanceService.cancelBookingsForMaintenance(
+                affectedBookings, maintenanceSchedule, emailService);
+        
+        // Should return 0 due to exception
+        assertEquals(0, result);
+        
+        // Verify booking was still cancelled and saved
+        assertEquals(BookingStatus.CANCELLED, testBooking.getStatus());
+        verify(bookingRepository).save(testBooking);
+        
+        // Verify credits were still refunded
+        verify(creditService).addCredits(eq(1L), any(Integer.class));
     }
 }

@@ -209,22 +209,18 @@ public class BookingControllerTest {
         verify(emailService, times(1)).sendEmail(anyString(), anyString(), anyString());
     }
     
+    
     @Test
     @DisplayName("Create booking should handle service exceptions")
     @WithMockUser(username = "test@example.com", roles = {"STUDENT"})
     void createBookingShouldHandleServiceExceptions() throws Exception {
         when(bookingService.createBooking(any(BookingDTO.class))).thenThrow(new RuntimeException("Insufficient credits"));
 
-        try {
-            mockMvc.perform(post("/api/bookings")
-                    .contentType(MediaType.APPLICATION_JSON)
-                    .content(objectMapper.writeValueAsString(bookingDTO)))
-                    .andExpect(status().isInternalServerError());
-        } catch (Exception e) {
-            // This is expected because of how the controller handles the exception
-            assertTrue(e.getCause() instanceof RuntimeException);
-            assertEquals("Insufficient credits", e.getCause().getMessage());
-        }
+        mockMvc.perform(post("/api/bookings")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(bookingDTO)))
+                .andExpect(status().isBadRequest())  // Changed from isInternalServerError to isBadRequest
+                .andExpect(jsonPath("$.error").value("Insufficient credits"));
         
         verify(emailService, times(0)).sendEmail(anyString(), anyString(), anyString());
     }
