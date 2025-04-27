@@ -16,8 +16,6 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
-import java.time.LocalDateTime;
-import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Map;
@@ -28,7 +26,6 @@ public class BookingController {
     private static final Logger logger = LoggerFactory.getLogger(BookingController.class);
     private final BookingService bookingService;
     private final CustomEmailService emailService;
-    private static final ZoneId SG_ZONE = ZoneId.of("Asia/Singapore");
 
     public BookingController(BookingService bookingService, CustomEmailService emailService) {
         this.bookingService = bookingService;
