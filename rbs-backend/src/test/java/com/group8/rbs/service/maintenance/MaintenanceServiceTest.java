@@ -681,4 +681,396 @@ public class MaintenanceServiceTest {
         // Verify credits were still refunded
         verify(creditService).addCredits(eq(1L), any(Integer.class));
     }
+
+    @Test
+    @DisplayName("Calculate booking cost should handle special time slot format variations")
+    void calculateBookingCostShouldHandleSpecialTimeSlotFormatVariations() {
+        try {
+            java.lang.reflect.Method method = MaintenanceService.class.getDeclaredMethod(
+                    "calculateBookingCost", String.class);
+            method.setAccessible(true);
+            
+            // Test with different time slot formatting (no spaces)
+            Integer result1 = (Integer) method.invoke(maintenanceService, "10:00-11:00");
+            assertEquals(60, result1);
+            
+            // Test with extra spaces
+            Integer result2 = (Integer) method.invoke(maintenanceService, "  10:00  -  11:00  ");
+            assertEquals(60, result2);
+            
+            // Test with case where end time is less than start time (overnight booking)
+            Integer result3 = (Integer) method.invoke(maintenanceService, "23:00 - 01:00");
+            assertEquals(120, result3);
+            
+            // Test with very short duration (5 minutes)
+            Integer result4 = (Integer) method.invoke(maintenanceService, "10:00 - 10:05");
+            assertEquals(5, result4);
+            
+            // Test with very long duration (12 hours)
+            Integer result5 = (Integer) method.invoke(maintenanceService, "07:00 - 19:00");
+            assertEquals(720, result5);
+            
+            // Test with empty string
+            Integer result6 = (Integer) method.invoke(maintenanceService, "");
+            assertEquals(0, result6);
+        } catch (Exception e) {
+            fail("Failed to test calculateBookingCost method: " + e.getMessage());
+        }
+    }
+
+    @Test
+    @DisplayName("Cancel bookings should handle credit refund failure")
+    void cancelBookingsShouldHandleCreditRefundFailure() throws MessagingException {
+        // Mock facility repository
+        when(facilityRepository.findById(anyLong())).thenReturn(Optional.of(testFacility));
+        
+        // Mock successful email sending
+        when(emailService.sendEmail(anyString(), anyString(), anyString())).thenReturn(true);
+        
+        // Mock booking repository save
+        when(bookingRepository.save(any(Booking.class))).thenReturn(testBooking);
+        
+        // Mock credit service to fail
+        when(creditService.addCredits(anyLong(), any(Integer.class))).thenReturn(false);
+        
+        // Call method
+        int result = maintenanceService.cancelBookingsForMaintenance(
+                affectedBookings, maintenanceSchedule, emailService);
+        
+        // Should still return 1 since email was sent successfully, even though credit refund failed
+        assertEquals(1, result);
+        
+        // Verify booking was still cancelled
+        assertEquals(BookingStatus.CANCELLED, testBooking.getStatus());
+        verify(bookingRepository).save(testBooking);
+        
+        // Verify credit service was called but failed
+        verify(creditService).addCredits(eq(1L), any(Integer.class));
+    }
+
+    @Test
+    @DisplayName("Check maintenance status batch should handle invalid facility ID types")
+    void checkMaintenanceStatusBatchShouldHandleInvalidFacilityIDTypes() {
+        // Create a list with valid and invalid ID types, but no null values
+        List<Object> mixedIds = Arrays.asList(1L, 2, "3", "invalid", 0, -1);
+        
+        // Mock repository to return some facilities under maintenance
+        when(maintenanceRepository.findFacilitiesUnderMaintenanceOnDate(anyList(), anyString()))
+                .thenReturn(Arrays.asList(1L, 3L));
+        
+        // Call the method
+        Map<String, Boolean> result = maintenanceService.checkMaintenanceStatusBatch(mixedIds, today);
+        
+        // Verify result
+        assertNotNull(result);
+        
+        // Should filter out invalid IDs but still have valid ones
+        assertTrue(result.containsKey("1"));
+        assertTrue(result.containsKey("2"));
+        assertTrue(result.containsKey("3"));
+        assertTrue(result.containsKey("0"));
+        assertTrue(result.containsKey("-1"));
+        
+        // Invalid IDs should be filtered out
+        assertFalse(result.containsKey("invalid"));
+        
+        // Verify correct maintenance status
+        assertTrue(result.get("1"));
+        assertFalse(result.get("2"));
+        assertTrue(result.get("3"));
+        assertFalse(result.get("0"));
+        assertFalse(result.get("-1"));
+    }
+
+    @Test
+    @DisplayName("Check maintenance status batch should handle repository exceptions")
+    void checkMaintenanceStatusBatchShouldHandleRepositoryExceptions() {
+        // Create a list of IDs
+        List<Long> facilityIds = Arrays.asList(1L, 2L, 3L);
+        
+        // Mock repository to throw exception
+        when(maintenanceRepository.findFacilitiesUnderMaintenanceOnDate(anyList(), anyString()))
+                .thenThrow(new RuntimeException("Database error"));
+        
+        // Call the method
+        Map<String, Boolean> result = maintenanceService.checkMaintenanceStatusBatch(facilityIds, today);
+        
+        // Should return empty map on error
+        assertNotNull(result);
+        assertEquals(3, result.size());
+        
+        // All facilities should be marked as not under maintenance when exception occurs
+        assertFalse(result.get("1"));
+        assertFalse(result.get("2"));
+        assertFalse(result.get("3"));
+    }
+
+    @Test
+    @DisplayName("Has overlapping maintenance should handle adjacent but non-overlapping periods")
+    void hasOverlappingMaintenanceShouldHandleAdjacentButNonOverlappingPeriods() {
+        // Create maintenance schedule ending on a specific date
+        MaintenanceSchedule existingSchedule = MaintenanceSchedule.builder()
+                .maintenanceId(2L)
+                .facilityId(1L)
+                .startDate(today.minusDays(10).toString())
+                .endDate(today.toString()) // Ends today
+                .build();
+        
+        // Create new maintenance starting on the next day (adjacent but not overlapping)
+        String newStartDateStr = today.plusDays(1).toString();
+        String newEndDateStr = today.plusDays(5).toString();
+        
+        // Mock repository
+        when(maintenanceRepository.findByFacilityId(anyLong()))
+                .thenReturn(Arrays.asList(existingSchedule));
+        
+        // Test for overlap - should return false
+        boolean result = maintenanceService.hasOverlappingMaintenance(
+                1L, newStartDateStr, newEndDateStr, null);
+        
+        // Verify no overlap is detected
+        assertFalse(result);
+    }
+
+    @Test
+    @DisplayName("Has overlapping maintenance should detect exact same date overlap")
+    void hasOverlappingMaintenanceShouldDetectExactSameDateOverlap() {
+        // Create maintenance schedule with specific dates
+        MaintenanceSchedule existingSchedule = MaintenanceSchedule.builder()
+                .maintenanceId(2L)
+                .facilityId(1L)
+                .startDate(today.toString())
+                .endDate(today.plusDays(5).toString())
+                .build();
+        
+        // Create new maintenance with exact same dates
+        String newStartDateStr = today.toString();
+        String newEndDateStr = today.plusDays(5).toString();
+        
+        // Mock repository
+        when(maintenanceRepository.findByFacilityId(anyLong()))
+                .thenReturn(Arrays.asList(existingSchedule));
+        
+        // Test for overlap - should return true for exact same dates
+        boolean result = maintenanceService.hasOverlappingMaintenance(
+                1L, newStartDateStr, newEndDateStr, null);
+        
+        // Verify overlap is detected
+        assertTrue(result);
+    }
+
+    @Test
+    @DisplayName("Find bookings affected by maintenance should handle null creation time")
+    void findBookingsAffectedByMaintenanceShouldHandleNullCreationTime() {
+        // Create test data
+        String startDateStr = today.toString();
+        String endDateStr = today.plusDays(5).toString();
+        
+        // Mock repository with expected parameters
+        when(bookingRepository.findByFacility_FacilityIdAndBookedDateTimeBetweenAndStatusIn(
+                anyLong(), any(LocalDateTime.class), any(LocalDateTime.class), anyList()))
+                .thenReturn(affectedBookings);
+        
+        // Call method with null creation time
+        List<Booking> result = maintenanceService.findBookingsAffectedByMaintenance(
+                1L, startDateStr, endDateStr, null);
+        
+        // Should still work and use current time
+        assertNotNull(result);
+        assertEquals(1, result.size());
+        assertEquals(1L, result.get(0).getBookingId());
+        
+        // Verify appropriate repository method was called
+        verify(bookingRepository).findByFacility_FacilityIdAndBookedDateTimeBetweenAndStatusIn(
+                eq(1L), any(LocalDateTime.class), any(LocalDateTime.class), anyList());
+    }
+
+    @Test
+    @DisplayName("Get maintenance for facility on date should handle null date parameter")
+    void getMaintenanceForFacilityOnDateShouldHandleNullDateParameter() {
+        // Create maintenance schedule
+        MaintenanceSchedule currentSchedule = MaintenanceSchedule.builder()
+                .maintenanceId(1L)
+                .facilityId(1L)
+                .startDate(today.minusDays(1).toString())
+                .endDate(today.plusDays(1).toString()) // covers today
+                .build();
+        
+        // Mock repository
+        when(maintenanceRepository.findByFacilityId(anyLong()))
+                .thenReturn(Arrays.asList(currentSchedule));
+        
+        // Call method with null date
+        Optional<MaintenanceSchedule> result = maintenanceService.getMaintenanceForFacilityOnDate(1L, null);
+        
+        // Should use current date (today) and find the maintenance
+        assertTrue(result.isPresent());
+        assertEquals(1L, result.get().getMaintenanceId());
+    }
+
+    @Test
+    @DisplayName("Is facility under maintenance on date should handle null date parameter")
+    void isFacilityUnderMaintenanceOnDateShouldHandleNullDateParameter() {
+        // Create maintenance schedule covering today
+        MaintenanceSchedule currentSchedule = MaintenanceSchedule.builder()
+                .maintenanceId(1L)
+                .facilityId(1L)
+                .startDate(today.minusDays(1).toString())
+                .endDate(today.plusDays(1).toString()) // covers today
+                .build();
+        
+        // Mock repository
+        when(maintenanceRepository.findByFacilityId(anyLong()))
+                .thenReturn(Arrays.asList(currentSchedule));
+        
+        // Call method with null date
+        boolean result = maintenanceService.isFacilityUnderMaintenanceOnDate(1L, null);
+        
+        // Should use current date (today) and find facility under maintenance
+        assertTrue(result);
+    }
+
+    @Test
+    @DisplayName("Calculate booking cost should handle different time formats")
+    void calculateBookingCostShouldHandleDifferentTimeFormats() {
+        try {
+            java.lang.reflect.Method method = MaintenanceService.class.getDeclaredMethod(
+                    "calculateBookingCost", String.class);
+            method.setAccessible(true);
+            
+            // Test 12-hour format with AM/PM
+            Integer result1 = (Integer) method.invoke(maintenanceService, "10:00 AM - 11:00 AM");
+            assertEquals(0, result1); // Returns 0 for unsupported format
+            
+            // Test format without leading zeros - apparently not supported
+            Integer result2 = (Integer) method.invoke(maintenanceService, "9:00 - 10:00");
+            assertEquals(0, result2); // Returns 0 for unsupported format
+            
+            // Test format with leading zeros (should work)
+            Integer result3 = (Integer) method.invoke(maintenanceService, "09:00 - 10:00");
+            assertEquals(60, result3);
+            
+            // Test format with irregular spacing
+            Integer result4 = (Integer) method.invoke(maintenanceService, "10:00-   11:30");
+            assertEquals(90, result4);
+        } catch (Exception e) {
+            fail("Failed to test calculateBookingCost method: " + e.getMessage());
+        }
+    }
+
+    @Test
+    @DisplayName("Check maintenance status batch should handle empty facilityIds list")
+    void checkMaintenanceStatusBatchShouldHandleEmptyFacilityIdsList() {
+        // Call method with empty list
+        Map<String, Boolean> result = maintenanceService.checkMaintenanceStatusBatch(
+                Collections.emptyList(), today);
+        
+        // Should return empty map
+        assertNotNull(result);
+        assertTrue(result.isEmpty());
+        
+        // Repository should not be called
+        verify(maintenanceRepository, never()).findFacilitiesUnderMaintenanceOnDate(anyList(), anyString());
+    }
+
+    @Test
+    @DisplayName("Check maintenance status batch should handle null facilityIds parameter")
+    void checkMaintenanceStatusBatchShouldHandleNullFacilityIdsParameter() {
+        // Call method with null
+        Map<String, Boolean> result = maintenanceService.checkMaintenanceStatusBatch(null, today);
+        
+        // Should return empty map
+        assertNotNull(result);
+        assertTrue(result.isEmpty());
+        
+        // Repository should not be called
+        verify(maintenanceRepository, never()).findFacilitiesUnderMaintenanceOnDate(anyList(), anyString());
+    }
+
+    @Test
+    @DisplayName("Cancel bookings should handle facility not found")
+    void cancelBookingsShouldHandleFacilityNotFound() throws MessagingException {
+        // Mock facility repository to return empty
+        when(facilityRepository.findById(anyLong())).thenReturn(Optional.empty());
+        
+        // Call method
+        int result = maintenanceService.cancelBookingsForMaintenance(
+                affectedBookings, maintenanceSchedule, emailService);
+        
+        // Should return 0 since facility wasn't found
+        assertEquals(0, result);
+        
+        // Verify booking was not saved
+        verify(bookingRepository, never()).save(any(Booking.class));
+        verify(emailService, never()).sendEmail(anyString(), anyString(), anyString());
+    }
+
+    @Test
+    @DisplayName("Cancel bookings should handle booking save exception")
+    void cancelBookingsShouldHandleBookingSaveException() throws MessagingException {
+        // Mock facility repository
+        when(facilityRepository.findById(anyLong())).thenReturn(Optional.of(testFacility));
+        
+        // Mock booking repository save to throw exception
+        when(bookingRepository.save(any(Booking.class))).thenThrow(new RuntimeException("Database error"));
+        
+        // Call method
+        int result = maintenanceService.cancelBookingsForMaintenance(
+                affectedBookings, maintenanceSchedule, emailService);
+        
+        // Should return 0 due to exception
+        assertEquals(0, result);
+        
+        // Email should not be sent due to exception
+        verify(emailService, never()).sendEmail(anyString(), anyString(), anyString());
+    }
+
+    @Test
+    @DisplayName("Cancel bookings should handle no credits to refund")
+    void cancelBookingsShouldHandleNoCreditsToRefund() throws MessagingException {
+        // Mock facility repository
+        when(facilityRepository.findById(anyLong())).thenReturn(Optional.of(testFacility));
+        
+        // Create a booking with a time slot that would calculate to 0 credits
+        Booking bookingWithInvalidTimeSlot = Booking.builder()
+                .bookingId(1L)
+                .facility(testFacility)
+                .account(testAccount)
+                .bookedDateTime(today.atTime(10, 0))
+                .timeSlot("invalid") // Invalid time slot will result in 0 credits
+                .status(BookingStatus.APPROVED)
+                .build();
+        
+        // Mock booking repository save
+        when(bookingRepository.save(any(Booking.class))).thenReturn(bookingWithInvalidTimeSlot);
+        
+        // Mock successful email sending
+        when(emailService.sendEmail(anyString(), anyString(), anyString())).thenReturn(true);
+        
+        // Call method with booking that has invalid time slot
+        int result = maintenanceService.cancelBookingsForMaintenance(
+                Arrays.asList(bookingWithInvalidTimeSlot), maintenanceSchedule, emailService);
+        
+        // Should still return 1 since everything else succeeded
+        assertEquals(1, result);
+        
+        // Verify credit service was not called due to 0 credits
+        verify(creditService, never()).addCredits(anyLong(), any(Integer.class));
+    }
+
+    @Test
+    @DisplayName("Has overlapping maintenance should handle empty existing schedules")
+    void hasOverlappingMaintenanceShouldHandleEmptyExistingSchedules() {
+        // Mock repository to return empty list
+        when(maintenanceRepository.findByFacilityId(anyLong()))
+                .thenReturn(Collections.emptyList());
+        
+        // Test for overlap with no existing schedules
+        boolean result = maintenanceService.hasOverlappingMaintenance(
+                1L, today.toString(), futureDate.toString(), null);
+        
+        // Should return false when no existing schedules
+        assertFalse(result);
+        verify(maintenanceRepository).findByFacilityId(1L);
+    }
 }
