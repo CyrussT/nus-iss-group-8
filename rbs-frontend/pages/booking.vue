@@ -33,6 +33,7 @@ const {
   searchLoading
 } = bookingModule;
 
+const emergencyMessage = ref();
 
 const connectWebSocket = () => {
   const stompClient = new Client({
@@ -50,6 +51,12 @@ const connectWebSocket = () => {
         console.log('Received maintenance update', message.body);
         await handleSearch(currentSearchCriteria.value);
         processBookings();
+      });
+
+
+      stompClient.subscribe('/topic/emergency', (message) => {
+        emergencyMessage.value = message.body;
+        alert(`🚨 Emergency Notice: ${message.body}`);  // You can make a custom popup later
       });
 
     },
@@ -841,6 +848,9 @@ watch(() => facilitiesUnderMaintenance, () => {
 <template>
   <div class="mx-auto w-3/4 mt-8">
     <h1 class="text-2xl font-bold dark:text-white">Booking Management</h1>
+    <div v-if="emergencyMessage" class="bg-red-100 p-4 rounded-xl text-red-700 font-semibold shadow mb-4">
+      🚨 {{ emergencyMessage }}
+    </div>
 
     <!-- Search UI component -->
     <BookingSearchBar class="mt-4" :loading="searchLoading" :resource-type-options="resourceTypeOptions"

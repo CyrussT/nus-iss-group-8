@@ -20,6 +20,26 @@ const fetchAdminStats = async () => {
   }
 };
 
+const emergencyInput = ref('');
+
+const pushEmergency = async () => {
+  if (!emergencyInput.value.trim()) {
+    alert('Message cannot be empty!');
+    return;
+  }
+  
+  try {
+    await axios.post('http://localhost:8080/api/emergency/push', {
+      message: emergencyInput.value
+    });
+    alert('Emergency Notice sent successfully!');
+    emergencyInput.value = ''; // Clear after send
+  } catch (error) {
+    console.error('Failed to send emergency notice:', error);
+    alert('Failed to send emergency notice. Try again.');
+  }
+};
+
 onMounted(fetchAdminStats);
 </script>
 
@@ -44,5 +64,13 @@ onMounted(fetchAdminStats);
       <h2 class="font-bold text-lg mb-2">🚨 Emergency Message</h2>
       <p>{{ emergencyMessage }}</p>
     </div>
+  </div>
+
+    <div class="p-6 bg-red-50 border border-red-300 rounded-xl shadow-lg mt-6">
+    <h2 class="text-xl font-bold text-red-700 mb-4">Emergency Notice</h2>
+
+    <UTextarea v-model="emergencyInput" placeholder="Type emergency message here..." class="mb-4" rows="3" />
+
+    <UButton @click="pushEmergency" color="red" variant="solid" label="Push Notice" />
   </div>
 </template>
