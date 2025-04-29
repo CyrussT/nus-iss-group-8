@@ -27,6 +27,4 @@ variable ssh_private_key {
     type = string
 }
 
-variable codeserver_password {
-    type = string
-}
+
