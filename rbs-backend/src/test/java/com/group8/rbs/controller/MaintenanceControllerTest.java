@@ -8,6 +8,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.doThrow;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
@@ -631,5 +632,260 @@ public class MaintenanceControllerTest {
                 .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isNotFound())
                 .andExpect(content().string("Maintenance schedule not found"));
+    }
+    
+    // Additional tests to improve coverage
+    
+    @Test
+    @DisplayName("Schedule maintenance should handle account not found")
+    @WithMockUser(username = "admin@example.com", roles = {"ADMINISTRATOR"})
+    void scheduleMaintenanceShouldHandleAccountNotFound() throws Exception {
+        // Mock account repository to return empty (account not found)
+        when(accountRepository.findByEmail(anyString())).thenReturn(Optional.empty());
+        
+        // Call the endpoint
+        mockMvc.perform(post("/api/maintenance/schedule")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(maintenanceRequest)))
+                .andExpect(status().isCreated());
+                
+        // Should use default admin ID of 1L when account not found
+        verify(maintenanceService, times(1)).scheduleMaintenanceForFacility(any(MaintenanceSchedule.class));
+    }
+    
+    @Test
+    @DisplayName("Schedule maintenance should handle service exceptions")
+    @WithMockUser(username = "admin@example.com", roles = {"ADMINISTRATOR"})
+    void scheduleMaintenanceShouldHandleServiceExceptions() throws Exception {
+        // Mock account repository
+        when(accountRepository.findByEmail(anyString())).thenReturn(Optional.of(testAccount));
+        
+        // Mock maintenance service - empty affected bookings
+        when(maintenanceService.findBookingsAffectedByMaintenance(
+                anyLong(), anyString(), anyString(), any(LocalDateTime.class)))
+            .thenReturn(Collections.emptyList());
+        
+        // Mock schedule maintenance to throw an unexpected exception
+        when(maintenanceService.scheduleMaintenanceForFacility(any(MaintenanceSchedule.class)))
+            .thenThrow(new RuntimeException("Unexpected server error"));
+        
+        // Call the endpoint
+        mockMvc.perform(post("/api/maintenance/schedule")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(maintenanceRequest)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error").value(org.hamcrest.Matchers.containsString("An error occurred: Unexpected server error")));
+    }
+    
+    @Test
+    @DisplayName("Get affected bookings should handle missing parameters")
+    @WithMockUser(username = "admin@example.com", roles = {"ADMINISTRATOR"})
+    void getAffectedBookingsShouldHandleMissingParameters() throws Exception {
+        // Call the endpoint without required parameters
+        mockMvc.perform(get("/api/maintenance/affected-bookings")
+                .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isBadRequest());
+    }
+    
+    @Test
+    @DisplayName("Get affected bookings should handle service exception")
+    @WithMockUser(username = "admin@example.com", roles = {"ADMINISTRATOR"})
+    void getAffectedBookingsShouldHandleServiceException() throws Exception {
+        // Mock maintenance service to throw exception
+        when(maintenanceService.findBookingsAffectedByMaintenance(
+                anyLong(), anyString(), anyString(), any(LocalDateTime.class)))
+            .thenThrow(new RuntimeException("Service error"));
+        
+        // Call the endpoint
+        mockMvc.perform(get("/api/maintenance/affected-bookings")
+                .param("facilityId", "1")
+                .param("startDate", LocalDate.now().toString())
+                .param("endDate", LocalDate.now().plusDays(5).toString())
+                .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error").value(org.hamcrest.Matchers.containsString("Failed to get affected bookings: Service error")));
+    }
+    
+    @Test
+    @DisplayName("Release facility should handle service exception")
+    @WithMockUser(username = "admin@example.com", roles = {"ADMINISTRATOR"})
+    void releaseFacilityShouldHandleServiceException() throws Exception {
+        // Mock maintenance service to throw exception when getting current maintenance
+        when(maintenanceService.getCurrentMaintenanceForFacility(anyLong()))
+            .thenThrow(new RuntimeException("Service error"));
+        
+        // Call the endpoint
+        mockMvc.perform(post("/api/maintenance/release/1")
+                .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error").value(org.hamcrest.Matchers.containsString("Failed to release facility: Service error")));
+    }
+    
+    @Test
+    @DisplayName("Release facility should handle update end date exception")
+    @WithMockUser(username = "admin@example.com", roles = {"ADMINISTRATOR"})
+    void releaseFacilityShouldHandleUpdateEndDateException() throws Exception {
+        // Create a maintenance schedule with a future end date
+        LocalDate futureDate = LocalDate.now().plusDays(5);
+        MaintenanceSchedule futureMaintenanceSchedule = MaintenanceSchedule.builder()
+                .maintenanceId(1L)
+                .facilityId(1L)
+                .startDate(LocalDate.now().toString())
+                .endDate(futureDate.toString())
+                .description("Test Maintenance")
+                .createdBy(1L)
+                .build();
+        
+        // Mock maintenance service to return maintenance but throw on update
+        when(maintenanceService.getCurrentMaintenanceForFacility(anyLong()))
+            .thenReturn(Optional.of(futureMaintenanceSchedule));
+        
+        when(maintenanceService.updateMaintenanceEndDate(anyLong(), anyString()))
+            .thenThrow(new RuntimeException("Update failed"));
+        
+        // Call the endpoint
+        mockMvc.perform(post("/api/maintenance/release/1")
+                .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error").value(org.hamcrest.Matchers.containsString("Failed to release facility: Update failed")));
+    }
+    
+    @Test
+    @DisplayName("Get current maintenance should handle service exception")
+    @WithMockUser(username = "admin@example.com", roles = {"ADMINISTRATOR"})
+    void getCurrentMaintenanceShouldHandleServiceException() throws Exception {
+        // Mock maintenance service to throw exception
+        when(maintenanceService.getCurrentMaintenanceForFacility(anyLong()))
+            .thenThrow(new RuntimeException("Service error"));
+        
+        // Call the endpoint
+        mockMvc.perform(get("/api/maintenance/current/1")
+                .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error").value(org.hamcrest.Matchers.containsString("Failed to get current maintenance: Service error")));
+    }
+    
+    @Test
+    @DisplayName("Check maintenance status batch with empty facility IDs should return empty map")
+    @WithMockUser(username = "admin@example.com", roles = {"ADMINISTRATOR"})
+    void checkMaintenanceStatusBatchWithEmptyFacilityIdsShouldReturnEmptyMap() throws Exception {
+        // Create request body with empty facilityIds
+        Map<String, Object> request = new HashMap<>();
+        request.put("facilityIds", Collections.emptyList());
+        
+        // Call the endpoint
+        mockMvc.perform(post("/api/maintenance/check-maintenance-status")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$").isEmpty());
+    }
+    
+    @Test
+    @DisplayName("Check maintenance status batch should handle service exception")
+    @WithMockUser(username = "admin@example.com", roles = {"ADMINISTRATOR"})
+    void checkMaintenanceStatusBatchShouldHandleServiceException() throws Exception {
+        // Create request body
+        Map<String, Object> request = new HashMap<>();
+        request.put("facilityIds", Arrays.asList(1L, 2L, 3L));
+        
+        // Mock service to throw exception
+        when(maintenanceService.checkMaintenanceStatusBatch(anyList(), any(LocalDate.class)))
+            .thenThrow(new RuntimeException("Service error"));
+        
+        // Call the endpoint and expect empty map response on error
+        mockMvc.perform(post("/api/maintenance/check-maintenance-status")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$").isEmpty());
+    }
+    
+    @Test
+    @DisplayName("Get all maintenance schedules should handle empty list")
+    @WithMockUser(username = "admin@example.com", roles = {"ADMINISTRATOR"})
+    void getAllMaintenanceSchedulesShouldHandleEmptyList() throws Exception {
+        // Mock maintenance service to return empty list
+        when(maintenanceService.getAllMaintenanceSchedules())
+            .thenReturn(Collections.emptyList());
+        
+        // Call the endpoint
+        mockMvc.perform(get("/api/maintenance/all")
+                .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$").isArray())
+                .andExpect(jsonPath("$").isEmpty());
+    }
+    
+    @Test
+    @DisplayName("Get maintenance schedules for facility should handle empty list")
+    @WithMockUser(username = "admin@example.com", roles = {"ADMINISTRATOR"})
+    void getMaintenanceSchedulesForFacilityShouldHandleEmptyList() throws Exception {
+        // Mock maintenance service to return empty list
+        when(maintenanceService.getMaintenanceSchedulesForFacility(anyLong()))
+            .thenReturn(Collections.emptyList());
+        
+        // Call the endpoint
+        mockMvc.perform(get("/api/maintenance/facility/1")
+                .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$").isArray())
+                .andExpect(jsonPath("$").isEmpty());
+    }
+    
+    @Test
+    @DisplayName("Schedule maintenance should handle non-email createdBy value")
+    @WithMockUser(username = "admin@example.com", roles = {"ADMINISTRATOR"})
+    void scheduleMaintenanceShouldHandleNonEmailCreatedByValue() throws Exception {
+        // Create request with non-email createdBy value
+        Map<String, Object> nonEmailRequest = new HashMap<>(maintenanceRequest);
+        nonEmailRequest.put("createdBy", "admin-user-id"); // Not an email
+        
+        // Mock find bookings to return empty list
+        when(maintenanceService.findBookingsAffectedByMaintenance(
+                anyLong(), anyString(), anyString(), any(LocalDateTime.class)))
+            .thenReturn(Collections.emptyList());
+        
+        // Mock schedule maintenance
+        when(maintenanceService.scheduleMaintenanceForFacility(any(MaintenanceSchedule.class)))
+            .thenReturn(maintenanceSchedule);
+        
+        // Call the endpoint
+        mockMvc.perform(post("/api/maintenance/schedule")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(nonEmailRequest)))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.maintenanceId").value(1));
+        
+        // Should use default admin ID
+        verify(maintenanceService, times(1)).scheduleMaintenanceForFacility(any(MaintenanceSchedule.class));
+    }
+    
+    @Test
+    @DisplayName("Schedule maintenance should handle null createdBy value")
+    @WithMockUser(username = "admin@example.com", roles = {"ADMINISTRATOR"})
+    void scheduleMaintenanceShouldHandleNullCreatedByValue() throws Exception {
+        // Create request with null createdBy value
+        Map<String, Object> nullCreatedByRequest = new HashMap<>(maintenanceRequest);
+        nullCreatedByRequest.put("createdBy", null);
+        
+        // Mock find bookings to return empty list
+        when(maintenanceService.findBookingsAffectedByMaintenance(
+                anyLong(), anyString(), anyString(), any(LocalDateTime.class)))
+            .thenReturn(Collections.emptyList());
+        
+        // Mock schedule maintenance
+        when(maintenanceService.scheduleMaintenanceForFacility(any(MaintenanceSchedule.class)))
+            .thenReturn(maintenanceSchedule);
+        
+        // Call the endpoint
+        mockMvc.perform(post("/api/maintenance/schedule")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(nullCreatedByRequest)))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.maintenanceId").value(1));
+        
+        // Should use default admin ID
+        verify(maintenanceService, times(1)).scheduleMaintenanceForFacility(any(MaintenanceSchedule.class));
     }
 }

@@ -15,7 +15,10 @@ import com.group8.rbs.repository.BookingRepository;
 import com.group8.rbs.repository.CreditRepository;
 import com.group8.rbs.repository.FacilityRepository;
 import com.group8.rbs.repository.FacilityTypeRepository;
-
+import com.group8.rbs.validation.BookingValidationChainBuilder;
+import com.group8.rbs.validation.BookingValidationContext;
+import com.group8.rbs.validation.BookingValidator;
+import com.group8.rbs.validation.ValidationResult;
 import jakarta.transaction.Transactional;
 
 import org.slf4j.Logger;
@@ -27,7 +30,6 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -45,15 +47,17 @@ public class BookingService {
     private final AccountRepository accountRepository;
     private final FacilityTypeRepository facilityTypeRepository;
     private final CreditRepository creditRepository;
+    private final BookingValidator validationChain;
 
     public BookingService(
-            BookingRepository bookingRepository,
-            BookingMapper bookingMapper,
-            FacilityTypeRepository facilityTypeRepository,
-            FacilityRepository facilityRepository,
-            BookingFacilityMapper bookingFacilityMapper,
-            AccountRepository accountRepository,
-            CreditRepository creditRepository) {
+        BookingRepository bookingRepository, 
+        BookingMapper bookingMapper, 
+        FacilityTypeRepository facilityTypeRepository,
+        FacilityRepository facilityRepository, 
+        BookingFacilityMapper bookingFacilityMapper,
+        AccountRepository accountRepository,
+        CreditRepository creditRepository,
+        BookingValidationChainBuilder validationChainBuilder) {
         this.bookingRepository = bookingRepository;
         this.bookingMapper = bookingMapper;
         this.facilityTypeRepository = facilityTypeRepository;
@@ -61,14 +65,14 @@ public class BookingService {
         this.bookingFacilityMapper = bookingFacilityMapper;
         this.accountRepository = accountRepository;
         this.creditRepository = creditRepository;
+        this.validationChain = validationChainBuilder.buildValidationChain();
     }
 
     public List<FacilitySearchDTO> searchFacilities(FacilitySearchDTO searchCriteria) {
-
-        Long resourceTypeId = searchCriteria.getResourceTypeId() != null
-                ? searchCriteria.getResourceTypeId()
-                : null;
-
+        Long resourceTypeId = searchCriteria.getResourceTypeId() != null 
+            ? searchCriteria.getResourceTypeId() 
+            : null;
+                
         // Filter the facilities based on search criteria
         List<Facility> filteredFacilities = facilityRepository.searchFacilities(
                 resourceTypeId,
@@ -139,100 +143,70 @@ public class BookingService {
     }
 
     public BookingResponseDTO createBooking(BookingDTO requestDTO) {
-        // Find the facility
-        Facility facility = facilityRepository.findById(requestDTO.getFacilityId())
-                .orElseThrow(() -> new RuntimeException("Facility not found"));
-
-        // Find the account
-        Optional<Account> account = accountRepository.findByEmail(requestDTO.getAccountEmail());
-
-        if (account.isEmpty()) {
-            throw new RuntimeException("Account not found");
-        }
-
-        // Parse the bookedDateTime from the request
-        // The frontend now sends the datetime in SG timezone
-        LocalDateTime bookedDateTime = requestDTO.getBookedDateTime();
-
-        // Log the datetime for debugging purposes
-        logger.info("Received booking datetime: " + bookedDateTime);
-
-        // Check if the time slot is available
-        if (!isTimeSlotAvailable(requestDTO.getFacilityId(), bookedDateTime, requestDTO.getTimeSlot())) {
-            throw new RuntimeException("This time slot is already booked");
-        }
-
-        // Parse the credits needed from the request
-        Double creditsNeeded;
         try {
-            creditsNeeded = Double.parseDouble(requestDTO.getCreditsUsed());
-        } catch (NumberFormatException e) {
-            throw new RuntimeException("Invalid credits used value: " + requestDTO.getCreditsUsed(), e);
-        }
-        // Attempt to deduct credits - this will only succeed if sufficient credits
-        // exist
-        int updatedRows = creditRepository.checkAndDeductCredits(account.get().getAccountId(), creditsNeeded);
-
-        if (updatedRows == 0) {
-            // Get current balance for a better error message
-            Double currentBalance = creditRepository.findCreditBalanceByAccountId(account.get().getAccountId());
-            throw new RuntimeException("Insufficient credits. Required: " + creditsNeeded +
-                    ", Available: " + currentBalance);
-        }
-
-        // To set to pending or instant approve based on facility type
-        BookingStatus bookingStatus = facility.getResourceTypeId().equals(5L)
-                ? BookingStatus.PENDING // Sports & Recreation requires approval
-                : BookingStatus.APPROVED;
-
-        // Create the booking entity
-        Booking booking = Booking.builder()
-                .facility(facility)
-                .account(account.get())
-                .bookedDateTime(bookedDateTime) // Use the bookedDateTime directly
-                .timeSlot(requestDTO.getTimeSlot())
-                .title(requestDTO.getTitle())
-                .description(requestDTO.getDescription())
-                .status(bookingStatus)
-                .build();
-
-        // Save to database
-        Booking savedBooking = bookingRepository.save(booking);
-
-        // Return the response DTO
-        return bookingMapper.toResponseDTO(savedBooking);
-    }
-
-    // Helper method to check if a time slot is available
-    private boolean isTimeSlotAvailable(Long facilityId, LocalDateTime bookedDateTime, String timeSlot) {
-        // Get all bookings for this facility on this date with APPROVED or PENDING
-        // status
-
-        // Extract the date part from bookedDateTime
-        LocalDate bookingDate = bookedDateTime.toLocalDate();
-
-        // Create start and end of day for the date range query
-        LocalDateTime startOfDay = bookingDate.atStartOfDay();
-        LocalDateTime endOfDay = bookingDate.plusDays(1).atStartOfDay().minusNanos(1);
-
-        // Query using time range
-        List<Booking> existingBookings = bookingRepository.findByFacility_FacilityIdAndBookedDateTimeBetweenAndStatusIn(
-                facilityId,
-                startOfDay,
-                endOfDay,
-                Arrays.asList(BookingStatus.APPROVED, BookingStatus.CONFIRMED, BookingStatus.PENDING));
-
-        // Check for overlap
-        for (Booking booking : existingBookings) {
-            if (booking.getTimeSlot().equals(timeSlot)) {
-                return false; // Time slot already booked
+            logger.info("Creating booking for facility ID: {}, date/time: {}", 
+                    requestDTO.getFacilityId(), requestDTO.getBookedDateTime());
+            
+            // Find the account
+            Optional<Account> accountOpt = accountRepository.findByEmail(requestDTO.getAccountEmail());
+            if (accountOpt.isEmpty()) {
+                throw new RuntimeException("Account not found");
             }
+            Account account = accountOpt.get();
+            
+            // Run the validation chain
+            ValidationResult result = validationChain.validate(requestDTO, account);
+            if (!result.isValid()) {
+                logger.warn("Booking validation failed: {}", result.getErrorMessage());
+                throw new RuntimeException(result.getErrorMessage());
+            }
+            
+            // Get the facility from validation context
+            Facility facility = BookingValidationContext.getFacility();
+            
+            // Determine booking status based on facility type
+            BookingStatus bookingStatus = facility.getResourceTypeId().equals(5L)
+                    ? BookingStatus.PENDING // Sports & Recreation requires approval
+                    : BookingStatus.APPROVED;
+            
+            // Deduct credits (moved after validation passes)
+            Double creditsNeeded = Double.parseDouble(requestDTO.getCreditsUsed());
+            int updatedRows = creditRepository.checkAndDeductCredits(account.getAccountId(), creditsNeeded);
+            
+            if (updatedRows == 0) {
+                // This should never happen if validation passed, but as a safeguard
+                Double currentBalance = creditRepository.findCreditBalanceByAccountId(account.getAccountId());
+                throw new RuntimeException("Insufficient credits. Required: " + creditsNeeded + 
+                                         ", Available: " + currentBalance);
+            }
+            
+            // Create the booking entity
+            Booking booking = Booking.builder()
+                    .facility(facility)
+                    .account(account)
+                    .bookedDateTime(requestDTO.getBookedDateTime())
+                    .timeSlot(requestDTO.getTimeSlot())
+                    .title(requestDTO.getTitle())
+                    .description(requestDTO.getDescription())
+                    .status(bookingStatus)
+                    .build();
+            
+            // Save to database
+            Booking savedBooking = bookingRepository.save(booking);
+            logger.info("Booking created successfully with ID: {}", savedBooking.getBookingId());
+            
+            // Return the response DTO
+            return bookingMapper.toResponseDTO(savedBooking);
+        } catch (Exception e) {
+            logger.error("Error creating booking: {}", e.getMessage());
+            throw e;
+        } finally {
+            // Always clean up context
+            BookingValidationContext.clear();
         }
-
-        return true; // Time slot is available
     }
 
-    // Fetch upcoming bookings that are APPROVED or CONFIRMED
+    // Fetch upcoming approved bookings
     public List<BookingResponseDTO> getUpcomingApprovedOrConfirmedBookings(Long accountId) {
         LocalDateTime now = LocalDateTime.now(); // ✅ Get current date-time
 
@@ -277,7 +251,7 @@ public class BookingService {
         }
 
         for (Booking booking : bookings) {
-            LocalDateTime bookedTime = booking.getBookedDateTime(); // assuming your getter is named this way
+            LocalDateTime bookedTime = booking.getBookedDateTime();
             logger.info("Booking ID: " + booking.getBookingId());
             logger.info("Booked DateTime: " + bookedTime);
             logger.info("Formatted DateTime: " + bookedTime.format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")));
@@ -307,7 +281,8 @@ public class BookingService {
             }
 
             bookingRepository.delete(booking.get());
-            creditRepository.addCredits(accountId, (int) minutes);
+            creditRepository.
+              s(accountId, (int) minutes);
             return true;
         } else {
             return false;
@@ -315,7 +290,6 @@ public class BookingService {
     }
 
     public List<BookingResponseDTO> getBookingsByStatus(String status) {
-
         List<Booking> bookings = bookingRepository.findByStatus(BookingStatus.valueOf(status));
 
         return bookings.stream()

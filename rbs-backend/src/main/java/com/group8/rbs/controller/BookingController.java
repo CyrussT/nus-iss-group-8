@@ -20,8 +20,6 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
-import java.time.LocalDateTime;
-import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
 import java.util.List;
@@ -32,6 +30,7 @@ import java.util.Map;
 public class BookingController {
     private static final Logger logger = LoggerFactory.getLogger(BookingController.class);
     private final BookingService bookingService;
+
     private static final ZoneId SG_ZONE = ZoneId.of("Asia/Singapore");
     private final EmailServiceFactory emailServiceFactory;
     private final EmailContentStrategyFactory emailContentStrategyFactory;
@@ -73,19 +72,12 @@ public class BookingController {
     }
 
     @PostMapping
-    public ResponseEntity<BookingResponseDTO> createBooking(@RequestBody BookingDTO request) throws MessagingException {
+    public ResponseEntity<?> createBooking(@RequestBody BookingDTO request) throws MessagingException {
         logger.info("Received booking request: " + request);
-
-        // If the bookedDateTime has a timezone offset in the string (like +08:00),
-        // it will be parsed correctly by default. If not, we assume it's in Singapore
-        // time
-        LocalDateTime bookingDateTime = request.getBookedDateTime();
-
-        // Log the parsed datetime for debugging
-        logger.info("Parsed booking datetime: " + bookingDateTime);
-
-        BookingResponseDTO response = bookingService.createBooking(request);
-
+        
+        try {
+            BookingResponseDTO response = bookingService.createBooking(request);
+            
         if (response != null && response.getBookingId() != null) {
             // Construct email details
             String toEmail = request.getAccountEmail();
@@ -113,12 +105,15 @@ public class BookingController {
             if (emailSent) {
                 logger.info("Booking confirmation email sent successfully.");
             } else {
-                logger.info("Failed to send booking confirmation email.");
+                return ResponseEntity.status(500).body(Map.of("error", "Failed to create booking"));
             }
-
-            return ResponseEntity.ok(response);
-        } else {
-            return ResponseEntity.status(500).body(null);
+        } catch (RuntimeException e) {
+            // Return the validation error with HTTP 400
+            logger.warn("Validation error: {}", e.getMessage());
+            return ResponseEntity.status(400).body(Map.of("error", e.getMessage()));
+        } catch (Exception e) {
+            logger.error("Unexpected error creating booking", e);
+            return ResponseEntity.status(500).body(Map.of("error", "An unexpected error occurred"));
         }
     }
 
