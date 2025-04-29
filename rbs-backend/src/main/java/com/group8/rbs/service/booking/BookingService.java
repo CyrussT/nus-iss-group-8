@@ -23,6 +23,7 @@ import jakarta.transaction.Transactional;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.time.Duration;
@@ -48,6 +49,7 @@ public class BookingService {
     private final FacilityTypeRepository facilityTypeRepository;
     private final CreditRepository creditRepository;
     private final BookingValidator validationChain;
+    private final BookingWebSocketService bookingWebSocketService;
 
     public BookingService(
         BookingRepository bookingRepository, 
@@ -57,16 +59,19 @@ public class BookingService {
         BookingFacilityMapper bookingFacilityMapper,
         AccountRepository accountRepository,
         CreditRepository creditRepository,
-        BookingValidationChainBuilder validationChainBuilder) {
-        this.bookingRepository = bookingRepository;
-        this.bookingMapper = bookingMapper;
-        this.facilityTypeRepository = facilityTypeRepository;
-        this.facilityRepository = facilityRepository;
-        this.bookingFacilityMapper = bookingFacilityMapper;
-        this.accountRepository = accountRepository;
-        this.creditRepository = creditRepository;
-        this.validationChain = validationChainBuilder.buildValidationChain();
-    }
+        BookingValidationChainBuilder validationChainBuilder,
+        BookingWebSocketService bookingWebSocketService) {
+            this.bookingRepository = bookingRepository;
+            this.bookingMapper = bookingMapper;
+            this.facilityTypeRepository = facilityTypeRepository;
+            this.facilityRepository = facilityRepository;
+            this.bookingFacilityMapper = bookingFacilityMapper;
+            this.accountRepository = accountRepository;
+            this.creditRepository = creditRepository;
+            this.validationChain = validationChainBuilder.buildValidationChain();
+            this.bookingWebSocketService = bookingWebSocketService;
+        }
+
 
     public List<FacilitySearchDTO> searchFacilities(FacilitySearchDTO searchCriteria) {
         Long resourceTypeId = searchCriteria.getResourceTypeId() != null 
@@ -193,6 +198,9 @@ public class BookingService {
             
             // Save to database
             Booking savedBooking = bookingRepository.save(booking);
+
+            bookingWebSocketService.sendBookingUpdate(savedBooking.getBookingId());
+            
             logger.info("Booking created successfully with ID: {}", savedBooking.getBookingId());
             
             // Return the response DTO
@@ -281,8 +289,10 @@ public class BookingService {
             }
 
             bookingRepository.delete(booking.get());
-            creditRepository.
-              s(accountId, (int) minutes);
+
+            bookingWebSocketService.sendBookingUpdate(bookingId);
+            
+            creditRepository.addCredits(accountId, (int) minutes);
             return true;
         } else {
             return false;
@@ -304,6 +314,7 @@ public class BookingService {
             Booking booking = optionalBooking.get();
             booking.setStatus(status);
             bookingRepository.save(booking);
+            bookingWebSocketService.sendBookingUpdate(bookingId);
 
             long accountId = optionalBooking.get().getAccount().getAccountId();
             String timeSlot = optionalBooking.get().getTimeSlot();

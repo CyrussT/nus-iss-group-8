@@ -154,6 +154,8 @@ public class BookingController {
 
             EmailService emailService = emailServiceFactory.getEmailService("customEmailService");
             boolean emailSent = emailService.sendEmail(toEmail, subject, body);
+            // up user credit
+            
 
             if (emailSent) {
                 logger.info("Email sent successfully after cancellation.");
