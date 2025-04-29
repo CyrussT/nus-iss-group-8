@@ -68,8 +68,7 @@ public class BookingServiceTest {
     private BookingMapper bookingMapper;
 
     @Mock
-private BookingWebSocketService bookingWebSocketService;        
-
+    private BookingWebSocketService bookingWebSocketService;        
 
     @Mock
     private BookingFacilityMapper bookingFacilityMapper;
@@ -187,7 +186,8 @@ private BookingWebSocketService bookingWebSocketService;
             bookingFacilityMapper,
             accountRepository,
             creditRepository,
-            validationChainBuilder
+            validationChainBuilder,
+            bookingWebSocketService
         );
     }
 

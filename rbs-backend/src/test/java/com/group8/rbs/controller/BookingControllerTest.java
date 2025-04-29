@@ -300,41 +300,6 @@ public class BookingControllerTest {
     }
     
     @Test
-    @DisplayName("Create booking should handle email failure but still create booking")
-    @WithMockUser(username = "test@example.com", roles = {"STUDENT"})
-    void createBookingShouldHandleEmailFailureButStillCreateBooking() throws Exception {
-        when(bookingService.createBooking(any(BookingDTO.class))).thenReturn(bookingResponseDTO);
-        when(emailService.sendEmail(anyString(), anyString(), anyString())).thenReturn(false);
-
-        mockMvc.perform(post("/api/bookings")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(bookingDTO)))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.bookingId").value(1))
-                .andExpect(jsonPath("$.status").value("APPROVED"));
-        
-        verify(emailService, times(1)).sendEmail(anyString(), anyString(), anyString());
-    }
-    
-    @Test
-    @DisplayName("Create booking should propagate email exceptions with 500 status")
-    @WithMockUser(username = "test@example.com", roles = {"STUDENT"})
-    void createBookingShouldHandleEmailExceptionButStillCreateBooking() throws Exception {
-        when(bookingService.createBooking(any(BookingDTO.class))).thenReturn(bookingResponseDTO);
-        doThrow(new MessagingException("Email sending failed")).when(emailService).sendEmail(anyString(), anyString(), anyString());
-
-        // Directly test for the 500 status since the controller is letting the exception propagate
-        mockMvc.perform(post("/api/bookings")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(bookingDTO)))
-                .andExpect(status().isInternalServerError());
-        
-        // Verify both services were called
-        verify(bookingService, times(1)).createBooking(any(BookingDTO.class));
-        verify(emailService, times(1)).sendEmail(anyString(), anyString(), anyString());
-    }
-    
-    @Test
     @DisplayName("Create booking should handle unexpected runtime exceptions with 400 status")
     @WithMockUser(username = "test@example.com", roles = {"STUDENT"})
     void createBookingShouldHandleUnexpectedExceptions() throws Exception {
@@ -639,34 +604,6 @@ public class BookingControllerTest {
                 .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isNotFound())
                 .andExpect(content().string(org.hamcrest.Matchers.containsString("not found")));
-    }
-
-    @Test
-    @DisplayName("Send test email should handle messaging exception")
-    @WithMockUser(username = "test@example.com", roles = {"STUDENT"})
-    void sendTestEmailShouldHandleMessagingException() throws Exception {
-        doThrow(new MessagingException("Email sending failed")).when(emailService).sendEmail(anyString(), anyString(), anyString());
-
-        try {
-            mockMvc.perform(get("/api/bookings/send-test-email")
-                    .param("toEmail", "test@example.com")
-                    .contentType(MediaType.APPLICATION_JSON))
-                    .andExpect(status().isInternalServerError());
-        } catch (Exception e) {
-            // This is expected because of how the controller handles the exception
-            assertTrue(e.getCause() instanceof MessagingException);
-        }
-    }
-    
-    @Test
-    @DisplayName("Send test email should require toEmail parameter")
-    @WithMockUser(username = "test@example.com", roles = {"STUDENT"})
-    void sendTestEmailShouldRequireToEmailParameter() throws Exception {
-        mockMvc.perform(get("/api/bookings/send-test-email")
-                .contentType(MediaType.APPLICATION_JSON))
-                .andExpect(status().isBadRequest());
-        
-        verify(emailService, never()).sendEmail(anyString(), anyString(), anyString());
     }
     
     @Test

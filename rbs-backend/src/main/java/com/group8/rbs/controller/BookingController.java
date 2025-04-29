@@ -31,7 +31,6 @@ public class BookingController {
     private static final Logger logger = LoggerFactory.getLogger(BookingController.class);
     private final BookingService bookingService;
 
-    private static final ZoneId SG_ZONE = ZoneId.of("Asia/Singapore");
     private final EmailServiceFactory emailServiceFactory;
     private final EmailContentStrategyFactory emailContentStrategyFactory;
 
@@ -78,36 +77,42 @@ public class BookingController {
         try {
             BookingResponseDTO response = bookingService.createBooking(request);
             
-        if (response != null && response.getBookingId() != null) {
-            // Construct email details
-            String toEmail = request.getAccountEmail();
-            String status = response.getStatus();
-            String strategyKey = status.equalsIgnoreCase("PENDING") ? "PENDING" : "SYSTEMAPPROVED";
+            if (response != null && response.getBookingId() != null) {
+                // Construct email details
+                String toEmail = request.getAccountEmail();
+                String status = response.getStatus();
+                String strategyKey = status.equalsIgnoreCase("PENDING") ? "PENDING" : "SYSTEMAPPROVED";
 
-            // Fetch the email content strategy using the factory
-            EmailContentStrategy strategy = emailContentStrategyFactory.getStrategy(strategyKey);
+                // Fetch the email content strategy using the factory
+                EmailContentStrategy strategy = emailContentStrategyFactory.getStrategy(strategyKey);
 
-            // Prepare the parameters for email content (e.g., bookingId, reason if needed)
-            Map<String, Object> emailParams = new HashMap<>();
-            emailParams.put("bookingId", response.getBookingId());
-            emailParams.put("bookedDatetime", response.getBookedDatetime()); // Add the bookedDatetime
-            emailParams.put("facilityName", response.getFacilityName());
-            emailParams.put("timeslot", response.getTimeslot());
-            emailParams.put("status", response.getStatus());
+                // Prepare the parameters for email content (e.g., bookingId, reason if needed)
+                Map<String, Object> emailParams = new HashMap<>();
+                emailParams.put("bookingId", response.getBookingId());
+                emailParams.put("bookedDatetime", response.getBookedDatetime()); // Add the bookedDatetime
+                emailParams.put("facilityName", response.getFacilityName());
+                emailParams.put("timeslot", response.getTimeslot());
+                emailParams.put("status", response.getStatus());
 
-            String subject = strategy.buildSubject(emailParams);
-            String body = strategy.buildBody(emailParams);
+                String subject = strategy.buildSubject(emailParams);
+                String body = strategy.buildBody(emailParams);
 
-            // Send email
-            EmailService emailService = emailServiceFactory.getEmailService("customEmailService");
-            boolean emailSent = emailService.sendEmail(toEmail, subject, body);
+                // Send email
+                EmailService emailService = emailServiceFactory.getEmailService("customEmailService");
+                boolean emailSent = emailService.sendEmail(toEmail, subject, body);
 
-            if (emailSent) {
-                logger.info("Booking confirmation email sent successfully.");
+                if (emailSent) {
+                    logger.info("Booking confirmation email sent successfully.");
+                } else {
+                    return ResponseEntity.status(500).body(Map.of("error", "Failed to create booking"));
+                }
+                
+                return ResponseEntity.ok(response);
             } else {
                 return ResponseEntity.status(500).body(Map.of("error", "Failed to create booking"));
             }
-        } catch (RuntimeException e) {
+        }
+         catch (RuntimeException e) {
             // Return the validation error with HTTP 400
             logger.warn("Validation error: {}", e.getMessage());
             return ResponseEntity.status(400).body(Map.of("error", e.getMessage()));

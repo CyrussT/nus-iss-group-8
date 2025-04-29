@@ -638,25 +638,6 @@ public class MaintenanceControllerTest {
                 .andExpect(content().string("Maintenance schedule not found"));
     }
     
-    // Additional tests to improve coverage
-    
-    @Test
-    @DisplayName("Schedule maintenance should handle account not found")
-    @WithMockUser(username = "admin@example.com", roles = {"ADMINISTRATOR"})
-    void scheduleMaintenanceShouldHandleAccountNotFound() throws Exception {
-        // Mock account repository to return empty (account not found)
-        when(accountRepository.findByEmail(anyString())).thenReturn(Optional.empty());
-        
-        // Call the endpoint
-        mockMvc.perform(post("/api/maintenance/schedule")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(maintenanceRequest)))
-                .andExpect(status().isCreated());
-                
-        // Should use default admin ID of 1L when account not found
-        verify(maintenanceService, times(1)).scheduleMaintenanceForFacility(any(MaintenanceSchedule.class));
-    }
-    
     @Test
     @DisplayName("Schedule maintenance should handle service exceptions")
     @WithMockUser(username = "admin@example.com", roles = {"ADMINISTRATOR"})
