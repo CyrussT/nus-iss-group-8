@@ -45,7 +45,7 @@ public class FacilityController {
             return ResponseEntity.status(HttpStatus.CREATED).body(newFacility);
         } else {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                                 .body(null); // or return a custom error DTO
+                                 .body(newFacility); // or return a custom error DTO
         }
     }
     

@@ -80,15 +80,37 @@ public class FacilityService {
 
 
     public FacilityResponseDTO updateFacility(Long id, FacilityRequestDTO facilityRequestDTO) {
-        return facilityRepository.findById(id).map(facility -> {
-            facility.setResourceTypeId(facilityRequestDTO.getResourceTypeId());;
-            facility.setResourceName(facilityRequestDTO.getResourceName());
-            facility.setLocation(facilityRequestDTO.getLocation());
-            facility.setCapacity(facilityRequestDTO.getCapacity());
-            Facility updatedFacility = facilityRepository.save(facility);
-            return facilityMapper.toDTO(updatedFacility);
-        }).orElseThrow(() -> new RuntimeException("Facility not found"));
+        Facility existingFacility = facilityRepository.findById(id)
+            .orElseThrow(() -> new FacilityException.FacilityNotFoundException("Facility not found with id: " + id));
+    
+        boolean isResourceNameChanged = !existingFacility.getResourceName().equals(facilityRequestDTO.getResourceName());
+        boolean isLocationChanged = !existingFacility.getLocation().equals(facilityRequestDTO.getLocation());
+    
+        if (isResourceNameChanged || isLocationChanged) {
+            // Only check if name or location has changed
+            Optional<Facility> facilityWithSameNameAndLocation = facilityRepository.findByResourceNameAndLocation(
+                facilityRequestDTO.getResourceName(), facilityRequestDTO.getLocation()
+            );
+    
+            if (facilityWithSameNameAndLocation.isPresent()) {
+                throw new FacilityException.FacilityAlreadyExistsException("Facility with this name and location already exists.");
+            }
+        }
+    
+        // Update fields
+        existingFacility.setResourceTypeId(facilityRequestDTO.getResourceTypeId());
+        existingFacility.setResourceName(facilityRequestDTO.getResourceName());
+        existingFacility.setLocation(facilityRequestDTO.getLocation());
+        existingFacility.setCapacity(facilityRequestDTO.getCapacity());
+    
+        Facility updatedFacility = facilityRepository.save(existingFacility);
+    
+        FacilityResponseDTO responseDTO = facilityMapper.toDTO(updatedFacility);
+        responseDTO.setMessage("Facility updated successfully!");
+        return responseDTO;
     }
+    
+    
 
 
     public void deleteFacility(Long id) {
