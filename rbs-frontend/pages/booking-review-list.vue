@@ -8,6 +8,8 @@ import { bookingRequestManagement } from "@/composables/bookingReqManagement";
 import RejectModal from "~/components/booking/RejectModal.vue";
 import ConfirmationModal from "~/components/booking/ConfirmationModal.vue";
 import axios from "axios";
+import { Client } from '@stomp/stompjs';
+
 
 const rejectModal = ref<InstanceType<typeof RejectModal> | null>(null);
 const confirmModal = ref<InstanceType<typeof ConfirmationModal> | null>(null);
@@ -25,6 +27,26 @@ const {
     fetchPendingBookings,
     changeSorting
 } = bookingRequestManagement();
+
+const connectWebSocket = () => {
+    const stompClient = new Client({
+        brokerURL: 'ws://localhost:8080/ws',
+        reconnectDelay: 5000,
+        onConnect: () => {
+            console.log('Connected!');
+            stompClient.subscribe('/topic/bookings', message => {
+                console.log('Received booking update', message.body);
+                fetchPendingBookings();
+            });
+        },
+        onDisconnect: () => {
+            console.log('Disconnected from WebSocket.');
+        },
+    });
+
+    stompClient.activate();
+};
+
 
 // Open the modal and pass the dynamic data for the modal
 const openRejectModal = (bookingId: number, email: string) => {
@@ -91,7 +113,11 @@ const rejectBooking = async (bookingId: number, email: string, rejectReason: str
     }
 };
 
-onMounted(fetchPendingBookings);
+onMounted(() => {
+    fetchPendingBookings();
+    connectWebSocket();
+});
+
 </script>
 
 <template>

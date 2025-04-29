@@ -23,9 +23,9 @@ const currentMaintenanceDetails = ref<any>(null);
 
 // Maintenance composable
 const maintenanceModule = useMaintenance();
-const { 
-  checkMultipleFacilities, 
-  isUnderMaintenance, 
+const {
+  checkMultipleFacilities,
+  isUnderMaintenance,
   maintenanceLoading,
   facilitiesUnderMaintenance,
   getMaintenanceDetails,
@@ -105,14 +105,14 @@ const openModal = (facilityData: Partial<Facility> | null = null) => {
 
 const openMaintenanceModal = async (row: any) => {
   selectedFacility.value = row;
-  
+
   // Reset validation errors
   validationErrors.value = {
     startDate: '',
     endDate: '',
     description: ''
   };
-  
+
   // Get user email safely
   let userEmail = 'admin'; // Default value
   try {
@@ -120,7 +120,7 @@ const openMaintenanceModal = async (row: any) => {
   } catch (e) {
     console.error('Error accessing user email:', e);
   }
-  
+
   // Reset maintenance data and affected bookings
   maintenanceData.value = {
     facilityId: row.facilityId,
@@ -129,13 +129,13 @@ const openMaintenanceModal = async (row: any) => {
     description: '',
     createdBy: userEmail
   };
-  
+
   // Check for affected bookings with initial date values
   await checkForAffectedBookings();
-  
+
   // Get upcoming maintenance for this facility
   await fetchFacilityMaintenanceSchedules(row.facilityId);
-  
+
   isMaintenanceModalOpen.value = true;
 };
 
@@ -143,15 +143,15 @@ const openMaintenanceModal = async (row: any) => {
 const fetchFacilityMaintenanceSchedules = async (facilityId: number) => {
   try {
     facilityMaintenanceHistoryLoading.value = true;
-    
+
     // Call the API to get maintenance schedules for this facility
     const response = await axios.get(`http://localhost:8080/api/maintenance/facility/${facilityId}`);
-    
+
     if (response.data && Array.isArray(response.data)) {
       // Sort by start date - first upcoming (future), then past
       const now = new Date();
       const today = formatDateForInput(now);
-      
+
       // Filter to get only upcoming maintenance (start date >= today)
       facilityUpcomingMaintenance.value = response.data
         .filter((m: any) => m.startDate >= today && m.startDate !== currentMaintenanceDetails.value?.startDate)
@@ -170,15 +170,15 @@ const fetchFacilityMaintenanceSchedules = async (facilityId: number) => {
 
 // Function to check for affected bookings when maintenance dates change
 const checkForAffectedBookings = async () => {
-  if (!maintenanceData.value.facilityId || 
-      !maintenanceData.value.startDate || 
-      !maintenanceData.value.endDate) {
+  if (!maintenanceData.value.facilityId ||
+    !maintenanceData.value.startDate ||
+    !maintenanceData.value.endDate) {
     return;
   }
-  
+
   try {
     checkingAffectedBookings.value = true;
-    
+
     // Use the composable function to check affected bookings
     await checkAffectedBookings(
       maintenanceData.value.facilityId,
@@ -195,7 +195,7 @@ const checkForAffectedBookings = async () => {
 // Function to handle maintenance button click
 const handleMaintenanceButtonClick = async (row: any) => {
   const isInMaintenance = isUnderMaintenance(row.facilityId);
-  
+
   if (isInMaintenance) {
     // If under maintenance, fetch current maintenance details and show release modal
     await fetchCurrentMaintenanceDetails(row.facilityId);
@@ -210,20 +210,20 @@ const handleMaintenanceButtonClick = async (row: any) => {
 // Release facility from maintenance early
 const releaseFacilityFromMaintenance = async () => {
   if (!selectedFacility.value?.facilityId) return;
-  
+
   try {
     releasingMaintenance.value = true;
-    
+
     // Call API to release facility
     const response = await axios.post(`http://localhost:8080/api/maintenance/release/${selectedFacility.value.facilityId}`);
-    
+
     // Close the release modal
     isReleaseConfirmModalOpen.value = false;
-    
+
     // Refresh data
     await fetchFacilities();
     await updateAllMaintenanceStatus();
-    
+
     // Show toast notification
     toast.add({
       title: 'Success',
@@ -269,10 +269,10 @@ const fetchCurrentMaintenanceDetails = async (facilityId: number) => {
 // Format date for display (YYYY-MM-DD to DD MMM YYYY)
 const formatDateForDisplay = (dateString: string) => {
   if (!dateString) return '';
-  
+
   const date = new Date(dateString);
   const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-  
+
   return `${date.getDate()} ${months[date.getMonth()]} ${date.getFullYear()}`;
 };
 
@@ -312,12 +312,12 @@ const updateAllMaintenanceStatus = async () => {
   try {
     // Extract facility IDs from all facilities
     const facilityIds = facilities.value.map((facility: any) => facility.facilityId).filter(Boolean);
-    
+
     if (facilityIds.length === 0) return;
-    
+
     // Use the batch API to check maintenance status for all facilities at once
     await checkMultipleFacilities(facilityIds);
-    
+
     // Update facilityMaintenanceStatus from the shared state
     facilityIds.forEach((id: number) => {
       facilityMaintenanceStatus.value[id] = isUnderMaintenance(id);
@@ -335,15 +335,15 @@ const validateMaintenanceForm = (): boolean => {
     endDate: '',
     description: ''
   };
-  
+
   let isValid = true;
-  
+
   // Validate dates
   const startDate = new Date(maintenanceData.value.startDate);
   const endDate = new Date(maintenanceData.value.endDate);
   const today = new Date();
   today.setHours(0, 0, 0, 0); // Set to beginning of today
-  
+
   // Check if start date is provided
   if (!maintenanceData.value.startDate) {
     validationErrors.value.startDate = 'Start date is required';
@@ -354,7 +354,7 @@ const validateMaintenanceForm = (): boolean => {
     validationErrors.value.startDate = 'Start date cannot be in the past';
     isValid = false;
   }
-  
+
   // Check if end date is provided
   if (!maintenanceData.value.endDate) {
     validationErrors.value.endDate = 'End date is required';
@@ -365,13 +365,13 @@ const validateMaintenanceForm = (): boolean => {
     validationErrors.value.endDate = 'End date must be after start date';
     isValid = false;
   }
-  
+
   // Check if description is provided
   if (!maintenanceData.value.description.trim()) {
     validationErrors.value.description = 'Description is required';
     isValid = false;
   }
-  
+
   return isValid;
 };
 
@@ -381,13 +381,13 @@ watch(() => maintenanceData.value.startDate, (newValue) => {
     const startDate = new Date(newValue);
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    
+
     if (startDate < today) {
       validationErrors.value.startDate = 'Start date cannot be in the past';
     } else {
       validationErrors.value.startDate = '';
     }
-    
+
     // Also validate end date if it exists
     if (maintenanceData.value.endDate) {
       const endDate = new Date(maintenanceData.value.endDate);
@@ -397,7 +397,7 @@ watch(() => maintenanceData.value.startDate, (newValue) => {
         validationErrors.value.endDate = '';
       }
     }
-    
+
     // Check for affected bookings when date changes
     checkForAffectedBookings();
   }
@@ -407,13 +407,13 @@ watch(() => maintenanceData.value.endDate, (newValue) => {
   if (newValue && maintenanceData.value.startDate) {
     const startDate = new Date(maintenanceData.value.startDate);
     const endDate = new Date(newValue);
-    
+
     if (startDate > endDate) {
       validationErrors.value.endDate = 'End date must be after start date';
     } else {
       validationErrors.value.endDate = '';
     }
-    
+
     // Check for affected bookings when date changes
     checkForAffectedBookings();
   }
@@ -433,10 +433,10 @@ const saveMaintenance = async () => {
     if (!validateMaintenanceForm()) {
       return; // Don't proceed if validation fails
     }
-    
+
     // Send data to the API
     await axios.post("http://localhost:8080/api/maintenance/schedule", maintenanceData.value);
-    
+
     // Show success message including cancelled bookings information
     if (affectedBookingsCount.value > 0) {
       // Show toast notification
@@ -445,7 +445,7 @@ const saveMaintenance = async () => {
         description: `Facility scheduled for maintenance successfully! ${affectedBookingsCount.value} existing bookings have been cancelled, and notifications have been sent to the affected users.`,
         color: 'green'
       });
-      
+
     } else {
       // Show toast notification
       toast.add({
@@ -454,10 +454,10 @@ const saveMaintenance = async () => {
         color: 'green'
       });
     }
-    
+
     closeMaintenanceModal();
     await fetchFacilities();
-    
+
     // Update maintenance status for all facilities
     await updateAllMaintenanceStatus();
   } catch (error: any) {
@@ -499,12 +499,19 @@ const saveFacility = async () => {
     fetchFacilities();
   } catch (error) {
     console.error("Error saving facility:", error);
-    // Show toast notification
-    toast.add({
+    if (axios.isAxiosError(error) && error.response) {
+      toast.add({
         title: 'Error',
-        description: `Failed to save facility. Please try again.`,
+        description: error.response.data.message || 'An error occurred while saving the facility.',
         color: 'red'
       });
+    } else {
+      toast.add({
+        title: 'Error',
+        description: 'An unknown error occurred while saving the facility.',
+        color: 'red'
+      });
+    }
   }
 };
 
@@ -526,8 +533,7 @@ onMounted(async () => {
 
     <div class="grid grid-cols-2 gap-4">
       <UInputMenu v-model="searchQuery.resourceTypeId" :options="resourceTypeOptions" option-attribute="name"
-        value-attribute="id" placeholder="Type or select resource type" size="md" class="w-full"
-        clearable />
+        value-attribute="id" placeholder="Type or select resource type" size="md" class="w-full" clearable />
 
       <UInput v-model="searchQuery.resourceName" placeholder="Resource Name" />
       <UInput v-model="searchQuery.location" placeholder="Location" />
@@ -567,15 +573,11 @@ onMounted(async () => {
               <UButton @click="openModal(row)" color="yellow" variant="solid" icon="i-heroicons-pencil" label="Edit"
                 class="px-3 py-1 gap-2" />
 
-              <UButton 
-                @click="handleMaintenanceButtonClick(row)" 
-                :color="isUnderMaintenance(row.facilityId) ? 'orange' : 'red'" 
-                variant="solid" 
+              <UButton @click="handleMaintenanceButtonClick(row)"
+                :color="isUnderMaintenance(row.facilityId) ? 'orange' : 'red'" variant="solid"
                 :icon="isUnderMaintenance(row.facilityId) ? 'i-heroicons-check-circle' : 'i-heroicons-wrench'"
-                :loading="maintenanceLoading"
-                :label="isUnderMaintenance(row.facilityId) ? 'Release' : 'Maintenance'" 
-                class="px-3 py-1 gap-2"
-              />
+                :loading="maintenanceLoading" :label="isUnderMaintenance(row.facilityId) ? 'Release' : 'Maintenance'"
+                class="px-3 py-1 gap-2" />
             </div>
           </template>
         </UTable>
@@ -587,7 +589,7 @@ onMounted(async () => {
       </div>
     </UCard>
   </div>
-  
+
   <!-- Facility Modal -->
   <UModal v-model="isModalOpen">
     <UCard class="p-9 max-w-lg ">
@@ -600,10 +602,10 @@ onMounted(async () => {
       </h2>
       <div class="grid grid-cols-3 gap-4 items-center">
         <label class="text-gray-700 font-medium col-span-1">Resource Type:</label>
-          
-      <UInputMenu v-model="facility.resourceTypeId" :options="resourceTypeOptions" option-attribute="name"
-        value-attribute="id" placeholder="Type or select resource type" size="md" class="col-span-2 w-full"
-        clearable />
+
+        <UInputMenu v-model="facility.resourceTypeId" :options="resourceTypeOptions" option-attribute="name"
+          value-attribute="id" placeholder="Type or select resource type" size="md" class="col-span-2 w-full"
+          clearable />
 
         <label class="text-gray-700 font-medium col-span-1">Resource Name:</label>
         <UInput v-model="facility.resourceName" class="col-span-2 w-full" />
@@ -625,7 +627,7 @@ onMounted(async () => {
       </div>
     </UCard>
   </UModal>
-  
+
   <!-- Maintenance Modal -->
   <UModal v-model="isMaintenanceModalOpen">
     <UCard class="p-9 max-w-lg">
@@ -636,57 +638,65 @@ onMounted(async () => {
       <h2 class="text-xl font-bold mb-4 text-center">
         Schedule Maintenance
       </h2>
-      
+
       <div v-if="selectedFacility" class="mb-6 p-4 bg-gray-50 rounded-lg">
         <p class="font-medium">Facility: {{ selectedFacility.resourceName }}</p>
-        <p class="text-sm text-gray-600">Resource Type: {{ getResourceTypeName(Number(selectedFacility.resourceTypeId)) }}</p>
+        <p class="text-sm text-gray-600">Resource Type: {{ getResourceTypeName(Number(selectedFacility.resourceTypeId))
+          }}
+        </p>
         <p class="text-sm text-gray-600">Location: {{ selectedFacility.location }}</p>
       </div>
-      
+
       <!-- Upcoming maintenance for this facility -->
       <div v-if="facilityUpcomingMaintenance.length > 0" class="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
         <div class="flex items-start mb-2">
           <UIcon name="i-heroicons-calendar" class="text-blue-500 mr-2 flex-shrink-0" />
           <h3 class="font-medium text-blue-800">Upcoming Maintenance for this Facility</h3>
         </div>
-        
+
         <div class="space-y-3 mt-2">
-          <div v-for="maintenance in facilityUpcomingMaintenance" :key="maintenance.maintenanceId" 
-              class="border-l-4 border-blue-400 pl-3 py-1 bg-white rounded-md">
+          <div v-for="maintenance in facilityUpcomingMaintenance" :key="maintenance.maintenanceId"
+            class="border-l-4 border-blue-400 pl-3 py-1 bg-white rounded-md">
             <div class="text-sm">
-              <p class="font-medium text-blue-700">{{ formatDateForDisplay(maintenance.startDate) }} to {{ formatDateForDisplay(maintenance.endDate) }}</p>
+              <p class="font-medium text-blue-700">{{ formatDateForDisplay(maintenance.startDate) }} to {{
+                formatDateForDisplay(maintenance.endDate) }}</p>
               <p class="text-gray-600 line-clamp-2">{{ maintenance.description }}</p>
             </div>
           </div>
         </div>
       </div>
-      
+
       <!-- Affected Bookings Warning -->
       <div v-if="affectedBookingsCount > 0" class="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
         <div class="flex items-start">
           <UIcon name="i-heroicons-exclamation-triangle" class="text-red-500 mr-3 flex-shrink-0 mt-0.5" />
           <div>
-            <h3 class="font-medium text-red-700 mb-1">Warning: {{ affectedBookingsCount }} Booking{{ affectedBookingsCount > 1 ? 's' : '' }} Will Be Cancelled</h3>
+            <h3 class="font-medium text-red-700 mb-1">Warning: {{ affectedBookingsCount }} Booking{{
+              affectedBookingsCount
+              > 1 ? 's' : '' }} Will Be Cancelled</h3>
             <p class="text-sm text-red-600 mb-2">
-              Scheduling maintenance during this period will automatically cancel {{ affectedBookingsCount }} 
+              Scheduling maintenance during this period will automatically cancel {{ affectedBookingsCount }}
               existing booking{{ affectedBookingsCount > 1 ? 's' : '' }} and send notification emails to affected users.
             </p>
-            <div v-if="affectedBookings.length > 0" class="mt-3 bg-white p-3 rounded border border-red-100 text-sm max-h-40 overflow-y-auto">
+            <div v-if="affectedBookings.length > 0"
+              class="mt-3 bg-white p-3 rounded border border-red-100 text-sm max-h-40 overflow-y-auto">
               <p class="font-medium mb-2">Affected bookings:</p>
               <ul class="list-disc pl-5 space-y-1">
                 <li v-for="booking in affectedBookings" :key="booking.bookingId">
-                  {{ booking.studentName }} ({{ booking.email }}) - {{ new Date(booking.bookedDatetime).toLocaleDateString() }} / {{ booking.timeslot }}
+                  {{ booking.studentName }} ({{ booking.email }}) - {{ new
+                    Date(booking.bookedDatetime).toLocaleDateString() }} / {{ booking.timeslot }}
                 </li>
               </ul>
             </div>
           </div>
         </div>
       </div>
-      
+
       <div class="grid grid-cols-3 gap-4 items-start">
-        <label class="text-gray-700 font-medium col-span-1 mt-2.5">Start Date:<span class="text-red-500">*</span></label>
+        <label class="text-gray-700 font-medium col-span-1 mt-2.5">Start Date:<span
+            class="text-red-500">*</span></label>
         <div class="col-span-2 w-full">
-          <UInput v-model="maintenanceData.startDate" type="date" class="w-full" :min="minDate" 
+          <UInput v-model="maintenanceData.startDate" type="date" class="w-full" :min="minDate"
             :color="validationErrors.startDate ? 'red' : undefined" />
           <p v-if="validationErrors.startDate" class="text-red-500 text-sm mt-1">
             {{ validationErrors.startDate }}
@@ -695,16 +705,17 @@ onMounted(async () => {
 
         <label class="text-gray-700 font-medium col-span-1 mt-2.5">End Date:<span class="text-red-500">*</span></label>
         <div class="col-span-2 w-full">
-          <UInput v-model="maintenanceData.endDate" type="date" class="w-full" :min="maintenanceData.startDate || minDate" 
-            :color="validationErrors.endDate ? 'red' : undefined" />
+          <UInput v-model="maintenanceData.endDate" type="date" class="w-full"
+            :min="maintenanceData.startDate || minDate" :color="validationErrors.endDate ? 'red' : undefined" />
           <p v-if="validationErrors.endDate" class="text-red-500 text-sm mt-1">
             {{ validationErrors.endDate }}
           </p>
         </div>
 
-        <label class="text-gray-700 font-medium col-span-1 mt-2.5">Description:<span class="text-red-500">*</span></label>
+        <label class="text-gray-700 font-medium col-span-1 mt-2.5">Description:<span
+            class="text-red-500">*</span></label>
         <div class="col-span-2 w-full">
-          <UTextarea v-model="maintenanceData.description" class="w-full" :rows="textareaRows" 
+          <UTextarea v-model="maintenanceData.description" class="w-full" :rows="textareaRows"
             placeholder="Enter maintenance details here..." :color="validationErrors.description ? 'red' : undefined" />
           <p v-if="validationErrors.description" class="text-red-500 text-sm mt-1">
             {{ validationErrors.description }}
@@ -722,7 +733,7 @@ onMounted(async () => {
       </div>
     </UCard>
   </UModal>
-  
+
   <!-- Early Release Confirmation Modal -->
   <UModal v-model="isReleaseConfirmModalOpen">
     <UCard class="p-9 max-w-lg">
@@ -733,32 +744,34 @@ onMounted(async () => {
       <h2 class="text-xl font-bold mb-4 text-center">
         Release Facility from Maintenance
       </h2>
-      
+
       <div v-if="selectedFacility" class="mb-6 p-4 bg-gray-100 rounded-lg">
         <p class="font-medium">Facility: {{ selectedFacility.resourceName }}</p>
-        <p class="text-sm text-gray-600">Resource Type: {{ getResourceTypeName(Number(selectedFacility.resourceTypeId)) }}</p>
+        <p class="text-sm text-gray-600">Resource Type: {{ getResourceTypeName(Number(selectedFacility.resourceTypeId))
+          }}
+        </p>
         <p class="text-sm text-gray-600">Location: {{ selectedFacility.location }}</p>
       </div>
-      
+
       <div v-if="currentMaintenanceDetails" class="mb-6 p-4 bg-orange-50 border border-orange-200 rounded-lg">
         <h3 class="font-medium text-orange-700 mb-2">Current Maintenance Information</h3>
         <div class="grid grid-cols-2 gap-2 text-sm">
           <p class="text-gray-600">Start Date:</p>
           <p class="font-medium">{{ formatDateForDisplay(currentMaintenanceDetails.startDate) }}</p>
-          
+
           <p class="text-gray-600">Scheduled End Date:</p>
           <p class="font-medium">{{ formatDateForDisplay(currentMaintenanceDetails.endDate) }}</p>
-          
+
           <p class="text-gray-600">Description:</p>
           <p class="font-medium">{{ currentMaintenanceDetails.description }}</p>
         </div>
       </div>
-      
+
       <div class="bg-yellow-50 p-4 rounded-lg mb-6 border border-yellow-200">
         <div class="flex items-start">
           <UIcon name="i-heroicons-exclamation-triangle" class="text-yellow-500 mr-3 flex-shrink-0 mt-0.5" />
           <p class="text-sm text-gray-700">
-            You are about to release this facility from maintenance earlier than scheduled. 
+            You are about to release this facility from maintenance earlier than scheduled.
             The maintenance end date will be set to today, and the facility will be available for booking from tomorrow.
           </p>
         </div>
@@ -768,11 +781,9 @@ onMounted(async () => {
         <button @click="closeReleaseConfirmModal" class="bg-gray-400 text-white px-4 py-2 rounded hover:bg-gray-600">
           Cancel
         </button>
-        <button 
-          @click="releaseFacilityFromMaintenance" 
+        <button @click="releaseFacilityFromMaintenance"
           class="bg-orange-500 text-white px-4 py-2 rounded hover:bg-orange-700 flex items-center"
-          :disabled="releasingMaintenance"
-        >
+          :disabled="releasingMaintenance">
           <UIcon v-if="releasingMaintenance" name="i-heroicons-arrow-path" class="animate-spin mr-2" />
           <span>{{ releasingMaintenance ? 'Releasing...' : 'Release Facility' }}</span>
         </button>
@@ -788,8 +799,15 @@ onMounted(async () => {
 }
 
 @keyframes fadeIn {
-  from { opacity: 0; transform: translateY(-5px); }
-  to { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(-5px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 /* Loading animation */
@@ -798,7 +816,12 @@ onMounted(async () => {
 }
 
 @keyframes spin {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
+  from {
+    transform: rotate(0deg);
+  }
+
+  to {
+    transform: rotate(360deg);
+  }
 }
 </style>

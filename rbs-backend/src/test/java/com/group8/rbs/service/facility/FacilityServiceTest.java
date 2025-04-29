@@ -1,4 +1,4 @@
-package com.group8.rbs.service;
+package com.group8.rbs.service.facility;
 
 import com.group8.rbs.dto.facility.FacilityRequestDTO;
 import com.group8.rbs.dto.facility.FacilityResponseDTO;
@@ -119,27 +119,38 @@ class FacilityServiceTest {
 
     @Test
     void testUpdateFacility_found() {
+        // Arrange
         FacilityRequestDTO request = new FacilityRequestDTO();
         request.setResourceName("Updated");
         request.setLocation("Updated Location");
         request.setCapacity(100);
-
-        Facility facility = new Facility();
-        facility.setFacilityId(1L);
-
+    
+        Facility existingFacility = new Facility();
+        existingFacility.setFacilityId(1L);
+        existingFacility.setResourceName("Old Name"); // simulate old name
+        existingFacility.setLocation("Old Location"); // simulate old location
+    
         Facility updatedFacility = new Facility();
         updatedFacility.setFacilityId(1L);
-
+    
         FacilityResponseDTO responseDTO = new FacilityResponseDTO();
         responseDTO.setFacilityId(1L);
-
-        when(facilityRepository.findById(1L)).thenReturn(Optional.of(facility));
+        responseDTO.setMessage("Facility updated successfully!");
+    
+        // Mock repository and mapper behavior
+        when(facilityRepository.findById(1L)).thenReturn(Optional.of(existingFacility));
+        when(facilityRepository.findByResourceNameAndLocation("Updated", "Updated Location")).thenReturn(Optional.empty()); // No conflict
         when(facilityRepository.save(any(Facility.class))).thenReturn(updatedFacility);
         when(facilityMapper.toDTO(updatedFacility)).thenReturn(responseDTO);
-
+    
+        // Act
         FacilityResponseDTO result = facilityService.updateFacility(1L, request);
+    
+        // Assert
         assertEquals(1L, result.getFacilityId());
+        assertEquals("Facility updated successfully!", result.getMessage());
     }
+    
 
     @Test
     void testDeleteFacility_found() {

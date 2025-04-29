@@ -66,6 +66,10 @@ public class BookingServiceTest {
     private BookingMapper bookingMapper;
 
     @Mock
+private BookingWebSocketService bookingWebSocketService;        
+
+
+    @Mock
     private BookingFacilityMapper bookingFacilityMapper;
 
     @InjectMocks

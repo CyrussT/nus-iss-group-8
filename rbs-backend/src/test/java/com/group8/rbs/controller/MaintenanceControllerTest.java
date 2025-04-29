@@ -48,6 +48,7 @@ import com.group8.rbs.security.CustomUserDetailsService;
 import com.group8.rbs.security.SecurityConfig;
 import com.group8.rbs.service.email.CustomEmailService;
 import com.group8.rbs.service.maintenance.MaintenanceService;
+import com.group8.rbs.service.maintenance.MaintenanceWebSocketService;
 import com.group8.rbs.service.security.AuthService;
 import com.group8.rbs.service.security.JwtService;
 
@@ -76,6 +77,9 @@ public class MaintenanceControllerTest {
     
     @MockBean 
     private CustomUserDetailsService customUserDetailsService;
+
+    @MockBean
+    private MaintenanceWebSocketService maintenanceWebSocketService; 
 
     @Autowired
     private ObjectMapper objectMapper;

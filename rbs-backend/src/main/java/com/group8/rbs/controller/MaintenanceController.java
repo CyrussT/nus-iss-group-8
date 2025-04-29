@@ -13,6 +13,7 @@ import com.group8.rbs.entities.MaintenanceSchedule;
 import com.group8.rbs.exception.MaintenanceOverlapException;
 import com.group8.rbs.repository.AccountRepository;
 import com.group8.rbs.service.maintenance.MaintenanceService;
+import com.group8.rbs.service.maintenance.MaintenanceWebSocketService;
 import com.group8.rbs.service.email.CustomEmailService;
 
 import java.time.LocalDate;
@@ -43,6 +44,10 @@ public class MaintenanceController {
         this.accountRepository = accountRepository;
         this.emailService = emailService;
     }
+
+    @Autowired
+    private MaintenanceWebSocketService maintenanceWebSocketService;
+
     
     /**
      * Schedule a maintenance for a facility with validation
@@ -133,6 +138,8 @@ public class MaintenanceController {
             
             // Save the maintenance schedule
             MaintenanceSchedule savedSchedule = maintenanceService.scheduleMaintenanceForFacility(maintenanceSchedule);
+
+            maintenanceWebSocketService.sendMaintenanceUpdate(savedSchedule.getFacilityId());
             
             // If there are affected bookings, cancel them and send emails
             if (!affectedBookings.isEmpty()) {
@@ -206,6 +213,8 @@ public class MaintenanceController {
             
             // Update end date to today
             MaintenanceSchedule updatedSchedule = maintenanceService.updateMaintenanceEndDate(schedule.getMaintenanceId(), today);
+
+            maintenanceWebSocketService.sendMaintenanceUpdate(updatedSchedule.getFacilityId());
             
             return new ResponseEntity<>(updatedSchedule, HttpStatus.OK);
         } catch (Exception e) {

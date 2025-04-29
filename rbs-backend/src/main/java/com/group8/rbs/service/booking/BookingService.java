@@ -20,6 +20,7 @@ import jakarta.transaction.Transactional;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.time.Duration;
@@ -45,6 +46,7 @@ public class BookingService {
     private final AccountRepository accountRepository;
     private final FacilityTypeRepository facilityTypeRepository;
     private final CreditRepository creditRepository;
+    private final BookingWebSocketService bookingWebSocketService;
 
     public BookingService(
             BookingRepository bookingRepository,
@@ -53,7 +55,8 @@ public class BookingService {
             FacilityRepository facilityRepository,
             BookingFacilityMapper bookingFacilityMapper,
             AccountRepository accountRepository,
-            CreditRepository creditRepository) {
+            CreditRepository creditRepository,
+            BookingWebSocketService bookingWebSocketService) {
         this.bookingRepository = bookingRepository;
         this.bookingMapper = bookingMapper;
         this.facilityTypeRepository = facilityTypeRepository;
@@ -61,7 +64,9 @@ public class BookingService {
         this.bookingFacilityMapper = bookingFacilityMapper;
         this.accountRepository = accountRepository;
         this.creditRepository = creditRepository;
+        this.bookingWebSocketService = bookingWebSocketService;
     }
+
 
     public List<FacilitySearchDTO> searchFacilities(FacilitySearchDTO searchCriteria) {
 
@@ -199,6 +204,8 @@ public class BookingService {
         // Save to database
         Booking savedBooking = bookingRepository.save(booking);
 
+        bookingWebSocketService.sendBookingUpdate(savedBooking.getBookingId());
+
         // Return the response DTO
         return bookingMapper.toResponseDTO(savedBooking);
     }
@@ -330,6 +337,7 @@ public class BookingService {
             Booking booking = optionalBooking.get();
             booking.setStatus(status);
             bookingRepository.save(booking);
+            bookingWebSocketService.sendBookingUpdate(bookingId);
 
             long accountId = optionalBooking.get().getAccount().getAccountId();
             String timeSlot = optionalBooking.get().getTimeSlot();
