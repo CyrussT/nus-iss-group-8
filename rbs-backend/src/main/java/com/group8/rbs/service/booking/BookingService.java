@@ -46,6 +46,7 @@ public class BookingService {
     private final AccountRepository accountRepository;
     private final FacilityTypeRepository facilityTypeRepository;
     private final CreditRepository creditRepository;
+    private final BookingWebSocketService bookingWebSocketService;
 
     public BookingService(
             BookingRepository bookingRepository,
@@ -54,7 +55,8 @@ public class BookingService {
             FacilityRepository facilityRepository,
             BookingFacilityMapper bookingFacilityMapper,
             AccountRepository accountRepository,
-            CreditRepository creditRepository) {
+            CreditRepository creditRepository,
+            BookingWebSocketService bookingWebSocketService) {
         this.bookingRepository = bookingRepository;
         this.bookingMapper = bookingMapper;
         this.facilityTypeRepository = facilityTypeRepository;
@@ -62,9 +64,9 @@ public class BookingService {
         this.bookingFacilityMapper = bookingFacilityMapper;
         this.accountRepository = accountRepository;
         this.creditRepository = creditRepository;
+        this.bookingWebSocketService = bookingWebSocketService;
     }
-    @Autowired
-    private BookingWebSocketService bookingWebSocketService;
+
 
     public List<FacilitySearchDTO> searchFacilities(FacilitySearchDTO searchCriteria) {
 

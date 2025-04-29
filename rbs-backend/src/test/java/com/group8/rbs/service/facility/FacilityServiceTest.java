@@ -1,4 +1,4 @@
-package com.group8.rbs.service;
+package com.group8.rbs.service.facility;
 
 import com.group8.rbs.dto.facility.FacilityRequestDTO;
 import com.group8.rbs.dto.facility.FacilityResponseDTO;
