@@ -55,7 +55,6 @@ public class BookingFacilityMapper {
                 .location(facility.getLocation())
                 .capacity(facility.getCapacity())
                 .bookings(bookingResponseDTOs)
-                .date(filterDate) // Add this line to include the date
                 .build();
     }
 }
