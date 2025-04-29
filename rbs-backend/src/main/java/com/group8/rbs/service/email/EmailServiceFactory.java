@@ -16,6 +16,7 @@ public class EmailServiceFactory {
     }
 
     public EmailService getEmailService(String type) {
-        return emailServices.getOrDefault(type, emailServices.get("customEmailService"));
+        EmailService service = emailServices.get(type);
+        return (service != null) ? service : emailServices.get("customEmailService");
     }
 }
