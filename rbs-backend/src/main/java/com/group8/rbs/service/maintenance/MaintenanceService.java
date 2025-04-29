@@ -22,6 +22,7 @@ import jakarta.mail.MessagingException;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
@@ -484,4 +485,10 @@ public class MaintenanceService {
         
         return result;
     }
+
+    public long countFacilitiesUnderMaintenanceToday() {
+    LocalDate today = LocalDate.now(ZoneId.of("Asia/Singapore"));
+    List<Long> facilities = maintenanceRepository.findFacilitiesUnderMaintenanceOnDate(null, today.toString());
+    return facilities.size();
+}
 }

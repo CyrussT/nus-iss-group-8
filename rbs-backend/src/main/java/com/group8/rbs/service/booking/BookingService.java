@@ -27,6 +27,7 @@ import java.time.Duration;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -66,6 +67,8 @@ public class BookingService {
         this.creditRepository = creditRepository;
         this.bookingWebSocketService = bookingWebSocketService;
     }
+
+    
 
 
     public List<FacilitySearchDTO> searchFacilities(FacilitySearchDTO searchCriteria) {
@@ -110,6 +113,18 @@ public class BookingService {
         return filteredFacilities.stream()
                 .map(bookingFacilityMapper::toResponseDTO)
                 .collect(Collectors.toList());
+    }
+
+    
+    public long countTodayBookings() {
+        LocalDate today = LocalDate.now(ZoneId.of("Asia/Singapore"));
+        return bookingRepository.countByBookedDateTimeBetween(
+            today.atStartOfDay(), today.plusDays(1).atStartOfDay()
+        );
+    }
+
+    public long countPendingBookings() {
+        return bookingRepository.countByStatus(BookingStatus.PENDING);
     }
 
     public Map<String, Object> getDropdownOptions() {
