@@ -117,6 +117,7 @@ const cancelBooking = async (bookingId: number) => {
       fetchUpcomingApprovedBookings(accountId.value);
       fetchPendingBookings(accountId.value);
       fetchPastBookings(accountId.value);
+      fetchAvailableCredits(userEmail);
     }
   } catch (error) {
     console.error('Error canceling booking:', error);
@@ -127,7 +128,7 @@ const cancelBooking = async (bookingId: number) => {
 
 
 <template>
-  <div class="p-8 flex justify-center" v-if="auth.user.value?.role=== 'STUDENT'">
+  <div class="p-8 flex justify-center" v-if="auth.user.value?.role === 'STUDENT'">
     <div class="flex flex-col lg:flex-row w-[90%] mx-auto gap-6">
       <!-- Bookings section (70%) -->
       <div class="w-full lg:w-[80%]">
@@ -195,7 +196,7 @@ const cancelBooking = async (bookingId: number) => {
       </div>
     </div>
   </div>
-  <div v-else-if="auth.user.value?.role=== 'ADMINISTRATOR'">
+  <div v-else-if="auth.user.value?.role === 'ADMINISTRATOR'">
     <p>admin dashboard</p>
   </div>
 </template>

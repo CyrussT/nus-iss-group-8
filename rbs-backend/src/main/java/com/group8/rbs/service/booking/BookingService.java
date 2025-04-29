@@ -25,8 +25,10 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
+import java.time.Duration;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
 import java.util.List;
@@ -73,10 +75,10 @@ public class BookingService {
                 
         // Filter the facilities based on search criteria
         List<Facility> filteredFacilities = facilityRepository.searchFacilities(
-            resourceTypeId,
-            searchCriteria.getResourceName(),
-            searchCriteria.getLocation(),
-            searchCriteria.getCapacity());
+                resourceTypeId,
+                searchCriteria.getResourceName(),
+                searchCriteria.getLocation(),
+                searchCriteria.getCapacity());
 
         // If date filter is provided, use it to filter bookings within each facility
         if (searchCriteria.getDate() != null) {
@@ -122,14 +124,14 @@ public class BookingService {
 
     public List<FacilityNameOptionsResponse> getResourceTypes() {
         List<Object[]> results = facilityTypeRepository.findAllFacilityTypeOptions();
-        
+
         return results.stream()
-            .map(result -> {
-                Long id = (Long) result[0];
-                String name = (String) result[1];
-                return new FacilityNameOptionsResponse(id, name);
-            })
-            .collect(Collectors.toList());
+                .map(result -> {
+                    Long id = (Long) result[0];
+                    String name = (String) result[1];
+                    return new FacilityNameOptionsResponse(id, name);
+                })
+                .collect(Collectors.toList());
     }
 
     public List<String> getLocations() {
@@ -257,15 +259,30 @@ public class BookingService {
         }
 
         logger.info("Found " + bookings.size() + " past bookings");
-        
+
         return bookings.stream().map(bookingMapper::toResponseDTO).collect(Collectors.toList());
     }
 
     public boolean deleteBooking(Long bookingId) {
         Optional<Booking> booking = bookingRepository.findById(bookingId);
-
         if (booking.isPresent()) {
+            long accountId = booking.get().getAccount().getAccountId();
+            String timeSlot = booking.get().getTimeSlot();
+
+            String[] times = timeSlot.split(" - ");
+            LocalTime startTime = LocalTime.parse(times[0].trim());
+            LocalTime endTime = LocalTime.parse(times[1].trim());
+
+            long minutes = Duration.between(startTime, endTime).toMinutes();
+
+            // Handle overnight case (e.g., 23:00 - 01:00)
+            if (minutes < 0) {
+                minutes += 24 * 60;
+            }
+
             bookingRepository.delete(booking.get());
+            creditRepository.
+              s(accountId, (int) minutes);
             return true;
         } else {
             return false;
@@ -287,6 +304,23 @@ public class BookingService {
             Booking booking = optionalBooking.get();
             booking.setStatus(status);
             bookingRepository.save(booking);
+
+            long accountId = optionalBooking.get().getAccount().getAccountId();
+            String timeSlot = optionalBooking.get().getTimeSlot();
+
+            String[] times = timeSlot.split(" - ");
+            LocalTime startTime = LocalTime.parse(times[0].trim());
+            LocalTime endTime = LocalTime.parse(times[1].trim());
+
+            long minutes = Duration.between(startTime, endTime).toMinutes();
+
+            // Handle overnight case (e.g., 23:00 - 01:00)
+            if (minutes < 0) {
+                minutes += 24 * 60;
+            }
+
+            creditRepository.addCredits(accountId, (int) minutes);
+
             return true; // Return true if update was successful
         } else {
             return false; // Return false if booking not found

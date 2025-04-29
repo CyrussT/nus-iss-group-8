@@ -16,6 +16,10 @@ public class CreditRestore implements Job {
 
     @Override
     public void execute(JobExecutionContext context) throws JobExecutionException {
+        if (databaseUrl == null) {
+            throw new IllegalStateException("Database credentials are missing in the URL.");
+        }
+
         String[] urlParts = databaseUrl.split("\\?");
         String url = urlParts[0]; // The main database URL without credentials
         String queryParams = urlParts.length > 1 ? urlParts[1] : "";
