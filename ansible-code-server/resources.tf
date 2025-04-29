@@ -3,32 +3,34 @@ data "digitalocean_ssh_key" "www-1" {
     name = var.do_ssh_key
 }
 
-resource "digitalocean_droplet" "codeserver" {
-    name = "codeserver"
-    image = var.do_image
+# Create an "app-server" droplet
+resource "digitalocean_droplet" "server" {
+    name   = "app-server"
+    image  = var.do_image
     region = var.do_region
-    size = var.do_size
-
-    ssh_keys = [ data.digitalocean_ssh_key.www-1.id ]
+    size   = var.do_size
+    ssh_keys = [data.digitalocean_ssh_key.www-1.id]
 }
 
-resource "local_file" "root_at_codeserver" {
-    filename = "root@${digitalocean_droplet.codeserver.ipv4_address}"
-    content = ""
+
+resource "local_file" "ssh_alias" {
+    filename        = "root@${digitalocean_droplet.server.ipv4_address}"
+    content         = ""
     file_permission = "0444"
 }
 
+
+# Render Ansible inventory from template
 resource "local_file" "inventory" {
-    filename = "inventory.yaml"
-    content = templatefile("inventory.yaml.tftpl",{
-        codeserver_ip = digitalocean_droplet.codeserver.ipv4_address
-        ssh_private_key = var.ssh_private_key
-        codeserver_domain = "code-server-${digitalocean_droplet.codeserver.ipv4_address}.nip.io"
-        codeserver_password = var.codeserver_password 
-    })
-    file_permission = "0444"
+        filename        = "inventory.yaml"
+        content         = templatefile("inventory.yaml.tftpl", {
+        droplet_ip        = digitalocean_droplet.server.ipv4_address
+        ssh_private_key   = var.ssh_private_key
+  })
+  file_permission = "0444"
 }
 
-output codeserver_ip {
-    value =  digitalocean_droplet.codeserver.ipv4_address
+# Expose the droplet IP for CI/CD to consume
+output "droplet_ip" {
+    value = digitalocean_droplet.server.ipv4_address
 }
