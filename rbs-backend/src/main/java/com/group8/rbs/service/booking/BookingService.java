@@ -22,8 +22,10 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
+import java.time.Duration;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -45,14 +47,13 @@ public class BookingService {
     private final CreditRepository creditRepository;
 
     public BookingService(
-        BookingRepository bookingRepository, 
-        BookingMapper bookingMapper, 
-        FacilityTypeRepository facilityTypeRepository,
-        FacilityRepository facilityRepository, 
-        BookingFacilityMapper bookingFacilityMapper,
-        AccountRepository accountRepository,
-        CreditRepository creditRepository
-        ) {
+            BookingRepository bookingRepository,
+            BookingMapper bookingMapper,
+            FacilityTypeRepository facilityTypeRepository,
+            FacilityRepository facilityRepository,
+            BookingFacilityMapper bookingFacilityMapper,
+            AccountRepository accountRepository,
+            CreditRepository creditRepository) {
         this.bookingRepository = bookingRepository;
         this.bookingMapper = bookingMapper;
         this.facilityTypeRepository = facilityTypeRepository;
@@ -64,16 +65,16 @@ public class BookingService {
 
     public List<FacilitySearchDTO> searchFacilities(FacilitySearchDTO searchCriteria) {
 
-        Long resourceTypeId = searchCriteria.getResourceTypeId() != null 
-        ? searchCriteria.getResourceTypeId() 
-        : null;
-            
+        Long resourceTypeId = searchCriteria.getResourceTypeId() != null
+                ? searchCriteria.getResourceTypeId()
+                : null;
+
         // Filter the facilities based on search criteria
         List<Facility> filteredFacilities = facilityRepository.searchFacilities(
-            resourceTypeId,
-            searchCriteria.getResourceName(),
-            searchCriteria.getLocation(),
-            searchCriteria.getCapacity());
+                resourceTypeId,
+                searchCriteria.getResourceName(),
+                searchCriteria.getLocation(),
+                searchCriteria.getCapacity());
 
         // If date filter is provided, use it to filter bookings within each facility
         if (searchCriteria.getDate() != null) {
@@ -119,14 +120,14 @@ public class BookingService {
 
     public List<FacilityNameOptionsResponse> getResourceTypes() {
         List<Object[]> results = facilityTypeRepository.findAllFacilityTypeOptions();
-        
+
         return results.stream()
-            .map(result -> {
-                Long id = (Long) result[0];
-                String name = (String) result[1];
-                return new FacilityNameOptionsResponse(id, name);
-            })
-            .collect(Collectors.toList());
+                .map(result -> {
+                    Long id = (Long) result[0];
+                    String name = (String) result[1];
+                    return new FacilityNameOptionsResponse(id, name);
+                })
+                .collect(Collectors.toList());
     }
 
     public List<String> getLocations() {
@@ -141,26 +142,26 @@ public class BookingService {
         // Find the facility
         Facility facility = facilityRepository.findById(requestDTO.getFacilityId())
                 .orElseThrow(() -> new RuntimeException("Facility not found"));
-        
+
         // Find the account
         Optional<Account> account = accountRepository.findByEmail(requestDTO.getAccountEmail());
-    
+
         if (account.isEmpty()) {
             throw new RuntimeException("Account not found");
         }
-    
+
         // Parse the bookedDateTime from the request
         // The frontend now sends the datetime in SG timezone
         LocalDateTime bookedDateTime = requestDTO.getBookedDateTime();
-        
+
         // Log the datetime for debugging purposes
         logger.info("Received booking datetime: " + bookedDateTime);
-    
+
         // Check if the time slot is available
         if (!isTimeSlotAvailable(requestDTO.getFacilityId(), bookedDateTime, requestDTO.getTimeSlot())) {
             throw new RuntimeException("This time slot is already booked");
         }
-        
+
         // Parse the credits needed from the request
         Double creditsNeeded;
         try {
@@ -168,21 +169,22 @@ public class BookingService {
         } catch (NumberFormatException e) {
             throw new RuntimeException("Invalid credits used value: " + requestDTO.getCreditsUsed(), e);
         }
-        // Attempt to deduct credits - this will only succeed if sufficient credits exist
+        // Attempt to deduct credits - this will only succeed if sufficient credits
+        // exist
         int updatedRows = creditRepository.checkAndDeductCredits(account.get().getAccountId(), creditsNeeded);
-        
+
         if (updatedRows == 0) {
             // Get current balance for a better error message
             Double currentBalance = creditRepository.findCreditBalanceByAccountId(account.get().getAccountId());
-            throw new RuntimeException("Insufficient credits. Required: " + creditsNeeded + 
-                                      ", Available: " + currentBalance);
+            throw new RuntimeException("Insufficient credits. Required: " + creditsNeeded +
+                    ", Available: " + currentBalance);
         }
-    
+
         // To set to pending or instant approve based on facility type
         BookingStatus bookingStatus = facility.getResourceTypeId().equals(5L)
                 ? BookingStatus.PENDING // Sports & Recreation requires approval
                 : BookingStatus.APPROVED;
-    
+
         // Create the booking entity
         Booking booking = Booking.builder()
                 .facility(facility)
@@ -193,10 +195,10 @@ public class BookingService {
                 .description(requestDTO.getDescription())
                 .status(bookingStatus)
                 .build();
-        
+
         // Save to database
         Booking savedBooking = bookingRepository.save(booking);
-        
+
         // Return the response DTO
         return bookingMapper.toResponseDTO(savedBooking);
     }
@@ -283,15 +285,29 @@ public class BookingService {
         }
 
         logger.info("Found " + bookings.size() + " past bookings");
-        
+
         return bookings.stream().map(bookingMapper::toResponseDTO).collect(Collectors.toList());
     }
 
     public boolean deleteBooking(Long bookingId) {
         Optional<Booking> booking = bookingRepository.findById(bookingId);
-
         if (booking.isPresent()) {
+            long accountId = booking.get().getAccount().getAccountId();
+            String timeSlot = booking.get().getTimeSlot();
+
+            String[] times = timeSlot.split(" - ");
+            LocalTime startTime = LocalTime.parse(times[0].trim());
+            LocalTime endTime = LocalTime.parse(times[1].trim());
+
+            long minutes = Duration.between(startTime, endTime).toMinutes();
+
+            // Handle overnight case (e.g., 23:00 - 01:00)
+            if (minutes < 0) {
+                minutes += 24 * 60;
+            }
+
             bookingRepository.delete(booking.get());
+            creditRepository.addCredits(accountId, (int) minutes);
             return true;
         } else {
             return false;
@@ -314,6 +330,23 @@ public class BookingService {
             Booking booking = optionalBooking.get();
             booking.setStatus(status);
             bookingRepository.save(booking);
+
+            long accountId = optionalBooking.get().getAccount().getAccountId();
+            String timeSlot = optionalBooking.get().getTimeSlot();
+
+            String[] times = timeSlot.split(" - ");
+            LocalTime startTime = LocalTime.parse(times[0].trim());
+            LocalTime endTime = LocalTime.parse(times[1].trim());
+
+            long minutes = Duration.between(startTime, endTime).toMinutes();
+
+            // Handle overnight case (e.g., 23:00 - 01:00)
+            if (minutes < 0) {
+                minutes += 24 * 60;
+            }
+
+            creditRepository.addCredits(accountId, (int) minutes);
+
             return true; // Return true if update was successful
         } else {
             return false; // Return false if booking not found

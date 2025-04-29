@@ -9,7 +9,7 @@ import org.springframework.stereotype.Service;
 import jakarta.mail.MessagingException;
 
 @Service
-public class CustomEmailService {
+public class CustomEmailService implements EmailService {
 
     private final JavaMailSender javaMailSender;
 
