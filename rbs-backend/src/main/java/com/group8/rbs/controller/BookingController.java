@@ -6,7 +6,11 @@ import com.group8.rbs.dto.booking.BookingResponseDTO;
 import com.group8.rbs.dto.booking.FacilitySearchDTO;
 import com.group8.rbs.enums.BookingStatus;
 import com.group8.rbs.service.booking.BookingService;
-import com.group8.rbs.service.email.CustomEmailService;
+import com.group8.rbs.service.email.EmailContentStrategy;
+import com.group8.rbs.service.email.EmailContentStrategyFactory;
+import com.group8.rbs.service.email.EmailService;
+import com.group8.rbs.service.email.EmailServiceFactory;
+
 import jakarta.mail.MessagingException;
 
 import org.slf4j.Logger;
@@ -19,6 +23,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -27,12 +32,16 @@ import java.util.Map;
 public class BookingController {
     private static final Logger logger = LoggerFactory.getLogger(BookingController.class);
     private final BookingService bookingService;
-    private final CustomEmailService emailService;
     private static final ZoneId SG_ZONE = ZoneId.of("Asia/Singapore");
+    private final EmailServiceFactory emailServiceFactory;
+    private final EmailContentStrategyFactory emailContentStrategyFactory;
 
-    public BookingController(BookingService bookingService, CustomEmailService emailService) {
+    public BookingController(BookingService bookingService,
+            EmailServiceFactory emailServiceFactory,
+            EmailContentStrategyFactory emailContentStrategyFactory) {
         this.bookingService = bookingService;
-        this.emailService = emailService;
+        this.emailServiceFactory = emailServiceFactory;
+        this.emailContentStrategyFactory = emailContentStrategyFactory;
     }
 
     @GetMapping("/facilities/search")
@@ -66,44 +75,39 @@ public class BookingController {
     @PostMapping
     public ResponseEntity<BookingResponseDTO> createBooking(@RequestBody BookingDTO request) throws MessagingException {
         logger.info("Received booking request: " + request);
-        
+
         // If the bookedDateTime has a timezone offset in the string (like +08:00),
-        // it will be parsed correctly by default. If not, we assume it's in Singapore time
+        // it will be parsed correctly by default. If not, we assume it's in Singapore
+        // time
         LocalDateTime bookingDateTime = request.getBookedDateTime();
-        
+
         // Log the parsed datetime for debugging
         logger.info("Parsed booking datetime: " + bookingDateTime);
-        
+
         BookingResponseDTO response = bookingService.createBooking(request);
 
         if (response != null && response.getBookingId() != null) {
             // Construct email details
             String toEmail = request.getAccountEmail();
-            String subject = "RBS Booking Confirmation";
-            // Determine booking status
-            String statusMessage = response.getStatus().equalsIgnoreCase("PENDING")
-                    ? "Your booking is currently pending approval."
-                    : "Your booking has been successfully approved.";
+            String status = response.getStatus();
+            String strategyKey = status.equalsIgnoreCase("PENDING") ? "PENDING" : "SYSTEMAPPROVED";
 
-            DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
-            String formattedDate = response.getBookedDatetime().toLocalDate().format(formatter);
+            // Fetch the email content strategy using the factory
+            EmailContentStrategy strategy = emailContentStrategyFactory.getStrategy(strategyKey);
 
-            String body = "<html>" +
-                    "<body>" +
-                    "<p>Dear Student,</p>" +
-                    "<p>" + statusMessage + "</p>" +
-                    "<p><strong>Booking ID:</strong> " + response.getBookingId() + "</p>" +
-                    "<p><strong>Date:</strong> " + formattedDate + "</p>" +
-                    "<p><strong>Facility:</strong> " + response.getFacilityName() + "</p>" +
-                    "<p><strong>Timeslot:</strong> " + response.getTimeslot() + "</p>" +
-                    "<p><strong>Status:</strong> " + response.getStatus() + "</p>" +
-                    "<br>" +
-                    "<p>Best regards,</p>" +
-                    "<p>Resource Booking System</p>" +
-                    "</body>" +
-                    "</html>";
+            // Prepare the parameters for email content (e.g., bookingId, reason if needed)
+            Map<String, Object> emailParams = new HashMap<>();
+            emailParams.put("bookingId", response.getBookingId());
+            emailParams.put("bookedDatetime", response.getBookedDatetime()); // Add the bookedDatetime
+            emailParams.put("facilityName", response.getFacilityName());
+            emailParams.put("timeslot", response.getTimeslot());
+            emailParams.put("status", response.getStatus());
+
+            String subject = strategy.buildSubject(emailParams);
+            String body = strategy.buildBody(emailParams);
 
             // Send email
+            EmailService emailService = emailServiceFactory.getEmailService("customEmailService");
             boolean emailSent = emailService.sendEmail(toEmail, subject, body);
 
             if (emailSent) {
@@ -145,17 +149,15 @@ public class BookingController {
         boolean isDeleted = bookingService.deleteBooking(bookingId);
 
         if (isDeleted) {
-            String subject = "RBS Booking Cancellation Confirmation";
-            String body = "<html>" +
-                    "<body>" +
-                    "<p>Dear Student,</p>" +
-                    "<p>Your booking has been successfully canceled.</p>" +
-                    "<p><strong>Booking ID:</strong> " + bookingId + "</p>" +
-                    "<p>Best regards,</p>" +
-                    "<p>Resource Booking System</p>" +
-                    "</body>" +
-                    "</html>";
+            EmailContentStrategy strategy = emailContentStrategyFactory.getStrategy("CANCELLED");
 
+            Map<String, Object> emailParams = new HashMap<>();
+            emailParams.put("bookingId", bookingId);
+
+            String subject = strategy.buildSubject(emailParams);
+            String body = strategy.buildBody(emailParams);
+
+            EmailService emailService = emailServiceFactory.getEmailService("customEmailService");
             boolean emailSent = emailService.sendEmail(toEmail, subject, body);
 
             if (emailSent) {
@@ -167,20 +169,6 @@ public class BookingController {
             }
         } else {
             return ResponseEntity.status(404).body("Booking not found.");
-        }
-    }
-
-    @GetMapping("/send-test-email")
-    public String sendTestEmail(@RequestParam String toEmail) throws MessagingException {
-        String subject = "Test Email Subject";
-        String body = "This is a test email sent from the Spring Boot application.";
-
-        boolean emailSent = emailService.sendEmail(toEmail, subject, body);
-
-        if (emailSent) {
-            return "Test email sent successfully to " + toEmail;
-        } else {
-            return "Failed to send test email to " + toEmail;
         }
     }
 
@@ -205,18 +193,15 @@ public class BookingController {
         boolean updated = bookingService.updateBookingStatus(bookingId, status);
 
         if (updated && status.equals(BookingStatus.REJECTED)) {
-            String subject = "RBS Booking Rejected";
-            String body = "<html>" +
-                    "<body>" +
-                    "<p>Dear Student,</p>" +
-                    "<p>Your booking has been rejected.</p>" +
-                    "<p><strong>Booking ID:</strong> " + bookingId + "</p>" +
-                    "<p><strong>Reason:</strong> " + rejectReason + "</p>" +
-                    "<p>Best regards,</p>" +
-                    "<p>Resource Booking System</p>" +
-                    "</body>" +
-                    "</html>";
+            EmailContentStrategy strategy = emailContentStrategyFactory.getStrategy("REJECTED");
+            Map<String, Object> emailParams = new HashMap<>();
+            emailParams.put("bookingId", bookingId);
+            emailParams.put("reason", rejectReason);
 
+            String subject = strategy.buildSubject(emailParams);
+            String body = strategy.buildBody(emailParams);
+
+            EmailService emailService = emailServiceFactory.getEmailService("customEmailService");
             boolean emailSent = emailService.sendEmail(toEmail, subject, body);
 
             if (emailSent) {
@@ -229,17 +214,15 @@ public class BookingController {
         }
 
         else if (updated && status.equals(BookingStatus.APPROVED)) {
-            String subject = "RBS Booking Approved";
-            String body = "<html>" +
-                    "<body>" +
-                    "<p>Dear Student,</p>" +
-                    "<p>Your booking has been approved.</p>" +
-                    "<p><strong>Booking ID:</strong> " + bookingId + "</p>" +
-                    "<p>Best regards,</p>" +
-                    "<p>Resource Booking System</p>" +
-                    "</body>" +
-                    "</html>";
+            EmailContentStrategy strategy = emailContentStrategyFactory.getStrategy("ADMINPPROVED");
 
+            Map<String, Object> emailParams = new HashMap<>();
+            emailParams.put("bookingId", bookingId);
+
+            String subject = strategy.buildSubject(emailParams);
+            String body = strategy.buildBody(emailParams);
+
+            EmailService emailService = emailServiceFactory.getEmailService("customEmailService");
             boolean emailSent = emailService.sendEmail(toEmail, subject, body);
 
             if (emailSent) {
