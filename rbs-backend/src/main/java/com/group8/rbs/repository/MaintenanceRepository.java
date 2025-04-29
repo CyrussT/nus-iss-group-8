@@ -7,6 +7,7 @@ import org.springframework.stereotype.Repository;
 
 import com.group8.rbs.entities.MaintenanceSchedule;
 
+import java.time.LocalDate;
 import java.util.List;
 
 @Repository
