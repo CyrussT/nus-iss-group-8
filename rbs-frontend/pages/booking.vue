@@ -23,37 +23,42 @@ const { apiUrl } = useApi();
 const toast = useToast();
 // Get all the booking related functions from the useBooking composable
 const bookingModule = useBooking();
-const { 
-  availableCredits, 
-  fetchAvailableCredits, 
-  searchFacilities, 
-  fetchDropdownOptions, 
-  createBooking, 
-  facilities, 
-  searchLoading 
+const {
+  availableCredits,
+  fetchAvailableCredits,
+  searchFacilities,
+  fetchDropdownOptions,
+  createBooking,
+  facilities,
+  searchLoading
 } = bookingModule;
 
 
 const connectWebSocket = () => {
-    const stompClient = new Client({
-        brokerURL: 'ws://localhost:8080/ws',
-        reconnectDelay: 5000,
-        onConnect: () => {
-            console.log('Connected to WebSocket!');
-            stompClient.subscribe('/topic/bookings', async (message) => {
-                console.log('Received booking update', message.body);
-                await handleSearch(currentSearchCriteria.value); // fetch updated bookings from backend
-                processBookings(); // reprocess calendar
-                
-            });
-            
-        },
-        onDisconnect: () => {
-            console.log('Disconnected from WebSocket.');
-        },
-    });
+  const stompClient = new Client({
+    brokerURL: 'ws://localhost:8080/ws',
+    reconnectDelay: 5000,
+    onConnect: () => {
+      console.log('Connected to WebSocket!');
+      stompClient.subscribe('/topic/bookings', async (message) => {
+        console.log('Received booking update', message.body);
+        await handleSearch(currentSearchCriteria.value); // fetch updated bookings from backend
+        processBookings(); // reprocess calendar
 
-    stompClient.activate();
+      });
+      stompClient.subscribe('/topic/maintenance', async (message) => {
+        console.log('Received maintenance update', message.body);
+        await handleSearch(currentSearchCriteria.value);
+        processBookings();
+      });
+
+    },
+    onDisconnect: () => {
+      console.log('Disconnected from WebSocket.');
+    },
+  });
+
+  stompClient.activate();
 };
 
 // Get maintenance related functions
@@ -104,9 +109,9 @@ const selectedBooking = reactive({
 
 // Legend items for booking status colors with more accessible colors
 const legendItems = [
-  { status: 'OCCUPIED', color: '#ff9999', darkColor: '#ff6666', label: 'Occupied' },     
-  { status: 'PENDING', color: '#b8b8b8', darkColor: '#a0a0a0', label: 'Pending' },       
-  { status: 'MY_BOOKING', color: '#b088ff', darkColor: '#c09fff', label: 'My Booking (Approved)' }, 
+  { status: 'OCCUPIED', color: '#ff9999', darkColor: '#ff6666', label: 'Occupied' },
+  { status: 'PENDING', color: '#b8b8b8', darkColor: '#a0a0a0', label: 'Pending' },
+  { status: 'MY_BOOKING', color: '#b088ff', darkColor: '#c09fff', label: 'My Booking (Approved)' },
   { status: 'MY_PENDING_BOOKING', color: '#7fa2e6', darkColor: '#8fb8ff', label: 'My Booking (Pending)' },
   { status: 'MAINTENANCE', color: '#f6c46a', darkColor: '#ffcc66', label: 'Maintenance' }
 ];
@@ -114,10 +119,10 @@ const legendItems = [
 // Format minutes to 0.5 hour increments
 const formatCredits = computed(() => {
   if (!availableCredits.value && availableCredits.value !== 0) return '0 hrs';
-  
+
   // Convert to 0.5 hour increments
   const halfHours = Math.floor(availableCredits.value / 30);
-  
+
   if (halfHours === 0) {
     return '0 hrs';
   } else if (halfHours === 1) {
@@ -154,7 +159,7 @@ const formatDateForApi = (date) => {
 // Helper function to check if a facility is under maintenance
 const isFacilityUnderMaintenance = (facilityId) => {
   if (!facilityId) return false;
-  
+
   // Get the calendar's current date
   let currentDate = '';
   if (calendarRef.value) {
@@ -163,7 +168,7 @@ const isFacilityUnderMaintenance = (facilityId) => {
     // If calendar ref is not available, use today's date as fallback
     currentDate = formatDateForApi(new Date());
   }
-  
+
   return isUnderMaintenance(facilityId, currentDate);
 };
 
@@ -172,26 +177,26 @@ const openCreateBookingModal = () => {
   // Reset selections except for the date
   selectedBookingInfo.resourceId = '';
   selectedBookingInfo.resourceName = '';
-  
+
   // Get the calendar's current date instead of clearing it
   if (calendarRef.value) {
     const currentCalendarDate = calendarRef.value.getCurrentCalendarDate();
     if (currentCalendarDate) {
       // Get the current date from the calendar
       const date = new Date(currentCalendarDate);
-      
+
       // Get the current time
       const now = new Date();
       const currentHour = now.getHours();
       const currentMinute = now.getMinutes();
-      
+
       // Check if the selected date is today
-      const isToday = date.getDate() === now.getDate() && 
-                     date.getMonth() === now.getMonth() && 
-                     date.getFullYear() === now.getFullYear();
-      
+      const isToday = date.getDate() === now.getDate() &&
+        date.getMonth() === now.getMonth() &&
+        date.getFullYear() === now.getFullYear();
+
       let startHour, startMinute;
-      
+
       if (isToday) {
         // If it's today, check if we're in business hours (7 AM - 7 PM)
         if (currentHour < 7) {
@@ -213,7 +218,7 @@ const openCreateBookingModal = () => {
             // Use next hour and 0 minutes
             startHour = currentHour + 1;
             startMinute = 0;
-            
+
             // Check if next hour would be after business hours
             if (startHour >= 19) {
               // If so, use next day at 7 AM
@@ -228,10 +233,10 @@ const openCreateBookingModal = () => {
         startHour = 7;
         startMinute = 0;
       }
-      
+
       // Set the time
       date.setHours(startHour, startMinute, 0, 0);
-      
+
       // Update startTime ISO string
       selectedBookingInfo.startTime = date.toISOString();
     } else {
@@ -240,9 +245,9 @@ const openCreateBookingModal = () => {
   } else {
     selectedBookingInfo.startTime = ''; // Fallback to empty if no calendar ref
   }
-  
+
   selectedBookingInfo.duration = 30; // Ensure duration is set to 0.5 hours
-  
+
   // Show the create modal
   isCreateModalOpen.value = true;
 };
@@ -252,7 +257,7 @@ const handleSearch = async (searchCriteria) => {
   try {
     // Set the hasSearched flag to true since we're performing a search
     hasSearched.value = true;
-    
+
     // Store the current search criteria for potential "No Results" messaging
     // but exclude internal parameters that start with underscore
     currentSearchCriteria.value = { ...searchCriteria };
@@ -261,31 +266,31 @@ const handleSearch = async (searchCriteria) => {
         delete currentSearchCriteria.value[key];
       }
     });
-    
+
     // Get the current date from the calendar if available or from the search criteria
     let currentDate = '';
-    
+
     // First check if date was explicitly provided in search criteria
     if (searchCriteria._date) {
       currentDate = searchCriteria._date;
-    } 
+    }
     // Then check the calendar reference
     else if (calendarRef.value) {
       currentDate = calendarRef.value.getCurrentCalendarDate();
-    } 
+    }
     // Finally use today as a fallback
     else {
       // If calendar ref is not available, use today's date as fallback
       const today = new Date();
       currentDate = formatDateForApi(today);
     }
-    
+
     // Ensure we always have a date to prevent the backend error
     if (!currentDate) {
       const today = new Date();
       currentDate = formatDateForApi(today);
     }
-    
+
     // Remove internal parameters from the search criteria before sending to API
     const apiSearchCriteria = { ...searchCriteria };
     Object.keys(apiSearchCriteria).forEach(key => {
@@ -293,21 +298,21 @@ const handleSearch = async (searchCriteria) => {
         delete apiSearchCriteria[key];
       }
     });
-    
+
     // First search for facilities
     await searchFacilities(apiUrl, auth.token.value, apiSearchCriteria, currentDate);
-    
+
     // Check maintenance status for all facilities in a single API call
     if (facilities.value && facilities.value.length > 0) {
       const facilityIds = facilities.value.map(facility => facility.facilityId);
-      
+
       // Ensure we pass the same date used for facility search to the maintenance check
       await checkMultipleFacilities(facilityIds, currentDate);
     }
-    
+
     // Process bookings after all data is fetched
     processBookings();
-    
+
     // Manually tell the calendar to apply maintenance styling
     if (calendarRef.value && calendarRef.value.applyMaintenanceStyling) {
       setTimeout(() => calendarRef.value.applyMaintenanceStyling(), 300);
@@ -326,10 +331,10 @@ const handleSearch = async (searchCriteria) => {
 const handleReset = () => {
   // Reset hasSearched flag
   hasSearched.value = false;
-  
+
   // Clear the current search criteria but preserve the date
   currentSearchCriteria.value = {};
-  
+
   // Get the current date from the calendar if available
   let currentDate = '';
   if (calendarRef.value) {
@@ -339,11 +344,11 @@ const handleReset = () => {
     const today = new Date();
     currentDate = formatDateForApi(today);
   }
-  
+
   // Call handleSearch with empty criteria but include the current calendar date
   // This preserves the calendar's date while clearing all search criteria
   handleSearch({ _date: currentDate });
-  
+
   // Emit an event to tell the BookingSearchBar to reset its form fields
   if (document.querySelector('.booking-search-bar')) {
     document.querySelector('.booking-search-bar').dispatchEvent(
@@ -356,16 +361,16 @@ const handleReset = () => {
 const handleResetSearchFromCalendar = (data) => {
   // Include date information if provided from the calendar
   const resetOptions = data && data.date ? { _date: data.date } : {};
-  
+
   // Reset hasSearched flag
   hasSearched.value = false;
-  
+
   // Clear current search criteria
   currentSearchCriteria.value = {};
-  
+
   // Perform search with reset options
   handleSearch(resetOptions);
-  
+
   // Also reset the search form
   if (document.querySelector('.booking-search-bar')) {
     document.querySelector('.booking-search-bar').dispatchEvent(
@@ -379,13 +384,13 @@ const handleDateChange = () => {
   // Get the current date from the calendar
   if (calendarRef.value) {
     const currentDate = calendarRef.value.getCurrentCalendarDate();
-    
+
     // Include the date explicitly in the search criteria
-    const updatedCriteria = { 
+    const updatedCriteria = {
       ...currentSearchCriteria.value,
-      _date: currentDate 
+      _date: currentDate
     };
-    
+
     // Pass the updated criteria with the date
     handleSearch(updatedCriteria);
   } else {
@@ -405,31 +410,31 @@ const handleTimeslotSelect = (info) => {
     });
     return;
   }
-  
+
   // Get the selected date and time
   const selectedDateTime = new Date(info.startStr);
   const now = new Date();
-  
+
   // Improved past date check
-  const isPastDate = 
+  const isPastDate =
     (selectedDateTime.getFullYear() < now.getFullYear()) ||
-    (selectedDateTime.getFullYear() === now.getFullYear() && 
-     selectedDateTime.getMonth() < now.getMonth()) ||
-    (selectedDateTime.getFullYear() === now.getFullYear() && 
-     selectedDateTime.getMonth() === now.getMonth() && 
-     selectedDateTime.getDate() < now.getDate());
-  
+    (selectedDateTime.getFullYear() === now.getFullYear() &&
+      selectedDateTime.getMonth() < now.getMonth()) ||
+    (selectedDateTime.getFullYear() === now.getFullYear() &&
+      selectedDateTime.getMonth() === now.getMonth() &&
+      selectedDateTime.getDate() < now.getDate());
+
   // Improved same-day past time check
-  const isSameDay = 
+  const isSameDay =
     selectedDateTime.getFullYear() === now.getFullYear() &&
     selectedDateTime.getMonth() === now.getMonth() &&
     selectedDateTime.getDate() === now.getDate();
-  
-  const isPastTime = isSameDay && 
+
+  const isPastTime = isSameDay &&
     (selectedDateTime.getHours() < now.getHours() ||
-    (selectedDateTime.getHours() === now.getHours() && 
-     selectedDateTime.getMinutes() < now.getMinutes()));
-  
+      (selectedDateTime.getHours() === now.getHours() &&
+        selectedDateTime.getMinutes() < now.getMinutes()));
+
   // Only check for past time if it's the same day
   if (isPastDate || isPastTime) {
     toast.add({
@@ -439,15 +444,15 @@ const handleTimeslotSelect = (info) => {
     });
     return;
   }
-  
+
   // Default booking duration to 30 minutes
   selectedBookingInfo.resourceId = info.resource.id;
   selectedBookingInfo.resourceName = info.resource.title;
   selectedBookingInfo.startTime = info.startStr;
-  
+
   // Force modal to use 30 minutes as default duration
   selectedBookingInfo.duration = 30;
-  
+
   isCreateModalOpen.value = true;
 };
 
@@ -455,11 +460,11 @@ const handleTimeslotSelect = (info) => {
 const handleEventClick = (event) => {
   // Get the event properties
   const isMaintenance = event.extendedProps?.isMaintenance || false;
-  
+
   // If this is a maintenance event, show a special message
   if (isMaintenance) {
     const resourceName = event.getResources()[0]?.title || 'Unknown Facility';
-    
+
     toast.add({
       title: 'Maintenance Event',
       description: `${resourceName} is under maintenance and cannot be booked.`,
@@ -467,7 +472,7 @@ const handleEventClick = (event) => {
     });
     return; // Return early for maintenance events - don't open any modal
   }
-  
+
   // Otherwise prepare the regular booking details
   Object.assign(selectedBooking, {
     id: event.id,
@@ -483,7 +488,7 @@ const handleEventClick = (event) => {
     studentId: event.extendedProps?.studentId || '',
     studentName: event.extendedProps?.studentName || ''
   });
-  
+
   isViewModalOpen.value = true;
 };
 
@@ -496,31 +501,31 @@ const processBookings = () => {
   if (facilities.value && facilities.value.length > 0) {
     facilities.value.forEach(facility => {
       const facilityId = facility.facilityId.toString();
-      
+
       // Get the current date from the calendar or use today's date
       const currentDate = calendarRef.value ? calendarRef.value.getCurrentCalendarDate() : formatDateForApi(new Date());
-      
+
       // Check if this facility is under maintenance for the current date
       const isMaintenanceResource = isUnderMaintenance(facilityId, currentDate);
-      
+
       // If the facility is under maintenance, add maintenance "booking" covering entire day
       if (isMaintenanceResource) {
         try {
           // Get the current date
           let displayDate = currentDate ? new Date(currentDate) : new Date();
-          
+
           // Create an all-day maintenance booking
           const startDateTime = new Date(displayDate);
           startDateTime.setHours(7, 0, 0, 0); // Start at 7 AM
-          
+
           const endDateTime = new Date(displayDate);
           endDateTime.setHours(19, 0, 0, 0); // End at 7 PM
-          
+
           // Add maintenance event
           allBookings.push({
             id: `maintenance-${facilityId}`,
             resourceId: facilityId,
-            title: 'Maintenance', 
+            title: 'Maintenance',
             start: startDateTime.toISOString(),
             end: endDateTime.toISOString(),
             backgroundColor: '#f6c46a', // Orange-yellow color from legend
@@ -543,22 +548,22 @@ const processBookings = () => {
           console.error('Error creating maintenance booking:', err);
         }
       }
-      
+
       // Add regular bookings
       if (facility.bookings && facility.bookings.length > 0) {
         facility.bookings.forEach(booking => {
           try {
             // Get the date from bookedDatetime
             const bookedDate = new Date(booking.bookedDatetime);
-            
+
             if (!booking.timeslot) {
               console.error('Booking has no timeslot:', booking);
               return; // Skip this booking
             }
-            
+
             // Handle different timeslot formats (with or without spaces)
             let startTime, endTime;
-            
+
             if (booking.timeslot.includes(' - ')) {
               [startTime, endTime] = booking.timeslot.split(' - ');
             } else if (booking.timeslot.includes('-')) {
@@ -567,46 +572,46 @@ const processBookings = () => {
               startTime = booking.timeslot;
               endTime = null;
             }
-            
+
             if (startTime) {
               // Parse start time (HH:MM)
               const [startHour, startMinute] = startTime.trim().split(":").map(Number);
-              
+
               // Create local date using the timeslot information rather than ISO date
               // Extract the local date from the bookedDatetime
               const year = bookedDate.getFullYear();
               const month = bookedDate.getMonth();
               const day = bookedDate.getDate();
-              
+
               // Create a new date object with the local date and time from timeslot
               const startDateTime = new Date(year, month, day, startHour || 0, startMinute || 0, 0, 0);
-              
+
               // Handle end time if it exists
               let endDateTime;
-              
+
               if (endTime) {
                 const [endHour, endMinute] = endTime.trim().split(":").map(Number);
-                
+
                 endDateTime = new Date(year, month, day, endHour || 0, endMinute || 0, 0, 0);
               } else {
                 // Default to 30 minutes duration if no end time
                 endDateTime = new Date(startDateTime);
                 endDateTime.setMinutes(endDateTime.getMinutes() + 30);
               }
-              
+
               // Check if this booking is in the past
               const isPastBooking = endDateTime < now;
-              
+
               // Simple direct string comparison with booking email
               const isMyBooking = booking.email === currentUserEmail.value;
-              
+
               // Select color based on a combination of:
               // 1. Whether it's your booking or not
               // 2. The status of the booking (PENDING, APPROVED, etc.)
               let backgroundColor;
               let borderColor;
               let legendStatus;
-              
+
               if (isMyBooking) {
                 if (booking.status === 'PENDING') {
                   // Your pending booking - darker blue
@@ -632,7 +637,7 @@ const processBookings = () => {
                   legendStatus = 'OCCUPIED';
                 }
               }
-              
+
               // Create the booking event object for FullCalendar
               allBookings.push({
                 id: booking.bookingId.toString(),
@@ -668,7 +673,7 @@ const processBookings = () => {
       }
     });
   }
-  
+
   // Set the bookings array
   bookings.value = [...allBookings];
 };
@@ -678,7 +683,7 @@ const handleCreateBooking = async (booking) => {
   try {
     // Check if the facility is under maintenance before creating the booking
     const resourceId = booking.resourceId;
-    
+
     if (!resourceId) {
       toast.add({
         title: 'Error',
@@ -687,7 +692,7 @@ const handleCreateBooking = async (booking) => {
       });
       return false;
     }
-    
+
     // Check if facility is under maintenance
     if (isFacilityUnderMaintenance(resourceId)) {
       toast.add({
@@ -697,32 +702,32 @@ const handleCreateBooking = async (booking) => {
       });
       return false;
     }
-    
+
     // Add user email to the booking
     booking.accountEmail = auth.user.value.email;
-    
+
     // Create the booking using the composable function
     await createBooking(apiUrl, auth.token.value, booking);
-    
+
     // Show success message using toast
     toast.add({
       title: 'Success',
       description: 'Booking created successfully!',
       color: 'green'
     });
-    
+
     // Refresh the calendar to show the new booking
     await handleSearch(currentSearchCriteria.value);
-    
+
     // Refresh available credits since we just used some
     await fetchAvailableCredits(auth.user.value.email);
-    
+
     // Close the modal only on success
     isCreateModalOpen.value = false;
-    
+
     // Return success for the modal component
     return true;
-    
+
   } catch (error) {
     console.error('Error creating booking:', error);
     toast.add({
@@ -730,7 +735,7 @@ const handleCreateBooking = async (booking) => {
       description: 'Failed to create booking. Please try again.',
       color: 'red'
     });
-    
+
     // Return failure to keep modal open
     return false;
   }
@@ -741,16 +746,16 @@ const loadDropdownOptions = async () => {
   try {
     optionsLoading.value = true;
     const options = await fetchDropdownOptions(apiUrl, auth.token.value);
-    
+
     // Extract each type of option from the map
     if (options.resourceTypes) {
       resourceTypeOptions.value = options.resourceTypes;
     }
-    
+
     if (options.locations) {
       locationOptions.value = options.locations;
     }
-    
+
     if (options.resourceNames) {
       resourceNameOptions.value = options.resourceNames;
     }
@@ -774,10 +779,10 @@ onMounted(async () => {
   try {
     // Fetch available credits first
     await fetchAvailableCredits(auth.user.value.email);
-    
+
     // Then load dropdown options
     await loadDropdownOptions();
-    
+
     // Only after options are loaded, do a single search with today's date
     await handleSearch({});
   } catch (error) {
@@ -790,7 +795,7 @@ onMounted(async () => {
   } finally {
     loading.value = false;
   }
-    connectWebSocket();
+  connectWebSocket();
 });
 
 // Watch for calendar reference to ensure we can apply maintenance styling
@@ -825,7 +830,7 @@ watch(() => facilities.value, (newFacilities) => {
 watch(() => facilitiesUnderMaintenance, () => {
   // When maintenance status changes, reprocess bookings to update maintenance events
   processBookings();
-  
+
   // Then apply maintenance styling
   if (calendarRef.value && calendarRef.value.applyMaintenanceStyling) {
     setTimeout(() => calendarRef.value.applyMaintenanceStyling(), 200);
@@ -836,54 +841,50 @@ watch(() => facilitiesUnderMaintenance, () => {
 <template>
   <div class="mx-auto w-3/4 mt-8">
     <h1 class="text-2xl font-bold dark:text-white">Booking Management</h1>
-    
+
     <!-- Search UI component -->
-    <BookingSearchBar
-      class="mt-4"
-      :loading="searchLoading"
-      :resource-type-options="resourceTypeOptions"
-      :resource-name-options="resourceNameOptions"
-      :location-options="locationOptions"
-      :options-loading="optionsLoading"
-      @search="handleSearch"
-      @reset="handleReset"
-    />
-    
+    <BookingSearchBar class="mt-4" :loading="searchLoading" :resource-type-options="resourceTypeOptions"
+      :resource-name-options="resourceNameOptions" :location-options="locationOptions" :options-loading="optionsLoading"
+      @search="handleSearch" @reset="handleReset" />
+
     <!-- Legend for booking status colors and available credits -->
     <div class="mt-4 p-4 bg-white dark:bg-gray-800 rounded-md shadow dark:shadow-gray-700">
       <div class="flex justify-between items-center mb-3">
         <h3 class="text-sm font-medium dark:text-white">Booking Status Legend:</h3>
         <div class="flex items-center">
           <span class="text-sm font-medium mr-2 dark:text-gray-300">Available Credits:</span>
-          <span class="text-sm bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-100 px-3 py-1 rounded font-semibold">
+          <span
+            class="text-sm bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-100 px-3 py-1 rounded font-semibold">
             {{ formatCredits }}
           </span>
         </div>
       </div>
-      
+
       <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 mb-3">
-        <div v-for="item in legendItems" :key="item.status" 
-            class="flex items-center p-2 rounded-md border border-gray-100 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
-          <div 
-            class="w-7 h-7 rounded-md mr-3 border border-gray-200 dark:border-gray-600" 
-            :style="{ backgroundColor: $colorMode.value === 'dark' ? item.darkColor : item.color }"
-          ></div>
+        <div v-for="item in legendItems" :key="item.status"
+          class="flex items-center p-2 rounded-md border border-gray-100 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+          <div class="w-7 h-7 rounded-md mr-3 border border-gray-200 dark:border-gray-600"
+            :style="{ backgroundColor: $colorMode.value === 'dark' ? item.darkColor : item.color }"></div>
           <span class="text-sm font-medium dark:text-gray-200">{{ item.label }}</span>
         </div>
       </div>
-      
+
       <!-- Hint about calendar clicking -->
-      <div class="text-xs text-gray-600 dark:text-gray-400 mt-3 flex items-center p-2 bg-blue-50 dark:bg-blue-900/30 rounded-md">
+      <div
+        class="text-xs text-gray-600 dark:text-gray-400 mt-3 flex items-center p-2 bg-blue-50 dark:bg-blue-900/30 rounded-md">
         <UIcon name="i-heroicons-information-circle" class="mr-2 text-blue-500 dark:text-blue-400" size="sm" />
-        <span>Click on an empty timeslot in the calendar grid to create a new booking. Click on a coloured slot to view its details. Facilities under maintenance cannot be booked.</span>
+        <span>Click on an empty timeslot in the calendar grid to create a new booking. Click on a coloured slot to view
+          its details. Facilities under maintenance cannot be booked.</span>
       </div>
     </div>
-    
+
     <!-- Centralized No results message - only shown when search is performed but no facilities found -->
-    <div v-if="hasSearched && (!facilities || facilities.length === 0) && !loading && !searchLoading" class="mt-4 p-6 bg-white dark:bg-gray-800 rounded-md shadow dark:shadow-gray-700 text-center">
+    <div v-if="hasSearched && (!facilities || facilities.length === 0) && !loading && !searchLoading"
+      class="mt-4 p-6 bg-white dark:bg-gray-800 rounded-md shadow dark:shadow-gray-700 text-center">
       <UIcon name="i-heroicons-magnifying-glass" class="mx-auto mb-3 text-gray-400 dark:text-gray-500" size="lg" />
       <h3 class="text-xl font-medium text-gray-700 dark:text-gray-200 mb-2">No Facilities Found</h3>
-      <p class="text-gray-500 dark:text-gray-400 mb-4">No resources match your search criteria for the selected date.</p>
+      <p class="text-gray-500 dark:text-gray-400 mb-4">No resources match your search criteria for the selected date.
+      </p>
       <div class="flex justify-center space-x-3">
         <UButton color="gray" variant="soft" @click="handleReset">
           Reset Search
@@ -893,60 +894,47 @@ watch(() => facilitiesUnderMaintenance, () => {
         </UButton>
       </div>
     </div>
-    
+
     <!-- New: Create Booking Button Section -->
     <div class="mt-4 mb-4 flex justify-end">
-      <UButton 
-        color="primary" 
-        icon="i-heroicons-plus-circle" 
-        @click="openCreateBookingModal"
-        size="lg"
-      >
+      <UButton color="primary" icon="i-heroicons-plus-circle" @click="openCreateBookingModal" size="lg">
         Create New Booking
       </UButton>
     </div>
-    
+
     <!-- Calendar component - Only show if we have facilities or are still loading -->
-    <BookingCalendar
-      v-if="!hasSearched || loading || searchLoading || (facilities && facilities.length > 0)"
-      ref="calendarRef"
-      class="mt-4"
-      :facilities="facilities"
-      :bookings="bookings"
-      :loading="loading"
-      @select-timeslot="handleTimeslotSelect"
-      @click-event="handleEventClick"
-      @date-change="handleDateChange"
-      @reset-search="handleResetSearchFromCalendar"
-    />
-    
+    <BookingCalendar v-if="!hasSearched || loading || searchLoading || (facilities && facilities.length > 0)"
+      ref="calendarRef" class="mt-4" :facilities="facilities" :bookings="bookings" :loading="loading"
+      @select-timeslot="handleTimeslotSelect" @click-event="handleEventClick" @date-change="handleDateChange"
+      @reset-search="handleResetSearchFromCalendar" />
+
     <!-- Create booking modal - reused for both calendar select and button click -->
-    <BookingCreateModal
-      v-model="isCreateModalOpen"
-      :resource-id="selectedBookingInfo.resourceId"
-      :resource-name="selectedBookingInfo.resourceName"
-      :start-time="selectedBookingInfo.startTime"
-      :facilities="facilities"
-      :available-credits="availableCredits"
-      :loading="searchLoading"
-      :key="`booking-modal-${isCreateModalOpen}`"
-      @save="handleCreateBooking"
-    />
-    
+    <BookingCreateModal v-model="isCreateModalOpen" :resource-id="selectedBookingInfo.resourceId"
+      :resource-name="selectedBookingInfo.resourceName" :start-time="selectedBookingInfo.startTime"
+      :facilities="facilities" :available-credits="availableCredits" :loading="searchLoading"
+      :key="`booking-modal-${isCreateModalOpen}`" @save="handleCreateBooking" />
+
     <!-- View booking details modal -->
-    <BookingDetailsModal
-      v-model="isViewModalOpen"
-      :booking="selectedBooking"
-    />
+    <BookingDetailsModal v-model="isViewModalOpen" :booking="selectedBooking" />
   </div>
 </template>
 
 <style scoped>
 /* Maintenance booking indicator animation */
 @keyframes wrench-rotate {
-  0%, 100% { transform: rotate(0deg); }
-  25% { transform: rotate(-15deg); }
-  75% { transform: rotate(15deg); }
+
+  0%,
+  100% {
+    transform: rotate(0deg);
+  }
+
+  25% {
+    transform: rotate(-15deg);
+  }
+
+  75% {
+    transform: rotate(15deg);
+  }
 }
 
 .maintenance-indicator {
@@ -957,18 +945,20 @@ watch(() => facilitiesUnderMaintenance, () => {
 :deep(.maintenance-event) {
   height: 26px !important;
   min-height: 26px !important;
-  background-color: #f6c46a !important; /* Match legend color */
+  background-color: #f6c46a !important;
+  /* Match legend color */
   border-color: #e0b25e !important;
   opacity: 0.9 !important;
   cursor: not-allowed !important;
   border-radius: 4px !important;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.12) !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12) !important;
 }
 
 :deep(.dark .maintenance-event) {
-  background-color: #ffcc66 !important; /* Brighter color for dark mode */
+  background-color: #ffcc66 !important;
+  /* Brighter color for dark mode */
   border-color: #e6b800 !important;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.5) !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.5) !important;
 }
 
 :deep(.maintenance-event .fc-event-main) {
@@ -977,11 +967,11 @@ watch(() => facilitiesUnderMaintenance, () => {
 
 :deep(.maintenance-event:hover) {
   transform: none !important;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.12) !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12) !important;
 }
 
 :deep(.dark .maintenance-event:hover) {
-  box-shadow: 0 1px 3px rgba(0,0,0,0.5) !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.5) !important;
 }
 
 :deep(.maintenance-event .fc-event-title) {
@@ -998,24 +988,20 @@ watch(() => facilitiesUnderMaintenance, () => {
 /* Resource under maintenance styling */
 :deep(.resource-under-maintenance .fc-timeline-slot-lane) {
   background-color: rgba(246, 196, 106, 0.3) !important;
-  background-image: repeating-linear-gradient(
-    45deg,
-    rgba(255, 255, 255, 0.2),
-    rgba(255, 255, 255, 0.2) 10px,
-    rgba(246, 196, 106, 0.3) 10px,
-    rgba(246, 196, 106, 0.3) 20px
-  ) !important;
+  background-image: repeating-linear-gradient(45deg,
+      rgba(255, 255, 255, 0.2),
+      rgba(255, 255, 255, 0.2) 10px,
+      rgba(246, 196, 106, 0.3) 10px,
+      rgba(246, 196, 106, 0.3) 20px) !important;
   position: relative;
 }
 
 :deep(.dark .resource-under-maintenance .fc-timeline-slot-lane) {
   background-color: rgba(255, 204, 102, 0.3) !important;
-  background-image: repeating-linear-gradient(
-    45deg,
-    rgba(0, 0, 0, 0.2),
-    rgba(0, 0, 0, 0.2) 10px,
-    rgba(255, 204, 102, 0.3) 10px,
-    rgba(255, 204, 102, 0.3) 20px
-  ) !important;
+  background-image: repeating-linear-gradient(45deg,
+      rgba(0, 0, 0, 0.2),
+      rgba(0, 0, 0, 0.2) 10px,
+      rgba(255, 204, 102, 0.3) 10px,
+      rgba(255, 204, 102, 0.3) 20px) !important;
 }
 </style>
