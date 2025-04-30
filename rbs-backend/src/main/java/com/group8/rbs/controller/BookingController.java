@@ -20,8 +20,6 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
-import java.time.LocalDateTime;
-import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
 import java.util.List;
@@ -32,7 +30,7 @@ import java.util.Map;
 public class BookingController {
     private static final Logger logger = LoggerFactory.getLogger(BookingController.class);
     private final BookingService bookingService;
-    private static final ZoneId SG_ZONE = ZoneId.of("Asia/Singapore");
+
     private final EmailServiceFactory emailServiceFactory;
     private final EmailContentStrategyFactory emailContentStrategyFactory;
 
@@ -73,52 +71,54 @@ public class BookingController {
     }
 
     @PostMapping
-    public ResponseEntity<BookingResponseDTO> createBooking(@RequestBody BookingDTO request) throws MessagingException {
+    public ResponseEntity<?> createBooking(@RequestBody BookingDTO request) throws MessagingException {
         logger.info("Received booking request: " + request);
+        
+        try {
+            BookingResponseDTO response = bookingService.createBooking(request);
+            
+            if (response != null && response.getBookingId() != null) {
+                // Construct email details
+                String toEmail = request.getAccountEmail();
+                String status = response.getStatus();
+                String strategyKey = status.equalsIgnoreCase("PENDING") ? "PENDING" : "SYSTEMAPPROVED";
 
-        // If the bookedDateTime has a timezone offset in the string (like +08:00),
-        // it will be parsed correctly by default. If not, we assume it's in Singapore
-        // time
-        LocalDateTime bookingDateTime = request.getBookedDateTime();
+                // Fetch the email content strategy using the factory
+                EmailContentStrategy strategy = emailContentStrategyFactory.getStrategy(strategyKey);
 
-        // Log the parsed datetime for debugging
-        logger.info("Parsed booking datetime: " + bookingDateTime);
+                // Prepare the parameters for email content (e.g., bookingId, reason if needed)
+                Map<String, Object> emailParams = new HashMap<>();
+                emailParams.put("bookingId", response.getBookingId());
+                emailParams.put("bookedDatetime", response.getBookedDatetime()); // Add the bookedDatetime
+                emailParams.put("facilityName", response.getFacilityName());
+                emailParams.put("timeslot", response.getTimeslot());
+                emailParams.put("status", response.getStatus());
 
-        BookingResponseDTO response = bookingService.createBooking(request);
+                String subject = strategy.buildSubject(emailParams);
+                String body = strategy.buildBody(emailParams);
 
-        if (response != null && response.getBookingId() != null) {
-            // Construct email details
-            String toEmail = request.getAccountEmail();
-            String status = response.getStatus();
-            String strategyKey = status.equalsIgnoreCase("PENDING") ? "PENDING" : "SYSTEMAPPROVED";
+                // Send email
+                EmailService emailService = emailServiceFactory.getEmailService("customEmailService");
+                boolean emailSent = emailService.sendEmail(toEmail, subject, body);
 
-            // Fetch the email content strategy using the factory
-            EmailContentStrategy strategy = emailContentStrategyFactory.getStrategy(strategyKey);
-
-            // Prepare the parameters for email content (e.g., bookingId, reason if needed)
-            Map<String, Object> emailParams = new HashMap<>();
-            emailParams.put("bookingId", response.getBookingId());
-            emailParams.put("bookedDatetime", response.getBookedDatetime()); // Add the bookedDatetime
-            emailParams.put("facilityName", response.getFacilityName());
-            emailParams.put("timeslot", response.getTimeslot());
-            emailParams.put("status", response.getStatus());
-
-            String subject = strategy.buildSubject(emailParams);
-            String body = strategy.buildBody(emailParams);
-
-            // Send email
-            EmailService emailService = emailServiceFactory.getEmailService("customEmailService");
-            boolean emailSent = emailService.sendEmail(toEmail, subject, body);
-
-            if (emailSent) {
-                logger.info("Booking confirmation email sent successfully.");
+                if (emailSent) {
+                    logger.info("Booking confirmation email sent successfully.");
+                } else {
+                    return ResponseEntity.status(500).body(Map.of("error", "Failed to create booking"));
+                }
+                
+                return ResponseEntity.ok(response);
             } else {
-                logger.info("Failed to send booking confirmation email.");
+                return ResponseEntity.status(500).body(Map.of("error", "Failed to create booking"));
             }
-
-            return ResponseEntity.ok(response);
-        } else {
-            return ResponseEntity.status(500).body(null);
+        }
+         catch (RuntimeException e) {
+            // Return the validation error with HTTP 400
+            logger.warn("Validation error: {}", e.getMessage());
+            return ResponseEntity.status(400).body(Map.of("error", e.getMessage()));
+        } catch (Exception e) {
+            logger.error("Unexpected error creating booking", e);
+            return ResponseEntity.status(500).body(Map.of("error", "An unexpected error occurred"));
         }
     }
 
