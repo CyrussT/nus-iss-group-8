@@ -20,6 +20,7 @@ const fetchAdminStats = async () => {
   }
 };
 
+const isEmergencyModalOpen = ref(false);
 const emergencyInput = ref('');
 
 const pushEmergency = async () => {
@@ -27,7 +28,7 @@ const pushEmergency = async () => {
     alert('Message cannot be empty!');
     return;
   }
-  
+
   try {
     await axios.post('http://localhost:8080/api/emergency/push', {
       message: emergencyInput.value
@@ -42,35 +43,65 @@ const pushEmergency = async () => {
 
 onMounted(fetchAdminStats);
 </script>
-
 <template>
-  <div class="p-8 flex flex-col gap-6">
-    <h1 class="text-2xl font-bold">Admin Dashboard</h1>
+  <div class="p-8 space-y-6">
+
+    <!-- Header and Emergency Button -->
+    <div class="flex justify-between items-center">
+      <h1 class="text-2xl font-bold">Admin Dashboard</h1>
+      <UButton @click="isEmergencyModalOpen = true" color="red" variant="solid" 
+      class="px-4 py-2 gap-2" 
+      label="Push Emergency Notice" />
+    </div>
+
+    <!-- Stat Cards -->
     <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-      <div class="bg-white p-6 rounded-lg shadow-md text-center">
-        <p class="text-gray-600">Today's Bookings</p>
-        <p class="text-4xl font-bold">{{ todayBookingsCount }}</p>
-      </div>
-      <div class="bg-white p-6 rounded-lg shadow-md text-center">
-        <p class="text-gray-600">Pending Approvals</p>
-        <p class="text-4xl font-bold">{{ pendingApprovalsCount }}</p>
-      </div>
-      <div class="bg-white p-6 rounded-lg shadow-md text-center">
-        <p class="text-gray-600">Facilities Under Maintenance</p>
-        <p class="text-4xl font-bold">{{ facilitiesUnderMaintenanceCount }}</p>
-      </div>
+      <UCard>
+        <template #header>
+          <p class="text-gray-500">Today's Bookings</p>
+        </template>
+        <p class="text-4xl font-bold text-center">{{ todayBookingsCount }}</p>
+      </UCard>
+
+      <UCard>
+        <template #header>
+          <p class="text-gray-500">Pending Approvals</p>
+        </template>
+        <p class="text-4xl font-bold text-center">{{ pendingApprovalsCount }}</p>
+      </UCard>
+
+      <UCard>
+        <template #header>
+          <p class="text-gray-500">Facilities Under Maintenance</p>
+        </template>
+        <p class="text-4xl font-bold text-center">{{ facilitiesUnderMaintenanceCount }}</p>
+      </UCard>
     </div>
-    <div v-if="emergencyMessage" class="bg-red-100 border border-red-300 p-4 rounded-lg mt-6">
-      <h2 class="font-bold text-lg mb-2">🚨 Emergency Message</h2>
-      <p>{{ emergencyMessage }}</p>
-    </div>
-  </div>
 
-    <div class="p-6 bg-red-50 border border-red-300 rounded-xl shadow-lg mt-6">
-    <h2 class="text-xl font-bold text-red-700 mb-4">Emergency Notice</h2>
+    <!-- Emergency Message Display -->
+    <UCard v-if="emergencyMessage" class="border border-red-300 bg-red-50">
+      <template #header>
+        <h2 class="text-lg font-bold text-red-700">🚨 Emergency Message</h2>
+      </template>
+      <p class="text-red-700">{{ emergencyMessage }}</p>
+    </UCard>
 
-    <UTextarea v-model="emergencyInput" placeholder="Type emergency message here..." class="mb-4" rows="3" />
+    <!-- Emergency Modal -->
+    <UModal v-model="isEmergencyModalOpen">
+      <div class="relative p-6 bg-red-50 border border-red-300 rounded-xl shadow-lg">
+        <!-- Close Button -->
+        <button @click="isEmergencyModalOpen = false"
+          class="absolute top-3 right-3 text-red-600 hover:text-red-800 text-xl font-bold">
+          &times;
+        </button>
 
-    <UButton @click="pushEmergency" color="red" variant="solid" label="Push Notice" />
+        <h2 class="text-xl font-bold text-red-700 mb-4">Emergency Notice</h2>
+
+        <UTextarea v-model="emergencyInput" placeholder="Type emergency message here..." class="mb-4" :rows="3" />
+
+        <UButton @click="pushEmergency" color="red" variant="solid" label="Push Notice" />
+      </div>
+    </UModal>
   </div>
 </template>
+

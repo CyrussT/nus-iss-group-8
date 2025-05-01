@@ -1,8 +1,12 @@
 <script setup lang="ts">
-import { ref, computed } from "vue";
+import { onMounted, ref, computed } from "vue";
 import { useBooking } from "@/composables/useBooking";
 import { useAuthStore } from "@/composables/authStore";
 import ConfirmationModal from "@/components/booking/ConfirmationModal.vue";
+import { Client } from '@stomp/stompjs';
+import { useToast } from '#imports'
+const toast = useToast();
+
 
 const { upcomingApprovedBookings, pendingBookings, pastBookings, availableCredits, fetchUpcomingApprovedBookings, fetchPendingBookings, fetchPastBookings, fetchAvailableCredits, fetchAccountId } = useBooking();
 const auth = useAuthStore();
@@ -20,6 +24,30 @@ const loadStudentData = async () => {
       fetchAvailableCredits(auth.user.value.email);
     }
   }
+};
+
+const emergencyMessage = ref();
+
+const connectWebSocket = () => {
+  const stompClient = new Client({
+    brokerURL: 'ws://localhost:8080/ws',
+    reconnectDelay: 5000,
+    onConnect: () => {
+      console.log('Connected to WebSocket!');
+      stompClient.subscribe('/topic/emergency', (message) => {
+        emergencyMessage.value = message.body;
+        setTimeout(() => {
+          emergencyMessage.value = null;
+        }, 10_000);
+      });
+
+    },
+    onDisconnect: () => {
+      console.log('Disconnected from WebSocket.');
+    },
+  });
+
+  stompClient.activate();
 };
 
 await loadStudentData();
@@ -71,40 +99,89 @@ const openCancelModal = (bookingId: number) => {
 const cancelBooking = async (bookingId: number) => {
   try {
     const email = auth.user.value?.email || '';
-    await fetch(`http://localhost:8080/api/bookings/cancel-booking/${bookingId}?toEmail=${encodeURIComponent(email)}`, { method: 'DELETE' });
+    await fetch(`http://localhost:8080/api/bookings/cancel-booking/${bookingId}?toEmail=${encodeURIComponent(email)}`, {
+      method: 'DELETE'
+    });
+
+    toast.add({
+      title: 'Booking Cancelled',
+      description: 'Your booking was successfully cancelled.',
+      color: 'green'
+    });
+
     if (accountId.value) {
       fetchUpcomingApprovedBookings(accountId.value);
       fetchPendingBookings(accountId.value);
       fetchPastBookings(accountId.value);
       fetchAvailableCredits(email);
     }
+
   } catch (e) {
     console.error('Error cancelling booking', e);
+
+    toast.add({
+      title: 'Error',
+      description: 'Failed to cancel the booking. Please try again.',
+      color: 'red'
+    });
   }
 };
+onMounted(() => {
+  connectWebSocket();
+});
 </script>
 
 <template>
-  <div class="p-8 flex flex-col gap-6">
+  <div class="p-8 grid grid-cols-1 lg:grid-cols-[4fr_1fr] gap-6">
+    <!-- Bookings Section (80%) -->
     <div class="bg-white rounded-xl shadow-md p-6">
       <h1 class="text-2xl font-bold mb-4">My Bookings</h1>
+
+      <div v-if="emergencyMessage" class="bg-red-100 p-4 rounded-xl text-red-700 font-semibold shadow mb-4">
+        🚨 {{ emergencyMessage }}
+      </div>
+
       <UTabs :items="items">
         <template #item="{ item }">
           <div v-if="item.key === 'upcoming'">
-            <UTable :rows="formattedUpcomingBookings" :columns="columns" />
+            <div v-if="formattedUpcomingBookings.length > 0">
+              <UTable :rows="formattedUpcomingBookings" :columns="columns" class="shadow-lg rounded-lg overflow-hidden">
+                <template #actions-data="{ row }">
+                  <UButton @click="openCancelModal(row.bookingId)" color="red" variant="solid" label="Cancel" />
+                </template>
+              </UTable>
+            </div>
+            <div v-else class="text-center py-8 text-gray-500">
+              No upcoming bookings.
+            </div>
           </div>
+
           <div v-else-if="item.key === 'pending'">
-            <UTable :rows="formattedPendingBookings" :columns="columns" />
+            <div v-if="formattedPendingBookings.length > 0">
+              <UTable :rows="formattedPendingBookings" :columns="columns" class="shadow-lg rounded-lg overflow-hidden">
+                <template #actions-data="{ row }">
+                  <UButton @click="openCancelModal(row.bookingId)" color="red" variant="solid" label="Cancel" />
+                </template>
+              </UTable>
+            </div>
+            <div v-else class="text-center py-8 text-gray-500">
+              No pending bookings.
+            </div>
           </div>
+
           <div v-else-if="item.key === 'past'">
             <UTable :rows="formattedPastBookings" :columns="columns.filter(c => c.key !== 'actions')" />
           </div>
         </template>
       </UTabs>
     </div>
-    <div class="bg-blue-100 rounded-xl shadow-md p-6 text-center">
+
+    <!-- Credits Section (20%) -->
+    <div class="bg-blue-100 rounded-xl shadow-md p-6 text-center h-fit">
       <h2 class="text-xl font-semibold mb-2">Available Credits</h2>
       <p class="text-3xl font-bold">{{ formattedCredits }}</p>
     </div>
   </div>
+
+  <ConfirmationModal ref="confirmModal" />
 </template>

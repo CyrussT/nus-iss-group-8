@@ -530,7 +530,7 @@ onMounted(async () => {
 <template>
   <div class="p-8">
     <h1 class="text-2xl font-bold mb-4">Facility Management</h1>
-
+    
     <div class="grid grid-cols-2 gap-4">
       <UInputMenu v-model="searchQuery.resourceTypeId" :options="resourceTypeOptions" option-attribute="name"
         value-attribute="id" placeholder="Type or select resource type" size="md" class="w-full" clearable />

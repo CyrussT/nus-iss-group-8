@@ -56,7 +56,9 @@ const connectWebSocket = () => {
 
       stompClient.subscribe('/topic/emergency', (message) => {
         emergencyMessage.value = message.body;
-        alert(`🚨 Emergency Notice: ${message.body}`);  // You can make a custom popup later
+        setTimeout(() => {
+          emergencyMessage.value = null;
+        }, 10_000);
       });
 
     },
