@@ -8,6 +8,7 @@ import static org.mockito.ArgumentMatchers.anyMap;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -48,10 +49,11 @@ import com.group8.rbs.dto.booking.BookingResponseDTO;
 import com.group8.rbs.dto.booking.FacilitySearchDTO;
 import com.group8.rbs.enums.BookingStatus;
 import com.group8.rbs.security.CustomUserDetailsService;
-import com.group8.rbs.service.security.JwtService;
-import com.group8.rbs.service.security.AuthService;
 import com.group8.rbs.security.SecurityConfig;
 import com.group8.rbs.service.booking.BookingService;
+import com.group8.rbs.service.email.CustomEmailService;
+import com.group8.rbs.service.security.AuthService;
+import com.group8.rbs.service.security.JwtService;
 import com.group8.rbs.service.email.EmailContentStrategy;
 import com.group8.rbs.service.email.EmailContentStrategyFactory;
 import com.group8.rbs.service.email.EmailService;
@@ -181,6 +183,32 @@ public class BookingControllerTest {
         // Verify the service was called with appropriate filters
         verify(bookingService, times(1)).searchFacilities(any(FacilitySearchDTO.class));
     }
+    
+    @Test
+    @DisplayName("Search facilities without date parameter should return 400 Bad Request")
+    @WithMockUser(username = "test@example.com", roles = {"STUDENT"})
+    void searchFacilitiesWithoutDateParameterShouldReturnBadRequest() throws Exception {
+        mockMvc.perform(get("/api/bookings/facilities/search")
+                .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isBadRequest());
+        
+        // Verify service was never called
+        verify(bookingService, never()).searchFacilities(any(FacilitySearchDTO.class));
+    }
+    
+    @Test
+    @DisplayName("Search facilities with empty results should return empty array")
+    @WithMockUser(username = "test@example.com", roles = {"STUDENT"})
+    void searchFacilitiesWithEmptyResultsShouldReturnEmptyArray() throws Exception {
+        when(bookingService.searchFacilities(any(FacilitySearchDTO.class))).thenReturn(Collections.emptyList());
+
+        mockMvc.perform(get("/api/bookings/facilities/search")
+                .param("date", LocalDate.now().toString())
+                .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$").isArray())
+                .andExpect(jsonPath("$").isEmpty());
+    }
 
     @Test
     @DisplayName("Get dropdown options should return options")
@@ -199,6 +227,28 @@ public class BookingControllerTest {
                 .andExpect(jsonPath("$.locations").isArray())
                 .andExpect(jsonPath("$.resourceNames").isArray())
                 .andExpect(jsonPath("$.resourceTypes").isArray());
+    }
+    
+    @Test
+    @DisplayName("Get dropdown options should handle empty options")
+    @WithMockUser(username = "test@example.com", roles = {"STUDENT"})
+    void getDropdownOptionsShouldHandleEmptyOptions() throws Exception {
+        Map<String, Object> options = new HashMap<>();
+        options.put("resourceTypes", Collections.emptyList());
+        options.put("locations", Collections.emptyList());
+        options.put("resourceNames", Collections.emptyList());
+        
+        when(bookingService.getDropdownOptions()).thenReturn(options);
+
+        mockMvc.perform(get("/api/bookings/dropdown-options")
+                .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.locations").isArray())
+                .andExpect(jsonPath("$.locations").isEmpty())
+                .andExpect(jsonPath("$.resourceNames").isArray())
+                .andExpect(jsonPath("$.resourceNames").isEmpty())
+                .andExpect(jsonPath("$.resourceTypes").isArray())
+                .andExpect(jsonPath("$.resourceTypes").isEmpty());
     }
 
     @Test
@@ -238,19 +288,32 @@ public class BookingControllerTest {
         when(bookingService.createBooking(any(BookingDTO.class)))
                 .thenThrow(new RuntimeException("Insufficient credits"));
 
-        try {
-            mockMvc.perform(post("/api/bookings")
-                    .contentType(MediaType.APPLICATION_JSON)
-                    .content(objectMapper.writeValueAsString(bookingDTO)))
-                    .andExpect(status().isInternalServerError());
-        } catch (Exception e) {
-            // This is expected because of how the controller handles the exception
-            assertTrue(e.getCause() instanceof RuntimeException);
-            assertEquals("Insufficient credits", e.getCause().getMessage());
-        }
-
+        mockMvc.perform(post("/api/bookings")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(bookingDTO)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error").value("Insufficient credits"));
+        
         verify(emailServiceFactory, times(0)).getEmailService(anyString());
         verify(emailContentStrategyFactory, times(0)).getStrategy(anyString());
+        verify(emailService, never()).sendEmail(anyString(), anyString(), anyString());
+    }
+    
+    @Test
+    @DisplayName("Create booking should handle unexpected runtime exceptions with 400 status")
+    @WithMockUser(username = "test@example.com", roles = {"STUDENT"})
+    void createBookingShouldHandleUnexpectedExceptions() throws Exception {
+        when(bookingService.createBooking(any(BookingDTO.class))).thenThrow(new NullPointerException("Unexpected error"));
+
+        mockMvc.perform(post("/api/bookings")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(bookingDTO)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error").value("Unexpected error"));
+        
+        verify(emailServiceFactory, times(0)).getEmailService(anyString());
+        verify(emailContentStrategyFactory, times(0)).getStrategy(anyString());
+        verify(emailService, never()).sendEmail(anyString(), anyString(), anyString());
     }
 
     @Test
@@ -281,6 +344,17 @@ public class BookingControllerTest {
                 .andExpect(jsonPath("$").isArray())
                 .andExpect(jsonPath("$").isEmpty());
     }
+    
+    @Test
+    @DisplayName("Get upcoming approved bookings should require accountId parameter")
+    @WithMockUser(username = "test@example.com", roles = {"STUDENT"})
+    void getUpcomingApprovedBookingsShouldRequireAccountIdParameter() throws Exception {
+        mockMvc.perform(get("/api/bookings/upcoming-approved")
+                .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isBadRequest());
+        
+        verify(bookingService, never()).getUpcomingApprovedOrConfirmedBookings(anyLong());
+    }
 
     @Test
     @DisplayName("Get pending future bookings should return bookings")
@@ -294,6 +368,31 @@ public class BookingControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].bookingId").value(1))
                 .andExpect(jsonPath("$[0].facilityName").value("Test Facility"));
+    }
+    
+    @Test
+    @DisplayName("Get pending future bookings should handle empty list")
+    @WithMockUser(username = "test@example.com", roles = {"STUDENT"})
+    void getPendingFutureBookingsShouldHandleEmptyList() throws Exception {
+        when(bookingService.getPendingFutureBookings(anyLong())).thenReturn(Collections.emptyList());
+
+        mockMvc.perform(get("/api/bookings/pending-future")
+                .param("accountId", "1")
+                .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$").isArray())
+                .andExpect(jsonPath("$").isEmpty());
+    }
+    
+    @Test
+    @DisplayName("Get pending future bookings should require accountId parameter")
+    @WithMockUser(username = "test@example.com", roles = {"STUDENT"})
+    void getPendingFutureBookingsShouldRequireAccountIdParameter() throws Exception {
+        mockMvc.perform(get("/api/bookings/pending-future")
+                .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isBadRequest());
+        
+        verify(bookingService, never()).getPendingFutureBookings(anyLong());
     }
 
     @Test
@@ -325,6 +424,34 @@ public class BookingControllerTest {
                 .andExpect(jsonPath("$[0].bookingId").value(1));
 
         verify(bookingService, times(1)).getBookingHistory(anyLong(), eq(null));
+    }
+    
+    @Test
+    @DisplayName("Get booking history should handle empty list")
+    @WithMockUser(username = "test@example.com", roles = {"STUDENT"})
+    void getBookingHistoryShouldHandleEmptyList() throws Exception {
+        when(bookingService.getBookingHistory(anyLong(), anyString())).thenReturn(Collections.emptyList());
+
+        mockMvc.perform(post("/api/bookings/history")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(bookingRequestDTO)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$").isArray())
+                .andExpect(jsonPath("$").isEmpty());
+    }
+    
+    @Test
+    @DisplayName("Get booking history should handle malformed request body")
+    @WithMockUser(username = "test@example.com", roles = {"STUDENT"})
+    void getBookingHistoryShouldHandleMalformedRequestBody() throws Exception {
+        String invalidJson = "{\"studentId\": \"notANumber\"}";
+
+        mockMvc.perform(post("/api/bookings/history")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(invalidJson))
+                .andExpect(status().isBadRequest());
+        
+        verify(bookingService, never()).getBookingHistory(anyLong(), anyString());
     }
 
     @Test
@@ -407,6 +534,18 @@ public class BookingControllerTest {
             assertEquals("Email error", e.getCause().getMessage());
         }
     }
+    
+    @Test
+    @DisplayName("Delete booking should require toEmail parameter")
+    @WithMockUser(username = "test@example.com", roles = {"STUDENT"})
+    void deleteBookingShouldRequireToEmailParameter() throws Exception {
+        mockMvc.perform(delete("/api/bookings/cancel-booking/1")
+                .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isBadRequest());
+        
+        verify(bookingService, never()).deleteBooking(anyLong());
+        verify(emailService, never()).sendEmail(anyString(), anyString(), anyString());
+    }
 
     @Test
     @DisplayName("Update booking status to APPROVED should return success")
@@ -466,7 +605,7 @@ public class BookingControllerTest {
                 .andExpect(status().isNotFound())
                 .andExpect(content().string(org.hamcrest.Matchers.containsString("not found")));
     }
-
+    
     @Test
     @DisplayName("Get pending bookings should return bookings list")
     @WithMockUser(username = "test@example.com", roles = { "STUDENT" })
@@ -489,5 +628,37 @@ public class BookingControllerTest {
         mockMvc.perform(get("/api/bookings/pending-bookings")
                 .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isNoContent());
+    }
+    
+    @Test
+    @DisplayName("Create booking with null response should return error")
+    @WithMockUser(username = "test@example.com", roles = {"STUDENT"})
+    void createBookingWithNullResponseShouldReturnError() throws Exception {
+        when(bookingService.createBooking(any(BookingDTO.class))).thenReturn(null);
+
+        mockMvc.perform(post("/api/bookings")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(bookingDTO)))
+                .andExpect(status().isInternalServerError())
+                .andExpect(jsonPath("$.error").value("Failed to create booking"));
+    }
+    
+    @Test
+    @DisplayName("Create booking with null booking ID should return error")
+    @WithMockUser(username = "test@example.com", roles = {"STUDENT"})
+    void createBookingWithNullBookingIdShouldReturnError() throws Exception {
+        // Create response with null bookingId
+        BookingResponseDTO responseWithNullId = BookingResponseDTO.builder()
+                .bookingId(null) // Null bookingId
+                .facilityName("Test Facility")
+                .build();
+        
+        when(bookingService.createBooking(any(BookingDTO.class))).thenReturn(responseWithNullId);
+
+        mockMvc.perform(post("/api/bookings")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(bookingDTO)))
+                .andExpect(status().isInternalServerError())
+                .andExpect(jsonPath("$.error").value("Failed to create booking"));
     }
 }
