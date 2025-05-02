@@ -1,0 +1,129 @@
+name: CD - Build and Deploy
+
+on:
+  workflow_run:
+    workflows: ["CI"]
+    branches: [main]
+    types:
+      - completed
+
+jobs:
+  build-and-deploy:
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # Set up JDK for Spring Boot
+      - name: Set up JDK 21
+        uses: actions/setup-java@v3
+        with:
+          distribution: "temurin"
+          java-version: "21"
+          cache: "maven"
+
+      # Build backend
+      - name: Build backend with Maven
+        run: |
+          cd rbs-backend
+          mvn clean package -DskipTests
+
+      # Set up Node.js/Bun for frontend
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      # Install Bun
+      - name: Install Bun
+        run: curl -fsSL https://bun.sh/install | bash
+
+      # Set up PATH to include Bun
+      - name: Set up PATH for Bun
+        run: echo "$HOME/.bun/bin" >> $GITHUB_PATH
+
+      # Build frontend
+      - name: Build frontend
+        run: |
+          cd rbs-frontend
+          bun install
+          bun run build
+
+      # Create deployment package
+      - name: Create deployment package
+        run: |
+          mkdir -p deploy
+          cp rbs-backend/target/*.jar deploy/rbs-backend.jar
+          cp -r rbs-frontend/.output deploy/frontend
+
+          # Create run scripts
+            echo '#!/bin/bash
+            cd /opt/rbs
+            nohup java -jar rbs-backend.jar --spring.profiles.active=prod > backend.log 2>&1 &
+            echo $! > backend.pid' > deploy/start-backend.sh
+
+          echo '#!/bin/bash
+          cd /opt/rbs
+          if [ -f backend.pid ]; then
+            kill $(cat backend.pid)
+            rm backend.pid
+          fi' > deploy/stop-backend.sh
+
+          echo '#!/bin/bash
+          cd /opt/rbs/frontend
+          nohup node .output/server/index.mjs > frontend.log 2>&1 &
+          echo $! > frontend.pid' > deploy/start-frontend.sh
+
+          echo '#!/bin/bash
+          cd /opt/rbs
+          if [ -f frontend/frontend.pid ]; then
+            kill $(cat frontend/frontend.pid)
+            rm frontend/frontend.pid
+          fi' > deploy/stop-frontend.sh
+
+          chmod +x deploy/*.sh
+
+      # Deploy to DigitalOcean
+      - name: Deploy to DigitalOcean
+        uses: appleboy/scp-action@v0.1.4
+        with:
+          host: ${{ secrets.DROPLET_HOST }}
+          username: ${{ secrets.DROPLET_USERNAME }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          source: "deploy/*"
+          target: "/tmp/rbs-deploy"
+          strip_components: 1
+
+      # Run deployment script on server
+      - name: Execute deployment commands
+        uses: appleboy/ssh-action@v1.0.0
+        with:
+          host: ${{ secrets.DROPLET_HOST }}
+          username: ${{ secrets.DROPLET_USERNAME }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            # Stop existing services
+            if [ -f /opt/rbs/stop-backend.sh ]; then
+              cd /opt/rbs && ./stop-backend.sh
+            fi
+            if [ -f /opt/rbs/stop-frontend.sh ]; then
+              cd /opt/rbs && ./stop-frontend.sh
+            fi
+
+            # Create deployment directory if it doesn't exist
+            mkdir -p /opt/rbs/frontend
+
+            # Copy deployment files
+            cp /tmp/rbs-deploy/rbs-backend.jar /opt/rbs/
+            cp -r /tmp/rbs-deploy/frontend/* /opt/rbs/frontend/
+            cp /tmp/rbs-deploy/*.sh /opt/rbs/
+            chmod +x /opt/rbs/*.sh
+
+            # Start services
+            cd /opt/rbs && ./start-backend.sh
+            cd /opt/rbs && ./start-frontend.sh
+
+            # Clean up
+            rm -rf /tmp/rbs-deploy
