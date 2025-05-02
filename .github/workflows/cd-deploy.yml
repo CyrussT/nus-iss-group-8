@@ -56,13 +56,23 @@ jobs:
         run: |
           mkdir -p deploy
           cp rbs-backend/target/*.jar deploy/rbs-backend.jar
-          cp -r rbs-frontend/.output deploy/frontend
+          # Create proper structure for Nuxt
+          mkdir -p deploy/frontend/.output
+          cp -r rbs-frontend/.output/* deploy/frontend/.output/
+
+          # Create package.json for production dependencies
+          echo '{
+            "name": "rbs-frontend",
+            "dependencies": {
+              "defu": "^6.1.2"
+            }
+          }' > deploy/frontend/package.json
 
           # Create run scripts
-            echo '#!/bin/bash
-            cd /opt/rbs
-            nohup java -jar rbs-backend.jar --spring.profiles.active=prod > backend.log 2>&1 &
-            echo $! > backend.pid' > deploy/start-backend.sh
+          echo '#!/bin/bash
+          cd /opt/rbs
+          nohup java -jar rbs-backend.jar --spring.profiles.active=prod > backend.log 2>&1 &
+          echo $! > backend.pid' > deploy/start-backend.sh
 
           echo '#!/bin/bash
           cd /opt/rbs
@@ -73,6 +83,8 @@ jobs:
 
           echo '#!/bin/bash
           cd /opt/rbs/frontend
+          # Install production dependencies for Nuxt
+          npm install --omit=dev
           nohup node .output/server/index.mjs > frontend.log 2>&1 &
           echo $! > frontend.pid' > deploy/start-frontend.sh
 
