@@ -21,9 +21,9 @@ public interface FacilityRepository extends JpaRepository<Facility, Long>,JpaSpe
 
     @Query(value = "SELECT * FROM TBL_FACILITY f WHERE " +
     "(:resourceType IS NULL OR f.RESOURCE_TYPE = :resourceType) " +
-    "AND (:resourceName IS NULL OR f.RESOURCE_NAME = :resourceName) " +
+    "AND (:resourceName IS NULL OR f.RESOURCE_NAME LIKE CONCAT('%', :resourceName, '%')) " +
     "AND (:location IS NULL OR f.LOCATION = :location) " +
-    "AND (:capacity IS NULL OR f.CAPACITY = :capacity) " +
+    "AND (:capacity IS NULL OR f.CAPACITY >= :capacity) " +
     "ORDER BY f.RESOURCE_NAME", nativeQuery = true)
     List<Facility> searchFacilities(@Param("resourceType") Long resourceType,
                                 @Param("resourceName") String resourceName,
