@@ -47,9 +47,9 @@ jobs:
       # Build frontend
       - name: Build frontend
         run: |
-          cd rbs-frontend
-          bun install
-          bun run build
+            cd rbs-frontend
+            bun install
+            API_BASE_URL="" bun run build
 
       # Create deployment package
       - name: Create deployment package
@@ -85,7 +85,7 @@ jobs:
           cd /opt/rbs/frontend
           # Install production dependencies for Nuxt
           npm install --omit=dev
-          nohup node .output/server/index.mjs > frontend.log 2>&1 &
+          nohup node server/index.mjs > frontend.log 2>&1 &
           echo $! > frontend.pid' > deploy/start-frontend.sh
 
           echo '#!/bin/bash
