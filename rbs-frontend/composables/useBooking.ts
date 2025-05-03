@@ -2,7 +2,6 @@ import { ref } from "vue";
 import axios from "axios";
 import type { Booking, Facility } from "./useFacility"; // Import interfaces from useFacility.ts
 
-const { apiUrl } = useApi();
 export interface SearchCriteria {
   resourceTypeId?: string;
   resourceName?: string;
@@ -23,6 +22,7 @@ export interface BookingRequest {
 }
 
 export function useBooking() {
+  const { apiUrl } = useApi();
   const upcomingApprovedBookings = ref<Booking[]>([]);
   const pendingBookings = ref<Booking[]>([]); 
   const pastBookings = ref<Booking[]>([]); 
