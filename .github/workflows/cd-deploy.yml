@@ -49,7 +49,7 @@ jobs:
         run: |
             cd rbs-frontend
             bun install
-            API_BASE_URL="" bun run build
+            API_BASE_URL="http://${{ secrets.DROPLET_HOST }}" bun run build
 
       # Create deployment package
       - name: Create deployment package
