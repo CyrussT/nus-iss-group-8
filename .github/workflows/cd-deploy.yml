@@ -42,22 +42,33 @@ jobs:
       - name: Set up PATH for Bun
         run: echo "$HOME/.bun/bin" >> $GITHUB_PATH
 
-      # Build frontend
+      # Build frontend with debug output
       - name: Build frontend
         run: |
             cd rbs-frontend
             bun install
             API_BASE_URL="http://${{ secrets.DROPLET_HOST }}" bun run build
+            # Debug: Verify .output directory exists
+            ls -la .output/
+            echo "Contents of .output directory:"
+            find .output -type f | head -n 5
 
       # Create deployment package
       - name: Create deployment package
         run: |
           mkdir -p deploy
           cp rbs-backend/target/*.jar deploy/rbs-backend.jar
+          
           # Create proper structure for Nuxt
-          mkdir -p deploy/frontend/.output
-          cp -r rbs-frontend/.output/* deploy/frontend/.output/
-
+          mkdir -p deploy/frontend
+          
+          # Copy the entire .output directory structure
+          cp -r rbs-frontend/.output deploy/frontend/
+          
+          # Debug: Verify the structure in the deployment package
+          ls -la deploy/frontend/
+          ls -la deploy/frontend/.output/
+          
           # Create package.json for production dependencies
           echo '{
             "name": "rbs-frontend",
@@ -83,7 +94,12 @@ jobs:
           cd /opt/rbs/frontend
           # Install production dependencies for Nuxt
           npm install --omit=dev
-          nohup node server/index.mjs > frontend.log 2>&1 &
+          # Print directory structure for debugging
+          echo "Directory structure before starting:"
+          ls -la
+          ls -la .output/ || echo ".output directory not found!"
+          # Start the Nuxt server
+          nohup node .output/server/index.mjs > frontend.log 2>&1 &
           echo $! > frontend.pid' > deploy/start-frontend.sh
 
           echo '#!/bin/bash
@@ -95,7 +111,7 @@ jobs:
 
           chmod +x deploy/*.sh
 
-      # Deploy to DigitalOcean
+      # Deploy to DigitalOcean with explicit file mode preservation
       - name: Deploy to DigitalOcean
         uses: appleboy/scp-action@v0.1.4
         with:
@@ -105,8 +121,11 @@ jobs:
           source: "deploy/*"
           target: "/tmp/rbs-deploy"
           strip_components: 1
+          overwrite: true
+          # Preserve file mode to ensure executable scripts work properly
+          rm: true
 
-      # Run deployment script on server
+      # Run deployment script on server with more debugging
       - name: Execute deployment commands
         uses: appleboy/ssh-action@v1.0.0
         with:
@@ -123,16 +142,59 @@ jobs:
             fi
 
             # Create deployment directory if it doesn't exist
+            mkdir -p /opt/rbs
+
+            # Clean up old frontend files to ensure complete replacement
+            echo "Removing old frontend directory..."
+            rm -rf /opt/rbs/frontend
             mkdir -p /opt/rbs/frontend
 
-            # Copy deployment files
-            cp /tmp/rbs-deploy/rbs-backend.jar /opt/rbs/
-            cp -r /tmp/rbs-deploy/frontend/{*,.output} /opt/rbs/frontend/
-            cp /tmp/rbs-deploy/*.sh /opt/rbs/
+            # Debug: Check what's in the temp directory
+            echo "Contents of /tmp/rbs-deploy:"
+            ls -la /tmp/rbs-deploy/
+            echo "Contents of /tmp/rbs-deploy/frontend:"
+            ls -la /tmp/rbs-deploy/frontend/
+            
+            # Copy deployment files with verbose output
+            echo "Copying backend JAR..."
+            cp -v /tmp/rbs-deploy/rbs-backend.jar /opt/rbs/
+            
+            echo "Copying frontend files..."
+            cp -rv /tmp/rbs-deploy/frontend/* /opt/rbs/frontend/
+            
+            echo "Copying scripts..."
+            cp -v /tmp/rbs-deploy/*.sh /opt/rbs/
             chmod +x /opt/rbs/*.sh
 
+            # Debug: Check if .output directory exists in source and destination
+            echo "Source .output directory:"
+            ls -la /tmp/rbs-deploy/frontend/.output/ || echo "Source .output directory missing!"
+            
+            echo "Destination .output directory:"
+            ls -la /opt/rbs/frontend/.output/ || echo "Destination .output directory missing!"
+            
+            # If .output directory isn't copying correctly, try direct copy
+            if [ ! -d "/opt/rbs/frontend/.output" ] && [ -d "/tmp/rbs-deploy/frontend/.output" ]; then
+              echo "Direct copy of .output directory..."
+              mkdir -p /opt/rbs/frontend/.output
+              cp -rv /tmp/rbs-deploy/frontend/.output/* /opt/rbs/frontend/.output/
+            fi
+
+            # Final verification of deployed structure
+            echo "Final structure of frontend directory:"
+            ls -la /opt/rbs/frontend/
+            if [ -d "/opt/rbs/frontend/.output" ]; then
+              ls -la /opt/rbs/frontend/.output/
+              echo "Server directory:"
+              ls -la /opt/rbs/frontend/.output/server/ || echo "Server directory missing!"
+            else
+              echo ".output directory still missing!"
+            fi
+
             # Start services
+            echo "Starting backend..."
             cd /opt/rbs && ./start-backend.sh
+            echo "Starting frontend..."
             cd /opt/rbs && ./start-frontend.sh
 
             # Clean up
