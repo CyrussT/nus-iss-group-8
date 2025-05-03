@@ -56,10 +56,11 @@ jobs:
         run: |
           mkdir -p deploy
           cp rbs-backend/target/*.jar deploy/rbs-backend.jar
+          
           # Create proper structure for Nuxt
-          mkdir -p deploy/frontend/.output
-          cp -r rbs-frontend/.output/* deploy/frontend/.output/
-
+          mkdir -p deploy/frontend
+          cp -r rbs-frontend/.output deploy/frontend/
+          
           # Create package.json for production dependencies
           echo '{
             "name": "rbs-frontend",
@@ -85,7 +86,7 @@ jobs:
           cd /opt/rbs/frontend
           # Install production dependencies for Nuxt
           npm install --omit=dev
-          nohup node server/index.mjs > frontend.log 2>&1 &
+          nohup node .output/server/index.mjs > frontend.log 2>&1 &
           echo $! > frontend.pid' > deploy/start-frontend.sh
 
           echo '#!/bin/bash
@@ -125,6 +126,10 @@ jobs:
             fi
 
             # Create deployment directory if it doesn't exist
+            mkdir -p /opt/rbs
+
+            # Clean up old frontend files to ensure complete replacement
+            rm -rf /opt/rbs/frontend
             mkdir -p /opt/rbs/frontend
 
             # Copy deployment files
@@ -132,6 +137,11 @@ jobs:
             cp -r /tmp/rbs-deploy/frontend/* /opt/rbs/frontend/
             cp /tmp/rbs-deploy/*.sh /opt/rbs/
             chmod +x /opt/rbs/*.sh
+
+            # Debug: List deployed files to verify
+            echo "Listing deployed frontend files:"
+            ls -la /opt/rbs/frontend/
+            ls -la /opt/rbs/frontend/.output/
 
             # Start services
             cd /opt/rbs && ./start-backend.sh
