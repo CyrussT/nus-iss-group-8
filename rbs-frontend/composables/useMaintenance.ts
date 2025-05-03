@@ -1,6 +1,7 @@
 import { ref, reactive } from "vue";
 import axios from "axios";
 
+const { apiUrl } = useApi();
 // Define types for maintenance status
 interface MaintenanceStatusMap {
   [key: string]: boolean;
@@ -47,8 +48,8 @@ export function useMaintenance() {
       
       // Use the date-specific endpoint if date is provided
       const url = date 
-        ? `http://localhost:8080/api/maintenance/check/${facilityId}?date=${date}`
-        : `http://localhost:8080/api/maintenance/check/${facilityId}`;
+        ? `${apiUrl}/api/maintenance/check/${facilityId}?date=${date}`
+        : `${apiUrl}/api/maintenance/check/${facilityId}`;
       
       const response = await axios.get<boolean>(url);
       
@@ -97,7 +98,7 @@ export function useMaintenance() {
       
       // Make a single API call with all facility IDs and date
       const response = await axios.post<Record<string, boolean>>(
-        'http://localhost:8080/api/maintenance/check-maintenance-status',
+        `${apiUrl}/api/maintenance/check-maintenance-status`,
         payload
       );
       
@@ -154,8 +155,8 @@ export function useMaintenance() {
       
       // Use date-specific endpoint if date is provided
       const url = date
-        ? `http://localhost:8080/api/maintenance/current/${facilityId}?date=${date}`
-        : `http://localhost:8080/api/maintenance/current/${facilityId}`;
+        ? `${apiUrl}/api/maintenance/current/${facilityId}?date=${date}`
+        : `${apiUrl}/api/maintenance/current/${facilityId}`;
         
       const response = await axios.get<MaintenanceDetails>(url);
       return response.data;
@@ -183,7 +184,7 @@ export function useMaintenance() {
       maintenanceLoading.value = true;
       
       const response = await axios.get(
-        `http://localhost:8080/api/maintenance/affected-bookings`, {
+        `${apiUrl}/api/maintenance/affected-bookings`, {
           params: {
             facilityId,
             startDate,

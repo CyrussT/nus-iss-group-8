@@ -1,6 +1,8 @@
 import { ref } from "vue";
 import axios from "axios";
 
+const { apiUrl } = useApi(); // Assuming you have a useApi composable to get the API URL
+
 // Define the expected type for booking objects
 interface Booking {
   bookingId: number;
@@ -21,7 +23,7 @@ export function bookingRequestManagement() {
   const fetchPendingBookings = async() => {
     try {
       loading.value = true;
-      const response = await axios.get("http://localhost:8080/api/bookings/pending-bookings", {
+      const response = await axios.get(`${apiUrl}/api/bookings/pending-bookings`, {
         params: {
           status: "PENDING", // Filter by status
           sort: `${sortBy.value},${sortOrder.value}`, // Sorting by selected field and order
