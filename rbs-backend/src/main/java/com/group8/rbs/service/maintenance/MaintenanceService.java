@@ -239,7 +239,7 @@ public class MaintenanceService {
 
                 // Add information about refund if applicable
                 if (bookingCost > 0) {
-                    body += "<p><strong>Credit Refund:</strong> " + bookingCost
+                    body += "<p><strong>Credit Refund:</strong> " + (double)bookingCost/60
                             + " hrs of credits have been returned to your account.</p>";
                 }
 
