@@ -10,6 +10,7 @@ import com.group8.rbs.service.email.EmailContentStrategy;
 import com.group8.rbs.service.email.EmailContentStrategyFactory;
 import com.group8.rbs.service.email.EmailService;
 import com.group8.rbs.service.email.EmailServiceFactory;
+import com.group8.rbs.service.maintenance.MaintenanceService;
 
 import jakarta.mail.MessagingException;
 
@@ -33,14 +34,29 @@ public class BookingController {
 
     private final EmailServiceFactory emailServiceFactory;
     private final EmailContentStrategyFactory emailContentStrategyFactory;
+    private final MaintenanceService maintenanceService;
+
 
     public BookingController(BookingService bookingService,
             EmailServiceFactory emailServiceFactory,
-            EmailContentStrategyFactory emailContentStrategyFactory) {
+            EmailContentStrategyFactory emailContentStrategyFactory,
+            MaintenanceService maintenanceService) {
         this.bookingService = bookingService;
         this.emailServiceFactory = emailServiceFactory;
         this.emailContentStrategyFactory = emailContentStrategyFactory;
+        this.maintenanceService = maintenanceService;
     }
+
+    @GetMapping("/admin/dashboard-stats")
+public ResponseEntity<Map<String, Object>> getDashboardStats() {
+    Map<String, Object> stats = new HashMap<>();
+    stats.put("todayBookings", bookingService.countTodayBookings());
+    stats.put("pendingApprovals", bookingService.countPendingBookings());
+    stats.put("facilitiesUnderMaintenance", maintenanceService.countFacilitiesUnderMaintenanceToday());
+    // If you implement Emergency Announcements: add "latestAnnouncement" here too
+    
+    return ResponseEntity.ok(stats);
+}
 
     @GetMapping("/facilities/search")
     public ResponseEntity<List<FacilitySearchDTO>> searchFacilities(
@@ -160,7 +176,6 @@ public class BookingController {
             EmailService emailService = emailServiceFactory.getEmailService("customEmailService");
             boolean emailSent = emailService.sendEmail(toEmail, subject, body);
             // up user credit
-            
 
             if (emailSent) {
                 logger.info("Email sent successfully after cancellation.");

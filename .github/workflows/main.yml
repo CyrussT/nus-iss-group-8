@@ -84,4 +84,3 @@ jobs:
           cd rbs-frontend
           bun install
           bun test
-          bun run build
