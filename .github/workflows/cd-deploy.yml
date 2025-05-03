@@ -1,13 +1,15 @@
 name: CD - Build and Deploy
 
 on:
-  push:
-    branches:
-      - cd-cyrus
-
+  workflow_run:
+    workflows: ["CI"]
+    branches: [main]
+    types:
+      - completed
 
 jobs:
   build-and-deploy:
+    if: ${{ github.event.workflow_run.conclusion == 'success' }} 
     runs-on: ubuntu-latest
 
     steps:
