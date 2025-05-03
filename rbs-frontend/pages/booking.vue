@@ -559,7 +559,7 @@ const processBookings = () => {
       }
 
       // Add regular bookings
-      if (facility.bookings && facility.bookings.length > 0) {
+      if (!isMaintenanceResource && facility.bookings && facility.bookings.length > 0) {
         facility.bookings.forEach(booking => {
           try {
             // Get the date from bookedDatetime
