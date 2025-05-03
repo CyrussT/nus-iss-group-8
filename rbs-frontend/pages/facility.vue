@@ -483,9 +483,28 @@ const saveMaintenance = async () => {
 
 const saveFacility = async () => {
   try {
+    // Validate required fields
+    if (!facility.value.resourceName || !facility.value.resourceName.trim()) {
+      toast.add({
+        title: 'Validation Error',
+        description: 'Facility name is required.',
+        color: 'red'
+      });
+      return;
+    }
+
+    if (!facility.value.location || !facility.value.location.trim()) {
+      toast.add({
+        title: 'Validation Error',
+        description: 'Facility location is required.',
+        color: 'red'
+      });
+      return;
+    }
+
+    // Continue with save operation
     if (isEditing.value) {
       await axios.put(`${apiUrl}/api/facilities/update/${facility.value.facilityId}`, facility.value);
-      // Show toast notification
       toast.add({
         title: 'Success',
         description: `Facility Updated Successfully!`,
@@ -493,13 +512,13 @@ const saveFacility = async () => {
       });
     } else {
       await axios.post(`${apiUrl}/api/facilities/create`, facility.value);
-      // Show toast notification
       toast.add({
         title: 'Success',
         description: `Facility Created Successfully!`,
         color: 'green'
       });
     }
+
     closeModal();
     fetchFacilities();
   } catch (error) {

@@ -132,9 +132,9 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="p-8 grid grid-cols-1 lg:grid-cols-[4fr_1fr] gap-6">
+  <div class="p-8 grid grid-cols-1 lg:grid-cols-[4fr_1fr] gap-6 bg-white dark:bg-gray-900">
     <!-- Bookings Section (80%) -->
-    <div class="bg-white rounded-xl shadow-md p-6">
+    <div class="bg-white dark:bg-gray-800 rounded-xl shadow-md p-6">
       <h1 class="text-2xl font-bold mb-4">My Bookings</h1>
 
       <div v-if="emergencyMessage" class="bg-red-100 p-4 rounded-xl text-red-700 font-semibold shadow mb-4">
@@ -177,7 +177,7 @@ onMounted(() => {
     </div>
 
     <!-- Credits Section (20%) -->
-    <div class="bg-blue-100 rounded-xl shadow-md p-6 text-center h-fit">
+    <div class="bg-blue-100 dark:bg-blue-900 text-center rounded-xl shadow-md p-6 text-gray-900 dark:text-white h-fit">
       <h2 class="text-xl font-semibold mb-2">Available Credits</h2>
       <p class="text-3xl font-bold">{{ formattedCredits }}</p>
     </div>
