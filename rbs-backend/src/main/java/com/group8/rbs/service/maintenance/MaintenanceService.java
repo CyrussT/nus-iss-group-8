@@ -239,7 +239,8 @@ public class MaintenanceService {
 
                 // Add information about refund if applicable
                 if (bookingCost > 0) {
-                    body += "<p><strong>Credit Refund:</strong> " + (double)bookingCost/60
+                    String formattedRefund = String.format("%.2f", (double)bookingCost / 60);
+                    body += "<p><strong>Credit Refund:</strong> " + formattedRefund
                             + " hrs of credits have been returned to your account.</p>";
                 }
 
