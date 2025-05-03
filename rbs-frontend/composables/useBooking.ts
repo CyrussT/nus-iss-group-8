@@ -2,7 +2,7 @@ import { ref } from "vue";
 import axios from "axios";
 import type { Booking, Facility } from "./useFacility"; // Import interfaces from useFacility.ts
 
-const { apiUrl } = useApi()
+const { apiUrl } = useApi();
 export interface SearchCriteria {
   resourceTypeId?: string;
   resourceName?: string;
