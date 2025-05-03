@@ -1,8 +1,6 @@
 import { ref, onMounted } from "vue";
 import axios from "axios";
 
-const { apiUrl } = useApi();
-
 export interface Booking {
   bookingId: number;
   studentId: string;
@@ -22,6 +20,8 @@ export interface Facility {
 }
 
 export const useFacility = () => {
+  const { apiUrl } = useApi();
+
   const facility = ref<Facility>({
     resourceTypeId: undefined,
     resourceName: "",

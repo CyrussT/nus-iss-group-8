@@ -1,7 +1,6 @@
 import { ref, reactive } from "vue";
 import axios from "axios";
 
-const { apiUrl } = useApi();
 // Define types for maintenance status
 interface MaintenanceStatusMap {
   [key: string]: boolean;
@@ -28,7 +27,17 @@ interface AffectedBooking {
   email: string;
 }
 
+// Define maintenance request data
+interface MaintenanceRequest {
+  facilityId: number | null;
+  startDate: string;
+  endDate: string;
+  description: string;
+  createdBy: string;
+}
+
 export function useMaintenance() {
+  const { apiUrl } = useApi();
   const maintenanceLoading = ref<boolean>(false);
   const facilitiesUnderMaintenance = reactive<MaintenanceStatusMap>({});
   const affectedBookings = ref<AffectedBooking[]>([]);
@@ -207,6 +216,70 @@ export function useMaintenance() {
   };
   
   /**
+   * Schedule maintenance for a facility
+   * @param maintenanceData The maintenance data
+   */
+  const scheduleMaintenanceForFacility = async (maintenanceData: MaintenanceRequest): Promise<MaintenanceDetails> => {
+    try {
+      maintenanceLoading.value = true;
+      
+      const response = await axios.post<MaintenanceDetails>(
+        `${apiUrl}/api/maintenance/schedule`,
+        maintenanceData
+      );
+      
+      return response.data;
+    } catch (error) {
+      console.error('Error scheduling maintenance:', error);
+      throw error;
+    } finally {
+      maintenanceLoading.value = false;
+    }
+  };
+  
+  /**
+   * Release a facility from maintenance early
+   * @param facilityId The facility ID
+   */
+  const releaseFacilityFromMaintenance = async (facilityId: number | string): Promise<MaintenanceDetails> => {
+    try {
+      maintenanceLoading.value = true;
+      
+      const response = await axios.post<MaintenanceDetails>(
+        `${apiUrl}/api/maintenance/release/${facilityId}`
+      );
+      
+      return response.data;
+    } catch (error) {
+      console.error('Error releasing facility from maintenance:', error);
+      throw error;
+    } finally {
+      maintenanceLoading.value = false;
+    }
+  };
+  
+  /**
+   * Get maintenance schedules for a specific facility
+   * @param facilityId The facility ID
+   */
+  const getFacilityMaintenanceSchedules = async (facilityId: number | string): Promise<MaintenanceDetails[]> => {
+    try {
+      maintenanceLoading.value = true;
+      
+      const response = await axios.get<MaintenanceDetails[]>(
+        `${apiUrl}/api/maintenance/facility/${facilityId}`
+      );
+      
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching facility maintenance schedules:', error);
+      return [];
+    } finally {
+      maintenanceLoading.value = false;
+    }
+  };
+  
+  /**
    * Clear the maintenance status cache
    */
   const clearMaintenanceCache = () => {
@@ -226,6 +299,9 @@ export function useMaintenance() {
     isUnderMaintenance,
     getMaintenanceDetails,
     checkAffectedBookings,
+    scheduleMaintenanceForFacility,
+    releaseFacilityFromMaintenance,
+    getFacilityMaintenanceSchedules,
     clearMaintenanceCache
   };
 }

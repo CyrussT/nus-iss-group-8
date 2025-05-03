@@ -1,7 +1,6 @@
 import { ref } from "vue";
 import axios from "axios";
 
-const { apiUrl } = useApi(); // Assuming you have a useApi composable to get the API URL
 
 // Define the expected type for booking objects
 interface Booking {
@@ -15,6 +14,7 @@ interface Booking {
 }
 
 export function bookingRequestManagement() {
+  const { apiUrl } = useApi();
   const pendingBookings = ref<Booking[]>([]); 
   const loading = ref(false); // Loading state
   const sortBy = ref<string>('bookedDatetime'); // Default sorting key

@@ -8,12 +8,14 @@ import { computed, onMounted, ref, watch } from "vue";
 import type { Facility } from "@/composables/useFacility";
 import { useFacility } from "@/composables/useFacility";
 import { useMaintenance } from "~/composables/useMaintenance";
+import { useApi } from "~/composables/useApi";
 import axios from "axios";
 import { useToast } from "#imports";
 
 const toast = useToast();
 const auth = useAuthStore();
 const router = useRouter();
+const { apiUrl } = useApi();
 const isModalOpen = ref(false);
 const isEditing = ref(false);
 const isMaintenanceModalOpen = ref(false);
@@ -31,7 +33,10 @@ const {
   getMaintenanceDetails,
   checkAffectedBookings,
   affectedBookings,
-  affectedBookingsCount
+  affectedBookingsCount,
+  scheduleMaintenanceForFacility,
+  releaseFacilityFromMaintenance,
+  getFacilityMaintenanceSchedules
 } = maintenanceModule;
 
 // Computed property for today's date in YYYY-MM-DD format for min attribute
@@ -144,16 +149,16 @@ const fetchFacilityMaintenanceSchedules = async (facilityId: number) => {
   try {
     facilityMaintenanceHistoryLoading.value = true;
 
-    // Call the API to get maintenance schedules for this facility
-    const response = await axios.get(`http://localhost:8080/api/maintenance/facility/${facilityId}`);
+    // Use the function from useMaintenance
+    const schedules = await getFacilityMaintenanceSchedules(facilityId);
 
-    if (response.data && Array.isArray(response.data)) {
+    if (schedules && Array.isArray(schedules)) {
       // Sort by start date - first upcoming (future), then past
       const now = new Date();
       const today = formatDateForInput(now);
 
       // Filter to get only upcoming maintenance (start date >= today)
-      facilityUpcomingMaintenance.value = response.data
+      facilityUpcomingMaintenance.value = schedules
         .filter((m: any) => m.startDate >= today && m.startDate !== currentMaintenanceDetails.value?.startDate)
         .sort((a: any, b: any) => new Date(a.startDate).getTime() - new Date(b.startDate).getTime())
         .slice(0, 3); // Just show the next 3 upcoming maintenance periods
@@ -207,15 +212,28 @@ const handleMaintenanceButtonClick = async (row: any) => {
   }
 };
 
+// Fetch current maintenance details for a facility
+const fetchCurrentMaintenanceDetails = async (facilityId: number) => {
+  try {
+    const details = await getMaintenanceDetails(facilityId);
+    currentMaintenanceDetails.value = details;
+    return details;
+  } catch (error) {
+    console.error("Error fetching current maintenance details:", error);
+    currentMaintenanceDetails.value = null;
+    return null;
+  }
+};
+
 // Release facility from maintenance early
-const releaseFacilityFromMaintenance = async () => {
+const handleReleaseFacility = async () => {
   if (!selectedFacility.value?.facilityId) return;
 
   try {
     releasingMaintenance.value = true;
 
-    // Call API to release facility
-    const response = await axios.post(`http://localhost:8080/api/maintenance/release/${selectedFacility.value.facilityId}`);
+    // Use the function from useMaintenance
+    await releaseFacilityFromMaintenance(selectedFacility.value.facilityId);
 
     // Close the release modal
     isReleaseConfirmModalOpen.value = false;
@@ -250,19 +268,6 @@ const releaseFacilityFromMaintenance = async () => {
     }
   } finally {
     releasingMaintenance.value = false;
-  }
-};
-
-// Fetch current maintenance details for a facility
-const fetchCurrentMaintenanceDetails = async (facilityId: number) => {
-  try {
-    const response = await axios.get(`http://localhost:8080/api/maintenance/current/${facilityId}`);
-    currentMaintenanceDetails.value = response.data;
-    return response.data;
-  } catch (error) {
-    console.error("Error fetching current maintenance details:", error);
-    currentMaintenanceDetails.value = null;
-    return null;
   }
 };
 
@@ -434,8 +439,8 @@ const saveMaintenance = async () => {
       return; // Don't proceed if validation fails
     }
 
-    // Send data to the API
-    await axios.post("http://localhost:8080/api/maintenance/schedule", maintenanceData.value);
+    // Use the function from useMaintenance
+    await scheduleMaintenanceForFacility(maintenanceData.value);
 
     // Show success message including cancelled bookings information
     if (affectedBookingsCount.value > 0) {
@@ -479,7 +484,7 @@ const saveMaintenance = async () => {
 const saveFacility = async () => {
   try {
     if (isEditing.value) {
-      await axios.put(`http://localhost:8080/api/facilities/update/${facility.value.facilityId}`, facility.value);
+      await axios.put(`${apiUrl}/api/facilities/update/${facility.value.facilityId}`, facility.value);
       // Show toast notification
       toast.add({
         title: 'Success',
@@ -487,7 +492,7 @@ const saveFacility = async () => {
         color: 'green'
       });
     } else {
-      await axios.post("http://localhost:8080/api/facilities/create", facility.value);
+      await axios.post(`${apiUrl}/api/facilities/create`, facility.value);
       // Show toast notification
       toast.add({
         title: 'Success',
@@ -528,30 +533,30 @@ onMounted(async () => {
 </script>
 
 <template>
-  <div class="p-8">
-    <h1 class="text-2xl font-bold mb-4">Facility Management</h1>
+  <div class="p-8 dark:bg-gray-900 dark:text-white">
+    <h1 class="text-2xl font-bold mb-4 dark:text-white">Facility Management</h1>
     
     <div class="grid grid-cols-2 gap-4">
       <UInputMenu v-model="searchQuery.resourceTypeId" :options="resourceTypeOptions" option-attribute="name"
-        value-attribute="id" placeholder="Type or select resource type" size="md" class="w-full" clearable />
+        value-attribute="id" placeholder="Type or select resource type" size="md" class="w-full dark:bg-gray-800 dark:text-white dark:border-gray-700" clearable />
 
-      <UInput v-model="searchQuery.resourceName" placeholder="Resource Name" />
-      <UInput v-model="searchQuery.location" placeholder="Location" />
-      <UInput v-model="searchQuery.capacity" type="number" placeholder="Capacity" />
+      <UInput v-model="searchQuery.resourceName" placeholder="Resource Name" class="dark:bg-gray-800 dark:text-white dark:border-gray-700" />
+      <UInput v-model="searchQuery.location" placeholder="Location" class="dark:bg-gray-800 dark:text-white dark:border-gray-700" />
+      <UInput v-model="searchQuery.capacity" type="number" placeholder="Capacity" class="dark:bg-gray-800 dark:text-white dark:border-gray-700" />
 
       <div class="col-span-2 flex justify-end gap-2">
         <UButton @click="() => { currentPage = 1; fetchFacilities(); }" color="blue" variant="solid"
           icon="i-ic:baseline-search" label="Search" class="px-4 py-2 gap-2" />
 
         <UButton @click="resetSearch" color="gray" variant="solid" icon="i-ic:round-restart-alt" label="Reset"
-          class="px-4 py-2 gap-2 hover:bg-red-500" />
+          class="px-4 py-2 gap-2 hover:bg-red-500 dark:hover:bg-red-600" />
 
         <UButton @click="openModal()" color="green" variant="solid" icon="i-ic:baseline-plus" label="Add Facility"
           class="px-4 py-2 gap-2" />
       </div>
     </div>
 
-    <UCard class="w-full max-w-8xl p-6 shadow-lg bg-white">
+    <UCard class="w-full max-w-8xl p-6 shadow-lg bg-white dark:bg-gray-800 dark:border-gray-700 mt-4">
       <div class="mt-6 overflow-x-auto">
         <UTable :rows="facilities" :loading="loading" :columns="[
           { key: 'sn', label: 'SN', sortable: false },
@@ -560,7 +565,7 @@ onMounted(async () => {
           { key: 'location', label: 'Location', sortable: true },
           { key: 'capacity', label: 'Capacity', sortable: true },
           { key: 'actions', label: 'Actions', class: 'text-center' }
-        ]">
+        ]" class="dark:text-gray-200">
           <template #sn-data="{ index }">
             {{ index + 1 + (currentPage - 1) * pageSize }}
           </template>
@@ -585,103 +590,99 @@ onMounted(async () => {
 
       <div class="mt-4 flex justify-center">
         <UPagination v-model="currentPage" :max="5" :total="totalItems" @update:model-value="fetchFacilities" show-last
-          show-first />
+          show-first class="dark:text-white" />
       </div>
     </UCard>
   </div>
 
   <!-- Facility Modal -->
   <UModal v-model="isModalOpen">
-    <UCard class="p-9 max-w-lg ">
-      <button @click="closeModal" class="absolute top-4 right-4 text-gray-500 hover:text-gray-700">
+    <UCard class="p-9 max-w-lg dark:bg-gray-800 dark:text-white dark:border-gray-700">
+      <button @click="closeModal" class="absolute top-4 right-4 text-gray-500 hover:text-gray-700 dark:text-gray-300 dark:hover:text-gray-100">
         <UIcon name="i-heroicons-x-mark" class="w-6 h-6" />
       </button>
 
-      <h2 class="text-xl font-bold mb-4 text-center">
+      <h2 class="text-xl font-bold mb-4 text-center dark:text-white">
         {{ isEditing ? "Edit Facility" : "Add Facility" }}
       </h2>
       <div class="grid grid-cols-3 gap-4 items-center">
-        <label class="text-gray-700 font-medium col-span-1">Resource Type:</label>
+        <label class="text-gray-700 font-medium col-span-1 dark:text-gray-300">Resource Type:</label>
 
         <UInputMenu v-model="facility.resourceTypeId" :options="resourceTypeOptions" option-attribute="name"
-          value-attribute="id" placeholder="Type or select resource type" size="md" class="col-span-2 w-full"
+          value-attribute="id" placeholder="Type or select resource type" size="md" class="col-span-2 w-full dark:bg-gray-700 dark:text-white dark:border-gray-600"
           clearable />
 
-        <label class="text-gray-700 font-medium col-span-1">Resource Name:</label>
-        <UInput v-model="facility.resourceName" class="col-span-2 w-full" />
+        <label class="text-gray-700 font-medium col-span-1 dark:text-gray-300">Resource Name:</label>
+        <UInput v-model="facility.resourceName" class="col-span-2 w-full dark:bg-gray-700 dark:text-white dark:border-gray-600" />
 
-        <label class="text-gray-700 font-medium col-span-1">Location:</label>
-        <UInput v-model="facility.location" class="col-span-2 w-full" />
+        <label class="text-gray-700 font-medium col-span-1 dark:text-gray-300">Location:</label>
+        <UInput v-model="facility.location" class="col-span-2 w-full dark:bg-gray-700 dark:text-white dark:border-gray-600" />
 
-        <label class="text-gray-700 font-medium col-span-1">Capacity:</label>
-        <UInput v-model.number="facility.capacity" type="number" class="col-span-2 w-full" />
+        <label class="text-gray-700 font-medium col-span-1 dark:text-gray-300">Capacity:</label>
+        <UInput v-model.number="facility.capacity" type="number" class="col-span-2 w-full dark:bg-gray-700 dark:text-white dark:border-gray-600" />
       </div>
 
       <div class="mt-9 flex justify-end gap-3">
-        <button @click="closeModal" class="bg-gray-400 text-white px-4 py-2 rounded hover:bg-gray-600">
-          Cancel
-        </button>
-        <button @click="saveFacility" class="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-700">
-          {{ isEditing ? "Update Facility" : "Save Facility" }}
-        </button>
+        <UButton @click="closeModal" color="gray" variant="solid" label="Cancel" class="dark:bg-gray-600 dark:hover:bg-gray-700" />
+        <UButton @click="saveFacility" color="green" variant="solid" :label="isEditing ? 'Update Facility' : 'Save Facility'" />
       </div>
     </UCard>
   </UModal>
 
   <!-- Maintenance Modal -->
   <UModal v-model="isMaintenanceModalOpen">
-    <UCard class="p-9 max-w-lg">
-      <button @click="closeMaintenanceModal" class="absolute top-4 right-4 text-gray-500 hover:text-gray-700">
+    <UCard class="p-9 max-w-lg dark:bg-gray-800 dark:text-white dark:border-gray-700">
+      <button @click="closeMaintenanceModal" class="absolute top-4 right-4 text-gray-500 hover:text-gray-700 dark:text-gray-300 dark:hover:text-gray-100">
         <UIcon name="i-heroicons-x-mark" class="w-6 h-6" />
       </button>
 
-      <h2 class="text-xl font-bold mb-4 text-center">
+      <h2 class="text-xl font-bold mb-4 text-center dark:text-white">
         Schedule Maintenance
       </h2>
 
-      <div v-if="selectedFacility" class="mb-6 p-4 bg-gray-50 rounded-lg">
-        <p class="font-medium">Facility: {{ selectedFacility.resourceName }}</p>
-        <p class="text-sm text-gray-600">Resource Type: {{ getResourceTypeName(Number(selectedFacility.resourceTypeId))
+      <div v-if="selectedFacility" class="mb-6 p-4 bg-gray-50 rounded-lg dark:bg-gray-700">
+        <p class="font-medium dark:text-white">Facility: {{ selectedFacility.resourceName }}</p>
+        <p class="text-sm text-gray-600 dark:text-gray-300">Resource Type: {{ getResourceTypeName(Number(selectedFacility.resourceTypeId))
           }}
         </p>
-        <p class="text-sm text-gray-600">Location: {{ selectedFacility.location }}</p>
+        <p class="text-sm text-gray-600 dark:text-gray-300">Location: {{ selectedFacility.location }}</p>
       </div>
 
       <!-- Upcoming maintenance for this facility -->
-      <div v-if="facilityUpcomingMaintenance.length > 0" class="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+      <div v-if="facilityUpcomingMaintenance.length > 0" class="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg dark:bg-blue-900/30 dark:border-blue-800">
         <div class="flex items-start mb-2">
-          <UIcon name="i-heroicons-calendar" class="text-blue-500 mr-2 flex-shrink-0" />
-          <h3 class="font-medium text-blue-800">Upcoming Maintenance for this Facility</h3>
+          <UIcon name="i-heroicons-calendar" class="text-blue-500 mr-2 flex-shrink-0 dark:text-blue-400" />
+          <h3 class="font-medium text-blue-800 dark:text-blue-300">Upcoming Maintenance for this Facility</h3>
         </div>
 
         <div class="space-y-3 mt-2">
           <div v-for="maintenance in facilityUpcomingMaintenance" :key="maintenance.maintenanceId"
-            class="border-l-4 border-blue-400 pl-3 py-1 bg-white rounded-md">
+            class="border-l-4 border-blue-400 pl-3 py-1 bg-white rounded-md dark:bg-gray-700 dark:border-blue-500">
             <div class="text-sm">
-              <p class="font-medium text-blue-700">{{ formatDateForDisplay(maintenance.startDate) }} to {{
+              <p class="font-medium text-blue-700 dark:text-blue-300">{{ formatDateForDisplay(maintenance.startDate) }} to {{
                 formatDateForDisplay(maintenance.endDate) }}</p>
-              <p class="text-gray-600 line-clamp-2">{{ maintenance.description }}</p>
+              <p class="text-gray-600 line-clamp-2 dark:text-gray-300">{{ maintenance.description }}</p>
             </div>
           </div>
         </div>
       </div>
 
       <!-- Affected Bookings Warning -->
-      <div v-if="affectedBookingsCount > 0" class="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
+      <div v-if="affectedBookingsCount > 0" class="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg dark:bg-red-900/30 dark:border-red-800">
         <div class="flex items-start">
-          <UIcon name="i-heroicons-exclamation-triangle" class="text-red-500 mr-3 flex-shrink-0 mt-0.5" />
+          <UIcon name="i-heroicons-exclamation-triangle" class="text-red-500 mr-3 flex-shrink-0 mt-0.5 dark:text-red-400" />
           <div>
-            <h3 class="font-medium text-red-700 mb-1">Warning: {{ affectedBookingsCount }} Booking{{
+            <h3 class="font-medium text-red-700 mb-1 dark:text-red-300">Warning: {{ affectedBookingsCount }} Booking{{
               affectedBookingsCount
               > 1 ? 's' : '' }} Will Be Cancelled</h3>
-            <p class="text-sm text-red-600 mb-2">
+            <p class="text-sm text-red-600 mb-2 dark:text-red-300">
               Scheduling maintenance during this period will automatically cancel {{ affectedBookingsCount }}
               existing booking{{ affectedBookingsCount > 1 ? 's' : '' }} and send notification emails to affected users.
             </p>
             <div v-if="affectedBookings.length > 0"
-              class="mt-3 bg-white p-3 rounded border border-red-100 text-sm max-h-40 overflow-y-auto">
-              <p class="font-medium mb-2">Affected bookings:</p>
-              <ul class="list-disc pl-5 space-y-1">
+              class="mt-3 bg-white p-3 rounded border border-red-100 text-sm max-h-40 overflow-y-auto dark:bg-gray-700 dark:border-red-700">
+              <p class="font-medium mb-2 dark:text-white">Affected bookings:</p>
+              <ul class="list-disc pl-5 space-y-1 dark:text-gray-200">
                 <li v-for="booking in affectedBookings" :key="booking.bookingId">
                   {{ booking.studentName }} ({{ booking.email }}) - {{ new
                     Date(booking.bookedDatetime).toLocaleDateString() }} / {{ booking.timeslot }}
@@ -693,84 +694,80 @@ onMounted(async () => {
       </div>
 
       <div class="grid grid-cols-3 gap-4 items-start">
-        <label class="text-gray-700 font-medium col-span-1 mt-2.5">Start Date:<span
+        <label class="text-gray-700 font-medium col-span-1 mt-2.5 dark:text-gray-300">Start Date:<span
             class="text-red-500">*</span></label>
         <div class="col-span-2 w-full">
-          <UInput v-model="maintenanceData.startDate" type="date" class="w-full" :min="minDate"
-            :color="validationErrors.startDate ? 'red' : undefined" />
-          <p v-if="validationErrors.startDate" class="text-red-500 text-sm mt-1">
+          <UInput v-model="maintenanceData.startDate" type="date" class="w-full dark:bg-gray-700 dark:text-white dark:border-gray-600"
+            :min="minDate" :color="validationErrors.startDate ? 'red' : undefined" />
+          <p v-if="validationErrors.startDate" class="text-red-500 text-sm mt-1 dark:text-red-400">
             {{ validationErrors.startDate }}
           </p>
         </div>
 
-        <label class="text-gray-700 font-medium col-span-1 mt-2.5">End Date:<span class="text-red-500">*</span></label>
+        <label class="text-gray-700 font-medium col-span-1 mt-2.5 dark:text-gray-300">End Date:<span class="text-red-500">*</span></label>
         <div class="col-span-2 w-full">
-          <UInput v-model="maintenanceData.endDate" type="date" class="w-full"
+          <UInput v-model="maintenanceData.endDate" type="date" class="w-full dark:bg-gray-700 dark:text-white dark:border-gray-600"
             :min="maintenanceData.startDate || minDate" :color="validationErrors.endDate ? 'red' : undefined" />
-          <p v-if="validationErrors.endDate" class="text-red-500 text-sm mt-1">
+          <p v-if="validationErrors.endDate" class="text-red-500 text-sm mt-1 dark:text-red-400">
             {{ validationErrors.endDate }}
           </p>
         </div>
 
-        <label class="text-gray-700 font-medium col-span-1 mt-2.5">Description:<span
+        <label class="text-gray-700 font-medium col-span-1 mt-2.5 dark:text-gray-300">Description:<span
             class="text-red-500">*</span></label>
         <div class="col-span-2 w-full">
-          <UTextarea v-model="maintenanceData.description" class="w-full" :rows="textareaRows"
+          <UTextarea v-model="maintenanceData.description" class="w-full dark:bg-gray-700 dark:text-white dark:border-gray-600" :rows="textareaRows"
             placeholder="Enter maintenance details here..." :color="validationErrors.description ? 'red' : undefined" />
-          <p v-if="validationErrors.description" class="text-red-500 text-sm mt-1">
+          <p v-if="validationErrors.description" class="text-red-500 text-sm mt-1 dark:text-red-400">
             {{ validationErrors.description }}
           </p>
         </div>
       </div>
 
       <div class="mt-9 flex justify-end gap-3">
-        <button @click="closeMaintenanceModal" class="bg-gray-400 text-white px-4 py-2 rounded hover:bg-gray-600">
-          Cancel
-        </button>
-        <button @click="saveMaintenance" class="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-700">
-          Schedule Maintenance
-        </button>
+        <UButton @click="closeMaintenanceModal" color="gray" variant="solid" label="Cancel" class="dark:bg-gray-600 dark:hover:bg-gray-700" />
+        <UButton @click="saveMaintenance" color="red" variant="solid" label="Schedule Maintenance" />
       </div>
     </UCard>
   </UModal>
 
   <!-- Early Release Confirmation Modal -->
   <UModal v-model="isReleaseConfirmModalOpen">
-    <UCard class="p-9 max-w-lg">
-      <button @click="closeReleaseConfirmModal" class="absolute top-4 right-4 text-gray-500 hover:text-gray-700">
+    <UCard class="p-9 max-w-lg dark:bg-gray-800 dark:text-white dark:border-gray-700">
+      <button @click="closeReleaseConfirmModal" class="absolute top-4 right-4 text-gray-500 hover:text-gray-700 dark:text-gray-300 dark:hover:text-gray-100">
         <UIcon name="i-heroicons-x-mark" class="w-6 h-6" />
       </button>
 
-      <h2 class="text-xl font-bold mb-4 text-center">
+      <h2 class="text-xl font-bold mb-4 text-center dark:text-white">
         Release Facility from Maintenance
       </h2>
 
-      <div v-if="selectedFacility" class="mb-6 p-4 bg-gray-100 rounded-lg">
-        <p class="font-medium">Facility: {{ selectedFacility.resourceName }}</p>
-        <p class="text-sm text-gray-600">Resource Type: {{ getResourceTypeName(Number(selectedFacility.resourceTypeId))
+      <div v-if="selectedFacility" class="mb-6 p-4 bg-gray-100 rounded-lg dark:bg-gray-700">
+        <p class="font-medium dark:text-white">Facility: {{ selectedFacility.resourceName }}</p>
+        <p class="text-sm text-gray-600 dark:text-gray-300">Resource Type: {{ getResourceTypeName(Number(selectedFacility.resourceTypeId))
           }}
         </p>
-        <p class="text-sm text-gray-600">Location: {{ selectedFacility.location }}</p>
+        <p class="text-sm text-gray-600 dark:text-gray-300">Location: {{ selectedFacility.location }}</p>
       </div>
 
-      <div v-if="currentMaintenanceDetails" class="mb-6 p-4 bg-orange-50 border border-orange-200 rounded-lg">
-        <h3 class="font-medium text-orange-700 mb-2">Current Maintenance Information</h3>
+      <div v-if="currentMaintenanceDetails" class="mb-6 p-4 bg-orange-50 border border-orange-200 rounded-lg dark:bg-orange-900/30 dark:border-orange-800">
+        <h3 class="font-medium text-orange-700 mb-2 dark:text-orange-300">Current Maintenance Information</h3>
         <div class="grid grid-cols-2 gap-2 text-sm">
-          <p class="text-gray-600">Start Date:</p>
-          <p class="font-medium">{{ formatDateForDisplay(currentMaintenanceDetails.startDate) }}</p>
+          <p class="text-gray-600 dark:text-gray-300">Start Date:</p>
+          <p class="font-medium dark:text-white">{{ formatDateForDisplay(currentMaintenanceDetails.startDate) }}</p>
 
-          <p class="text-gray-600">Scheduled End Date:</p>
-          <p class="font-medium">{{ formatDateForDisplay(currentMaintenanceDetails.endDate) }}</p>
+          <p class="text-gray-600 dark:text-gray-300">Scheduled End Date:</p>
+          <p class="font-medium dark:text-white">{{ formatDateForDisplay(currentMaintenanceDetails.endDate) }}</p>
 
-          <p class="text-gray-600">Description:</p>
-          <p class="font-medium">{{ currentMaintenanceDetails.description }}</p>
+          <p class="text-gray-600 dark:text-gray-300">Description:</p>
+          <p class="font-medium dark:text-white">{{ currentMaintenanceDetails.description }}</p>
         </div>
       </div>
 
-      <div class="bg-yellow-50 p-4 rounded-lg mb-6 border border-yellow-200">
+      <div class="bg-yellow-50 p-4 rounded-lg mb-6 border border-yellow-200 dark:bg-yellow-900/30 dark:border-yellow-800">
         <div class="flex items-start">
-          <UIcon name="i-heroicons-exclamation-triangle" class="text-yellow-500 mr-3 flex-shrink-0 mt-0.5" />
-          <p class="text-sm text-gray-700">
+          <UIcon name="i-heroicons-exclamation-triangle" class="text-yellow-500 mr-3 flex-shrink-0 mt-0.5 dark:text-yellow-400" />
+          <p class="text-sm text-gray-700 dark:text-gray-200">
             You are about to release this facility from maintenance earlier than scheduled.
             The maintenance end date will be set to today, and the facility will be available for booking from tomorrow.
           </p>
@@ -778,15 +775,9 @@ onMounted(async () => {
       </div>
 
       <div class="mt-6 flex justify-end gap-3">
-        <button @click="closeReleaseConfirmModal" class="bg-gray-400 text-white px-4 py-2 rounded hover:bg-gray-600">
-          Cancel
-        </button>
-        <button @click="releaseFacilityFromMaintenance"
-          class="bg-orange-500 text-white px-4 py-2 rounded hover:bg-orange-700 flex items-center"
-          :disabled="releasingMaintenance">
-          <UIcon v-if="releasingMaintenance" name="i-heroicons-arrow-path" class="animate-spin mr-2" />
-          <span>{{ releasingMaintenance ? 'Releasing...' : 'Release Facility' }}</span>
-        </button>
+        <UButton @click="closeReleaseConfirmModal" color="gray" variant="solid" label="Cancel" class="dark:bg-gray-600 dark:hover:bg-gray-700" />
+        <UButton @click="handleReleaseFacility"
+          color="orange" variant="solid" label="Release Facility" :loading="releasingMaintenance" />
       </div>
     </UCard>
   </UModal>
@@ -823,5 +814,28 @@ onMounted(async () => {
   to {
     transform: rotate(360deg);
   }
+}
+
+/* Dark mode enhancements for date inputs */
+:deep(.dark input[type="date"]) {
+  color-scheme: dark;
+}
+
+:deep(.dark .u-table th) {
+  background-color: #2d3748;
+  color: #e2e8f0;
+}
+
+:deep(.dark .u-table td) {
+  border-color: #4a5568;
+}
+
+:deep(.dark .u-table tbody tr:hover) {
+  background-color: rgba(74, 85, 104, 0.2);
+}
+
+:deep(.dark .u-pagination) {
+  --pagination-item-active-bg: #4a5568;
+  --pagination-item-hover-bg: #2d3748;
 }
 </style>
