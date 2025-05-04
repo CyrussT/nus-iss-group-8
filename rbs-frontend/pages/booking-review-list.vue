@@ -10,7 +10,7 @@ import ConfirmationModal from "~/components/booking/ConfirmationModal.vue";
 import axios from "axios";
 import { Client } from '@stomp/stompjs';
 
-
+const { apiUrl } = useApi();
 const rejectModal = ref<InstanceType<typeof RejectModal> | null>(null);
 const confirmModal = ref<InstanceType<typeof ConfirmationModal> | null>(null);
 
@@ -29,8 +29,9 @@ const {
 } = bookingRequestManagement();
 
 const connectWebSocket = () => {
+    const wsApi = apiUrl.replace('https://', 'wss://').replace('http://', 'ws://').concat('/ws');
     const stompClient = new Client({
-        brokerURL: 'ws://localhost:8080/ws',
+        brokerURL: wsApi,
         reconnectDelay: 5000,
         onConnect: () => {
             console.log('Connected!');
