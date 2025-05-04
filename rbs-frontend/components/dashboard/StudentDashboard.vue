@@ -100,7 +100,7 @@ const openCancelModal = (bookingId: number) => {
 const cancelBooking = async (bookingId: number) => {
   try {
     const email = auth.user.value?.email || '';
-    await fetch(`http://localhost:8080/api/bookings/cancel-booking/${bookingId}?toEmail=${encodeURIComponent(email)}`, {
+    await fetch(`${apiUrl}/api/bookings/cancel-booking/${bookingId}?toEmail=${encodeURIComponent(email)}`, {
       method: 'DELETE'
     });
 

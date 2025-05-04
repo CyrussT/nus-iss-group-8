@@ -76,7 +76,7 @@ const approveBooking = async (bookingId: number, email: string) => {
     console.log(`Rejecting booking ${bookingId}`);
     try {
         const response = await axios.put(
-            `http://localhost:8080/api/bookings/update/${bookingId}`,
+            `${apiUrl}/api/bookings/update/${bookingId}`,
             null,
             {
                 params: {
@@ -97,7 +97,7 @@ const rejectBooking = async (bookingId: number, email: string, rejectReason: str
     console.log(`Rejecting booking ${bookingId} with reason: ${rejectReason}`);
     try {
         const response = await axios.put(
-            `http://localhost:8080/api/bookings/update/${bookingId}`,
+            `${apiUrl}/api/bookings/update/${bookingId}`,
             null, // No body required since we are using query params
             {
                 params: {

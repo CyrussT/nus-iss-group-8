@@ -9,7 +9,8 @@ import axios from "axios";
 import { computed, onMounted, ref } from "vue";
 import ConfirmationModal from "~/components/booking/ConfirmationModal.vue";
 
-const auth = useAuthStore();
+const auth = useAuthStore(); 
+const { apiUrl } = useApi();
 const { upcomingApprovedBookings, pendingBookings, pastBookings, fetchAccountId, fetchUpcomingApprovedBookings, fetchPendingBookings, fetchPastBookings } = useBooking();
 
 const authStore = useAuthStore();
@@ -96,7 +97,7 @@ const cancelBooking = async (bookingId: number) => {
     const userEmail: string = authStore.user.value?.email ?? '';
 
     // Make the DELETE request to the backend API to cancel the booking
-    const response = await axios.delete(`http://localhost:8080/api/bookings/cancel-booking/${bookingId}?toEmail=${encodeURIComponent(userEmail)}`);
+    const response = await axios.delete(`${apiUrl}/api/bookings/cancel-booking/${bookingId}?toEmail=${encodeURIComponent(userEmail)}`);
 
     // Log success message or handle the response accordingly
     console.log('Booking canceled:', bookingId);
