@@ -7,7 +7,7 @@ import { Client } from '@stomp/stompjs';
 import { useToast } from '#imports'
 const toast = useToast();
 
-
+const { apiUrl } = useApi();
 const { upcomingApprovedBookings, pendingBookings, pastBookings, availableCredits, fetchUpcomingApprovedBookings, fetchPendingBookings, fetchPastBookings, fetchAvailableCredits, fetchAccountId } = useBooking();
 const auth = useAuthStore();
 const accountId = ref<number | null>(null);
@@ -29,8 +29,9 @@ const loadStudentData = async () => {
 const emergencyMessage = ref();
 
 const connectWebSocket = () => {
+  const wsApi = apiUrl.replace('https://', 'wss://').replace('http://', 'ws://').concat('/ws');
   const stompClient = new Client({
-    brokerURL: 'ws://localhost:8080/ws',
+    brokerURL: wsApi,
     reconnectDelay: 5000,
     onConnect: () => {
       console.log('Connected to WebSocket!');
@@ -99,7 +100,7 @@ const openCancelModal = (bookingId: number) => {
 const cancelBooking = async (bookingId: number) => {
   try {
     const email = auth.user.value?.email || '';
-    await fetch(`http://localhost:8080/api/bookings/cancel-booking/${bookingId}?toEmail=${encodeURIComponent(email)}`, {
+    await fetch(`${apiUrl}/api/bookings/cancel-booking/${bookingId}?toEmail=${encodeURIComponent(email)}`, {
       method: 'DELETE'
     });
 

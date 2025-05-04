@@ -36,8 +36,9 @@ const {
 const emergencyMessage = ref();
 
 const connectWebSocket = () => {
+  const wsApi = apiUrl.replace('https://', 'wss://').replace('http://', 'ws://').concat('/ws');
   const stompClient = new Client({
-    brokerURL: 'ws://localhost:8080/ws',
+    brokerURL: wsApi,
     reconnectDelay: 5000,
     onConnect: () => {
       console.log('Connected to WebSocket!');

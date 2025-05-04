@@ -10,7 +10,7 @@ import ConfirmationModal from "~/components/booking/ConfirmationModal.vue";
 import axios from "axios";
 import { Client } from '@stomp/stompjs';
 
-
+const { apiUrl } = useApi();
 const rejectModal = ref<InstanceType<typeof RejectModal> | null>(null);
 const confirmModal = ref<InstanceType<typeof ConfirmationModal> | null>(null);
 
@@ -29,8 +29,9 @@ const {
 } = bookingRequestManagement();
 
 const connectWebSocket = () => {
+    const wsApi = apiUrl.replace('https://', 'wss://').replace('http://', 'ws://').concat('/ws');
     const stompClient = new Client({
-        brokerURL: 'ws://localhost:8080/ws',
+        brokerURL: wsApi,
         reconnectDelay: 5000,
         onConnect: () => {
             console.log('Connected!');
@@ -75,7 +76,7 @@ const approveBooking = async (bookingId: number, email: string) => {
     console.log(`Rejecting booking ${bookingId}`);
     try {
         const response = await axios.put(
-            `http://localhost:8080/api/bookings/update/${bookingId}`,
+            `${apiUrl}/api/bookings/update/${bookingId}`,
             null,
             {
                 params: {
@@ -96,7 +97,7 @@ const rejectBooking = async (bookingId: number, email: string, rejectReason: str
     console.log(`Rejecting booking ${bookingId} with reason: ${rejectReason}`);
     try {
         const response = await axios.put(
-            `http://localhost:8080/api/bookings/update/${bookingId}`,
+            `${apiUrl}/api/bookings/update/${bookingId}`,
             null, // No body required since we are using query params
             {
                 params: {

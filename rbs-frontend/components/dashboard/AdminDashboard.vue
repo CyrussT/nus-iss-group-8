@@ -2,6 +2,7 @@
 import { ref, onMounted } from "vue";
 import axios from "axios";
 
+const { apiUrl } = useApi(); 
 const todayBookingsCount = ref(0);
 const pendingApprovalsCount = ref(0);
 const facilitiesUnderMaintenanceCount = ref(0);
@@ -9,7 +10,7 @@ const emergencyMessage = ref<string | null>(null);
 
 const fetchAdminStats = async () => {
   try {
-    const res = await axios.get('http://localhost:8080/api/bookings/admin/dashboard-stats');
+    const res = await axios.get(`${apiUrl}/api/bookings/admin/dashboard-stats`);
     const data = res.data;
     todayBookingsCount.value = data.todayBookings;
     pendingApprovalsCount.value = data.pendingApprovals;
@@ -30,7 +31,7 @@ const pushEmergency = async () => {
   }
 
   try {
-    await axios.post('http://localhost:8080/api/emergency/push', {
+    await axios.post(`${apiUrl}/api/emergency/push`, {
       message: emergencyInput.value
     });
     alert('Emergency Notice sent successfully!');
