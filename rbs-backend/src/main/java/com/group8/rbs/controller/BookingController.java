@@ -36,7 +36,6 @@ public class BookingController {
     private final EmailContentStrategyFactory emailContentStrategyFactory;
     private final MaintenanceService maintenanceService;
 
-
     public BookingController(BookingService bookingService,
             EmailServiceFactory emailServiceFactory,
             EmailContentStrategyFactory emailContentStrategyFactory,
@@ -48,15 +47,15 @@ public class BookingController {
     }
 
     @GetMapping("/admin/dashboard-stats")
-public ResponseEntity<Map<String, Object>> getDashboardStats() {
-    Map<String, Object> stats = new HashMap<>();
-    stats.put("todayBookings", bookingService.countTodayBookings());
-    stats.put("pendingApprovals", bookingService.countPendingBookings());
-    stats.put("facilitiesUnderMaintenance", maintenanceService.countFacilitiesUnderMaintenanceToday());
-    // If you implement Emergency Announcements: add "latestAnnouncement" here too
-    
-    return ResponseEntity.ok(stats);
-}
+    public ResponseEntity<Map<String, Object>> getDashboardStats() {
+        Map<String, Object> stats = new HashMap<>();
+        stats.put("todayBookings", bookingService.countTodayBookings());
+        stats.put("pendingApprovals", bookingService.countPendingBookings());
+        stats.put("facilitiesUnderMaintenance", maintenanceService.countFacilitiesUnderMaintenanceToday());
+        // If you implement Emergency Announcements: add "latestAnnouncement" here too
+
+        return ResponseEntity.ok(stats);
+    }
 
     @GetMapping("/facilities/search")
     public ResponseEntity<List<FacilitySearchDTO>> searchFacilities(
@@ -89,10 +88,10 @@ public ResponseEntity<Map<String, Object>> getDashboardStats() {
     @PostMapping
     public ResponseEntity<?> createBooking(@RequestBody BookingDTO request) throws MessagingException {
         logger.info("Received booking request: " + request);
-        
+
         try {
             BookingResponseDTO response = bookingService.createBooking(request);
-            
+
             if (response != null && response.getBookingId() != null) {
                 // Construct email details
                 String toEmail = request.getAccountEmail();
@@ -114,7 +113,7 @@ public ResponseEntity<Map<String, Object>> getDashboardStats() {
                 String body = strategy.buildBody(emailParams);
 
                 // Send email
-                EmailService emailService = emailServiceFactory.getEmailService("customEmailService");
+                EmailService emailService = emailServiceFactory.getEmailService("resendEmailService");
                 boolean emailSent = emailService.sendEmail(toEmail, subject, body);
 
                 if (emailSent) {
@@ -122,13 +121,12 @@ public ResponseEntity<Map<String, Object>> getDashboardStats() {
                 } else {
                     return ResponseEntity.status(500).body(Map.of("error", "Failed to create booking"));
                 }
-                
+
                 return ResponseEntity.ok(response);
             } else {
                 return ResponseEntity.status(500).body(Map.of("error", "Failed to create booking"));
             }
-        }
-         catch (RuntimeException e) {
+        } catch (RuntimeException e) {
             // Return the validation error with HTTP 400
             logger.warn("Validation error: {}", e.getMessage());
             return ResponseEntity.status(400).body(Map.of("error", e.getMessage()));
@@ -173,7 +171,7 @@ public ResponseEntity<Map<String, Object>> getDashboardStats() {
             String subject = strategy.buildSubject(emailParams);
             String body = strategy.buildBody(emailParams);
 
-            EmailService emailService = emailServiceFactory.getEmailService("customEmailService");
+            EmailService emailService = emailServiceFactory.getEmailService("resendEmailService");
             boolean emailSent = emailService.sendEmail(toEmail, subject, body);
             // up user credit
 
@@ -218,7 +216,7 @@ public ResponseEntity<Map<String, Object>> getDashboardStats() {
             String subject = strategy.buildSubject(emailParams);
             String body = strategy.buildBody(emailParams);
 
-            EmailService emailService = emailServiceFactory.getEmailService("customEmailService");
+            EmailService emailService = emailServiceFactory.getEmailService("resendEmailService");
             boolean emailSent = emailService.sendEmail(toEmail, subject, body);
 
             if (emailSent) {
@@ -239,7 +237,7 @@ public ResponseEntity<Map<String, Object>> getDashboardStats() {
             String subject = strategy.buildSubject(emailParams);
             String body = strategy.buildBody(emailParams);
 
-            EmailService emailService = emailServiceFactory.getEmailService("customEmailService");
+            EmailService emailService = emailServiceFactory.getEmailService("resendEmailService");
             boolean emailSent = emailService.sendEmail(toEmail, subject, body);
 
             if (emailSent) {
