@@ -1,13 +1,10 @@
 package com.group8.rbs.controller;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyMap;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
@@ -34,34 +31,26 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
-import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
-import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.security.test.context.support.WithMockUser;
-import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.group8.rbs.config.TestConfig;
 import com.group8.rbs.dto.booking.BookingDTO;
 import com.group8.rbs.dto.booking.BookingRequestDTO;
 import com.group8.rbs.dto.booking.BookingResponseDTO;
 import com.group8.rbs.dto.booking.FacilitySearchDTO;
 import com.group8.rbs.enums.BookingStatus;
 import com.group8.rbs.security.CustomUserDetailsService;
-import com.group8.rbs.security.SecurityConfig;
 import com.group8.rbs.service.booking.BookingService;
-import com.group8.rbs.service.email.CustomEmailService;
 import com.group8.rbs.service.security.AuthService;
 import com.group8.rbs.service.security.JwtService;
 import com.group8.rbs.service.email.EmailContentStrategy;
 import com.group8.rbs.service.email.EmailContentStrategyFactory;
 import com.group8.rbs.service.email.EmailService;
 import com.group8.rbs.service.email.EmailServiceFactory;
-
-import jakarta.mail.MessagingException;
 
 @SpringBootTest
 @AutoConfigureMockMvc
@@ -457,30 +446,6 @@ public class BookingControllerTest {
                 verify(bookingService, never()).getBookingHistory(anyLong(), anyString());
         }
 
-        // @Test
-        // @DisplayName("Delete booking should return success")
-        // @WithMockUser(username = "test@example.com", roles = { "STUDENT" })
-        // void deleteBookingShouldReturnSuccess() throws Exception {
-        // when(bookingService.deleteBooking(anyLong())).thenReturn(true);
-        // when(emailService.sendEmail(anyString(), anyString(),
-        // anyString())).thenReturn(true);
-
-        // EmailContentStrategy mockStrategy = mock(EmailContentStrategy.class);
-        // when(mockStrategy.buildSubject(anyMap())).thenReturn("Subject");
-        // when(mockStrategy.buildBody(anyMap())).thenReturn("Body");
-
-        // when(emailContentStrategyFactory.getStrategy("CANCELLED")).thenReturn(mockStrategy);
-
-        // EmailService mockEmailService = mock(EmailService.class);
-        // when(emailServiceFactory.getEmailService("customEmailService")).thenReturn(mockEmailService);
-
-        // mockMvc.perform(delete("/api/bookings/cancel-booking/1")
-        // .param("toEmail", "test@example.com")
-        // .contentType(MediaType.APPLICATION_JSON))
-        // .andExpect(status().isOk())
-        // .andExpect(content().string(org.hamcrest.Matchers.containsString("successfully")));
-        // }
-
         @Test
         @DisplayName("Delete booking should handle not found")
         @WithMockUser(username = "test@example.com", roles = { "STUDENT" })
@@ -493,58 +458,6 @@ public class BookingControllerTest {
                                 .andExpect(status().isNotFound());
         }
 
-        // @Test
-        // @DisplayName("Delete booking should handle email failure")
-        // @WithMockUser(username = "test@example.com", roles = { "STUDENT" })
-        // void deleteBookingShouldHandleEmailFailure() throws Exception {
-        // when(bookingService.deleteBooking(anyLong())).thenReturn(true);
-        // when(emailContentStrategyFactory.getStrategy("CANCELLED")).thenReturn(emailContentStrategy);
-        // when(emailContentStrategy.buildSubject(anyMap())).thenReturn("Cancel
-        // Booking");
-        // when(emailContentStrategy.buildBody(anyMap())).thenReturn("Your booking has
-        // been cancelled.");
-
-        // when(emailServiceFactory.getEmailService("customEmailService")).thenReturn(emailService);
-        // when(emailService.sendEmail(anyString(), anyString(),
-        // anyString())).thenReturn(false);
-
-        // mockMvc.perform(delete("/api/bookings/cancel-booking/1")
-        // .param("toEmail", "test@example.com")
-        // .contentType(MediaType.APPLICATION_JSON))
-        // .andExpect(status().isOk())
-        // .andExpect(content().string(org.hamcrest.Matchers.containsString("but failed
-        // to send")));
-        // }
-
-        // @Test
-        // @DisplayName("Delete booking should handle messaging exception")
-        // @WithMockUser(username = "test@example.com", roles = { "STUDENT" })
-        // void deleteBookingShouldHandleMessagingException() throws Exception {
-        // when(bookingService.deleteBooking(anyLong())).thenReturn(true);
-        // when(emailContentStrategyFactory.getStrategy("CANCELLED")).thenReturn(emailContentStrategy);
-        // when(emailContentStrategy.buildSubject(anyMap())).thenReturn("Cancel
-        // Booking");
-        // when(emailContentStrategy.buildBody(anyMap())).thenReturn("Your booking has
-        // been cancelled.");
-
-        // when(emailServiceFactory.getEmailService("customEmailService")).thenReturn(emailService);
-
-        // doThrow(new MessagingException("Email error"))
-        // .when(emailService)
-        // .sendEmail(anyString(), anyString(), anyString());
-
-        // try {
-        // mockMvc.perform(delete("/api/bookings/cancel-booking/1")
-        // .param("toEmail", "test@example.com")
-        // .contentType(MediaType.APPLICATION_JSON))
-        // .andExpect(status().isInternalServerError());
-        // } catch (Exception e) {
-        // // This is expected because of how the controller handles the exception
-        // assertTrue(e.getCause() instanceof MessagingException);
-        // assertEquals("Email error", e.getCause().getMessage());
-        // }
-        // }
-
         @Test
         @DisplayName("Delete booking should require toEmail parameter")
         @WithMockUser(username = "test@example.com", roles = { "STUDENT" })
@@ -556,61 +469,6 @@ public class BookingControllerTest {
                 verify(bookingService, never()).deleteBooking(anyLong());
                 verify(emailService, never()).sendEmail(anyString(), anyString(), anyString());
         }
-
-        // @Test
-        // @DisplayName("Update booking status to APPROVED should return success")
-        // @WithMockUser(username = "test@example.com", roles = { "STUDENT" })
-        // void updateBookingStatusToApprovedShouldReturnSuccess() throws Exception {
-        // when(bookingService.updateBookingStatus(anyLong(),
-        // any(BookingStatus.class))).thenReturn(true);
-        // when(emailContentStrategyFactory.getStrategy("ADMINPPROVED")).thenReturn(emailContentStrategy);
-        // when(emailContentStrategy.buildSubject(anyMap())).thenReturn("Booking
-        // Approved");
-        // when(emailContentStrategy.buildBody(anyMap())).thenReturn("Your booking has
-        // been approved.");
-
-        // when(emailServiceFactory.getEmailService("customEmailService")).thenReturn(emailService);
-        // when(emailService.sendEmail(anyString(), anyString(),
-        // anyString())).thenReturn(true);
-
-        // mockMvc.perform(put("/api/bookings/update/1")
-        // .param("toEmail", "test@example.com")
-        // .param("status", "APPROVED")
-        // .contentType(MediaType.APPLICATION_JSON))
-        // .andExpect(status().isOk())
-        // .andExpect(content().string(org.hamcrest.Matchers.containsString("approved
-        // successfully")));
-        // }
-
-        // @Test
-        // @DisplayName("Update booking status to REJECTED should handle rejection
-        // reason")
-        // @WithMockUser(username = "test@example.com", roles = { "STUDENT" })
-        // void updateBookingStatusToRejectedShouldHandleRejectionReason() throws
-        // Exception {
-        // when(bookingService.updateBookingStatus(anyLong(),
-        // any(BookingStatus.class))).thenReturn(true);
-        // when(emailService.sendEmail(anyString(), anyString(),
-        // anyString())).thenReturn(true);
-
-        // EmailContentStrategy mockStrategy = mock(EmailContentStrategy.class);
-        // when(mockStrategy.buildSubject(anyMap())).thenReturn("Subject");
-        // when(mockStrategy.buildBody(anyMap())).thenReturn("Body");
-
-        // when(emailContentStrategyFactory.getStrategy("REJECTED")).thenReturn(mockStrategy);
-
-        // EmailService mockEmailService = mock(EmailService.class);
-        // when(emailServiceFactory.getEmailService("customEmailService")).thenReturn(mockEmailService);
-
-        // mockMvc.perform(put("/api/bookings/update/1")
-        // .param("toEmail", "test@example.com")
-        // .param("status", "REJECTED")
-        // .param("rejectReason", "Facility unavailable")
-        // .contentType(MediaType.APPLICATION_JSON))
-        // .andExpect(status().isOk())
-        // .andExpect(content().string(org.hamcrest.Matchers.containsString("rejected
-        // successfully")));
-        // }
 
         @Test
         @DisplayName("Update booking status should handle booking not found")
