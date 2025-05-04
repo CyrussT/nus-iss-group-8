@@ -15,6 +15,8 @@ import com.group8.rbs.repository.FacilityRepository;
 import com.group8.rbs.repository.MaintenanceRepository;
 import com.group8.rbs.exception.MaintenanceOverlapException;
 import com.group8.rbs.service.email.CustomEmailService;
+import com.group8.rbs.service.email.EmailService;
+import com.group8.rbs.service.email.EmailServiceFactory;
 import com.group8.rbs.service.credit.CreditService;
 
 import jakarta.mail.MessagingException;
@@ -181,7 +183,7 @@ public class MaintenanceService {
     public int cancelBookingsForMaintenance(
             List<Booking> bookings,
             MaintenanceSchedule maintenance,
-            CustomEmailService emailService) {
+            EmailServiceFactory emailServiceFactory) {
 
         if (bookings == null || bookings.isEmpty()) {
             return 0;
@@ -219,6 +221,8 @@ public class MaintenanceService {
                     }
                 }
 
+                EmailService emailService = emailServiceFactory.getEmailService("resendEmailService");
+
                 // Send email notification
                 String toEmail = booking.getAccount().getEmail();
                 String subject = "Booking Cancelled Due to Maintenance";
@@ -239,7 +243,7 @@ public class MaintenanceService {
 
                 // Add information about refund if applicable
                 if (bookingCost > 0) {
-                    String formattedRefund = String.format("%.2f", (double)bookingCost / 60);
+                    String formattedRefund = String.format("%.2f", (double) bookingCost / 60);
                     body += "<p><strong>Credit Refund:</strong> " + formattedRefund
                             + " hrs of credits have been returned to your account.</p>";
                 }
