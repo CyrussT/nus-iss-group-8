@@ -565,12 +565,12 @@ onMounted(async () => {
 
       <div class="col-span-2 flex justify-end gap-2">
         <UButton @click="() => { currentPage = 1; fetchFacilities(); }" color="blue" variant="solid"
-          icon="i-ic:baseline-search" label="Search" class="px-4 py-2 gap-2" />
+          icon="i-heroicons:magnifying-glass" label="Search" class="px-4 py-2 gap-2" />
 
-        <UButton @click="resetSearch" color="gray" variant="solid" icon="i-ic:round-restart-alt" label="Reset"
+        <UButton @click="resetSearch" color="gray" variant="solid" icon="i-heroicons:arrow-path" label="Reset"
           class="px-4 py-2 gap-2 hover:bg-red-500 dark:hover:bg-red-600" />
 
-        <UButton @click="openModal()" color="green" variant="solid" icon="i-ic:baseline-plus" label="Add Facility"
+        <UButton @click="openModal()" color="green" variant="solid" icon="i-heroicons:plus" label="Add Facility"
           class="px-4 py-2 gap-2" />
       </div>
     </div>
@@ -591,15 +591,15 @@ onMounted(async () => {
 
           <template #actions-data="{ row }">
             <div class="flex justify-center gap-2">
-              <UButton @click="viewFacility(row.facilityId)" color="blue" variant="solid" icon="i-heroicons-eye"
+              <UButton @click="viewFacility(row.facilityId)" color="blue" variant="solid" icon="i-heroicons:eye"
                 label="View" />
 
-              <UButton @click="openModal(row)" color="yellow" variant="solid" icon="i-heroicons-pencil" label="Edit"
+              <UButton @click="openModal(row)" color="yellow" variant="solid" icon="i-heroicons:pencil" label="Edit"
                 class="px-3 py-1 gap-2" />
 
               <UButton @click="handleMaintenanceButtonClick(row)"
                 :color="isUnderMaintenance(row.facilityId) ? 'orange' : 'red'" variant="solid"
-                :icon="isUnderMaintenance(row.facilityId) ? 'i-heroicons-check-circle' : 'i-heroicons-wrench'"
+                :icon="isUnderMaintenance(row.facilityId) ? 'i-heroicons:check-circle' : 'i-heroicons:wrench'"
                 :loading="maintenanceLoading" :label="isUnderMaintenance(row.facilityId) ? 'Release' : 'Maintenance'"
                 class="px-3 py-1 gap-2" />
             </div>
