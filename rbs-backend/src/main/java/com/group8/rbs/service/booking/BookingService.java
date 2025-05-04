@@ -214,7 +214,7 @@ public class BookingService {
             // Save to database
             Booking savedBooking = bookingRepository.save(booking);
 
-            bookingWebSocketService.sendBookingUpdate(savedBooking.getBookingId());
+            // bookingWebSocketService.sendBookingUpdate(savedBooking.getBookingId());
             
             logger.info("Booking created successfully with ID: {}", savedBooking.getBookingId());
             
