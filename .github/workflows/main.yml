@@ -2,9 +2,9 @@ name: CI
 
 on:
   pull_request:
-    branches: [main]
+    branches: [feature/ci]
   push:
-    branches: [main]
+    branches: [feature/ci]
 
 jobs:
   backend:
@@ -33,7 +33,7 @@ jobs:
           distribution: "temurin"
           java-version: "21"
           cache: "maven"
-        
+
       - name: Restore OWASP cache
         uses: actions/cache/restore@v3
         with:
@@ -60,7 +60,7 @@ jobs:
             ~/.m2/repository
             ~/.cache/dependency-check
           key: ${{ runner.os }}-owasp-${{ steps.get-date.outputs.datetime }}-${{ hashFiles('**/pom.xml') }}
-  
+
       - name: Upload dependency check report
         uses: actions/upload-artifact@v4
         if: always()
@@ -68,10 +68,31 @@ jobs:
           name: dependency-check-report
           path: rbs-backend/target/dependency-check-report.html
 
+      - name: Run Checkstyle
+        run: mvn checkstyle:check -Ddependency-check.skip=true
+
+      - name: Upload Checkstyle report
+        uses: actions/upload-artifact@v4
+        with:
+          name: checkstyle-report
+          path: ./rbs-backend/target/checkstyle-result.xml
+
+      - name: Run PMD
+        run: mvn pmd:check -Ddependency-check.skip=true
+
+      - name: Upload PMD report
+        uses: actions/upload-artifact@v4
+        with:
+          name: pmd-report
+          path: ./rbs-backend/target/pmd.xml
+
   frontend:
     name: build-frontend
     # runs-on: ubuntu-latest
     runs-on: self-hosted
+    defaults:
+      run:
+        working-directory: ./rbs-frontend
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -79,8 +100,20 @@ jobs:
       - name: Install bun
         uses: oven-sh/setup-bun@v2
 
+      - name: Install dependencies
+        run: bun install
+
       - name: Build and test frontend
-        run: |
-          cd rbs-frontend
-          bun install
-          bun test
+        run: bun test
+
+      - name: Run ESLint and save report
+        run: bun eslint . --format stylish --output-file eslint-report.txt
+
+      - name: Upload ESLint report
+        uses: actions/upload-artifact@v4
+        with:
+          name: eslint-report
+          path: ./rbs-frontend/eslint-report.txt
+
+      - name: Run Prettier format
+        run: bun prettier --write .
