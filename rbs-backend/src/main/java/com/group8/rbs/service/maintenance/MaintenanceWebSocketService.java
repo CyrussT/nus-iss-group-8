@@ -7,8 +7,7 @@ import org.springframework.stereotype.Service;
 @Service
 public class MaintenanceWebSocketService {
 
-    @Autowired
-    private SimpMessagingTemplate messagingTemplate;
+    @Autowired SimpMessagingTemplate messagingTemplate;
 
     public void sendMaintenanceUpdate(Long facilityId) {
         messagingTemplate.convertAndSend("/topic/maintenance", facilityId); 
