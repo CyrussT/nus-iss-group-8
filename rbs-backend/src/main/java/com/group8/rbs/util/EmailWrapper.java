@@ -18,7 +18,7 @@ public final class EmailWrapper {
         Resend resend = new Resend(resendKey);
 
         CreateEmailOptions params = CreateEmailOptions.builder()
-                .from("Resource Booking System SIT (RBS) <rbs@resend.dev>")
+                .from("rbs@rbs.clyns.cloud")
                 .to(to)
                 .subject(subject)
                 .html(body)
