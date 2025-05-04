@@ -35,7 +35,7 @@ const {
 
 const emergencyMessage = ref();
 
-/*const connectWebSocket = () => {
+const connectWebSocket = () => {
   const wsApi = apiUrl.replace('https://', 'wss://').replace('http://', 'ws://').concat('/ws');
   const stompClient = new Client({
     brokerURL: wsApi,
@@ -69,7 +69,7 @@ const emergencyMessage = ref();
   });
 
   stompClient.activate();
-};*/
+};
 
 // Get maintenance related functions
 const maintenanceModule = useMaintenance();
