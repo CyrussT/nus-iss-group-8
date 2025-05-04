@@ -143,9 +143,9 @@ onMounted(() => {
                     <template #actions-data="{ row }">
                         <div class="flex justify-center gap-2">
                             <UButton @click="openApproveModal(row.bookingId, row.email)" color="green" variant="solid"
-                                icon="i-gridicons-checkmark" label="Approve" />
+                                icon="i-heroicons:check" label="Approve" />
                             <UButton @click="openRejectModal(row.bookingId, row.email)" color="red" variant="solid"
-                                icon="i-fluent-dismiss-20-regular" label="Reject" class="px-3 py-1 gap-2" />
+                                icon="i-heroicons:x-mark" label="Reject" class="px-3 py-1 gap-2" />
                         </div>
                         <RejectModal ref="rejectModal" />
                         <ConfirmationModal ref="confirmModal" />
