@@ -82,16 +82,10 @@ async function onSubmit(event: FormSubmitEvent<LoginData>) {
     <div class="form-container">
       <UCard class="w-full max-w-md">
         <template #header>
-          <h2>Login to RBS</h2>
+          <h2>Login to RBS (Pipeline Demo)</h2>
         </template>
 
-        <UForm
-          :schema="loginSchema"
-          :validate="validate"
-          :state="state"
-          @submit="onSubmit"
-          class="space-y-4"
-        >
+        <UForm :schema="loginSchema" :validate="validate" :state="state" @submit="onSubmit" class="space-y-4">
           <UFormGroup label="Email" name="email" :ui="{ wrapper: 'space-y-2' }">
             <UInput v-model="state.email" placeholder="Enter your email" />
           </UFormGroup>
@@ -101,7 +95,8 @@ async function onSubmit(event: FormSubmitEvent<LoginData>) {
           </UFormGroup>
 
           <UButton type="submit" block class="mt-4">
-            Login <UIcon name="i-heroicons:arrow-right-20-solid" />
+            Login
+            <UIcon name="i-heroicons:arrow-right-20-solid" />
           </UButton>
         </UForm>
       </UCard>
@@ -136,7 +131,8 @@ async function onSubmit(event: FormSubmitEvent<LoginData>) {
   left: 0;
   width: 100%;
   height: 100%;
-  background: rgba(0, 0, 0, 0.5); /* Optional: adds contrast for form */
+  background: rgba(0, 0, 0, 0.5);
+  /* Optional: adds contrast for form */
   z-index: 2;
 }
 
