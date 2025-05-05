@@ -885,7 +885,7 @@ watch(() => facilitiesUnderMaintenance, () => {
       <!-- Hint about calendar clicking -->
       <div
         class="text-xs text-gray-600 dark:text-gray-400 mt-3 flex items-center p-2 bg-blue-50 dark:bg-blue-900/30 rounded-md">
-        <UIcon name="i-heroicons-information-circle" class="mr-2 text-blue-500 dark:text-blue-400" size="sm" />
+        <UIcon name="i-heroicons--outline:information-circle" class="mr-2 text-blue-500 dark:text-blue-400" size="sm" />
         <span>Click on an empty timeslot in the calendar grid to create a new booking. Click on a coloured slot to view
           its details. Facilities under maintenance cannot be booked.</span>
       </div>
@@ -894,7 +894,7 @@ watch(() => facilitiesUnderMaintenance, () => {
     <!-- Centralized No results message - only shown when search is performed but no facilities found -->
     <div v-if="hasSearched && (!facilities || facilities.length === 0) && !loading && !searchLoading"
       class="mt-4 p-6 bg-white dark:bg-gray-800 rounded-md shadow dark:shadow-gray-700 text-center">
-      <UIcon name="i-heroicons-magnifying-glass" class="mx-auto mb-3 text-gray-400 dark:text-gray-500" size="lg" />
+      <UIcon name="i-heroicons-outline:magnifying-glass" class="mx-auto mb-3 text-gray-400 dark:text-gray-500" size="lg" />
       <h3 class="text-xl font-medium text-gray-700 dark:text-gray-200 mb-2">No Facilities Found</h3>
       <p class="text-gray-500 dark:text-gray-400 mb-4">No resources match your search criteria for the selected date.
       </p>
@@ -902,7 +902,7 @@ watch(() => facilitiesUnderMaintenance, () => {
         <UButton color="gray" variant="soft" @click="handleReset">
           Reset Search
         </UButton>
-        <UButton color="primary" variant="soft" icon="i-heroicons-arrow-path" @click="calendarRef?.forceRefresh()">
+        <UButton color="primary" variant="soft" icon="i-heroicons-outline:arrow-path" @click="calendarRef?.forceRefresh()">
           Try Again
         </UButton>
       </div>
@@ -910,7 +910,7 @@ watch(() => facilitiesUnderMaintenance, () => {
 
     <!-- New: Create Booking Button Section -->
     <div class="mt-4 mb-4 flex justify-end">
-      <UButton color="primary" icon="i-heroicons-plus-circle" @click="openCreateBookingModal" size="lg">
+      <UButton color="primary" icon="i-heroicons-outline:plus-circle" @click="openCreateBookingModal" size="lg">
         Create New Booking
       </UButton>
     </div>
