@@ -41,7 +41,12 @@ public class FacilityController {
     @PostMapping("/create")
     public ResponseEntity<FacilityResponseDTO> createFacility(@Valid @RequestBody FacilityRequestDTO facilityRequestDTO) {
         FacilityResponseDTO newFacility = facilityService.createFacility(facilityRequestDTO);
-        return ResponseEntity.status(HttpStatus.CREATED).body(newFacility);
+        if (newFacility != null) {
+            return ResponseEntity.status(HttpStatus.CREATED).body(newFacility);
+        } else {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                                 .body(newFacility); // or return a custom error DTO
+        }
     }
     
     @GetMapping("/list")

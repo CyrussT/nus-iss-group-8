@@ -71,26 +71,82 @@ async function onSubmit(event: FormSubmitEvent<LoginData>) {
 </script>
 
 <template>
-  <div class="min-h-screen flex items-center justify-center px-4">
-    <UCard class="w-full max-w-md">
-      <template #header>
-        <h2 class="">Login to RBS</h2>
-      </template>
+  <div class="login-page">
+    <!-- Background Image -->
+    <img src='./image/index.jpg' alt="Background" class="background-image" />
 
-      <UForm :schema="loginSchema" :validate="validate" :state="state" @submit="onSubmit" class="space-y-4">
-        <UFormGroup label="Email" name="email" :ui="{ wrapper: 'space-y-2' }">
-          <UInput v-model="state.email" placeholder="Enter your email" />
-        </UFormGroup>
+    <!-- Overlay (optional for darkening the image) -->
+    <div class="overlay"></div>
 
-        <UFormGroup label="Password" name="password" :ui="{ wrapper: 'space-y-2' }">
-          <UInput v-model="state.password" type="password"  placeholder="Enter your password" />
-        </UFormGroup>
-        <UButton type="submit" block class="mt-4">Login <UIcon name="i-heroicons:arrow-right-20-solid" /></UButton>
-      </UForm>
-    </UCard>
+    <!-- Centered Login Card -->
+    <div class="form-container">
+      <UCard class="w-full max-w-md">
+        <template #header>
+          <h2>Login to RBS</h2>
+        </template>
+
+        <UForm
+          :schema="loginSchema"
+          :validate="validate"
+          :state="state"
+          @submit="onSubmit"
+          class="space-y-4"
+        >
+          <UFormGroup label="Email" name="email" :ui="{ wrapper: 'space-y-2' }">
+            <UInput v-model="state.email" placeholder="Enter your email" />
+          </UFormGroup>
+
+          <UFormGroup label="Password" name="password" :ui="{ wrapper: 'space-y-2' }">
+            <UInput v-model="state.password" type="password" placeholder="Enter your password" />
+          </UFormGroup>
+
+          <UButton type="submit" block class="mt-4">
+            Login <UIcon name="i-heroicons:arrow-right-20-solid" />
+          </UButton>
+        </UForm>
+      </UCard>
+    </div>
   </div>
 </template>
 
+
 <script lang="ts" setup></script>
 
-<style></style>
+<style scoped>
+.login-page {
+  position: relative;
+  width: 100vw;
+  height: 95vh;
+  overflow: hidden;
+}
+
+.background-image {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  z-index: 1;
+}
+
+.overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.5); /* Optional: adds contrast for form */
+  z-index: 2;
+}
+
+.form-container {
+  position: relative;
+  z-index: 3;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100%;
+  padding: 1rem;
+}
+</style>

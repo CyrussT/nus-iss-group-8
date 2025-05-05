@@ -8,7 +8,9 @@ import { bookingRequestManagement } from "@/composables/bookingReqManagement";
 import RejectModal from "~/components/booking/RejectModal.vue";
 import ConfirmationModal from "~/components/booking/ConfirmationModal.vue";
 import axios from "axios";
+import { Client } from '@stomp/stompjs';
 
+const { apiUrl } = useApi();
 const rejectModal = ref<InstanceType<typeof RejectModal> | null>(null);
 const confirmModal = ref<InstanceType<typeof ConfirmationModal> | null>(null);
 
@@ -25,6 +27,27 @@ const {
     fetchPendingBookings,
     changeSorting
 } = bookingRequestManagement();
+
+const connectWebSocket = () => {
+    const wsApi = apiUrl.replace('https://', 'wss://').replace('http://', 'ws://').concat('/ws');
+    const stompClient = new Client({
+        brokerURL: wsApi,
+        reconnectDelay: 5000,
+        onConnect: () => {
+            console.log('Connected!');
+            stompClient.subscribe('/topic/bookings', message => {
+                console.log('Received booking update', message.body);
+                fetchPendingBookings();
+            });
+        },
+        onDisconnect: () => {
+            console.log('Disconnected from WebSocket.');
+        },
+    });
+
+    stompClient.activate();
+};
+
 
 // Open the modal and pass the dynamic data for the modal
 const openRejectModal = (bookingId: number, email: string) => {
@@ -53,7 +76,7 @@ const approveBooking = async (bookingId: number, email: string) => {
     console.log(`Rejecting booking ${bookingId}`);
     try {
         const response = await axios.put(
-            `http://localhost:8080/api/bookings/update/${bookingId}`,
+            `${apiUrl}/api/bookings/update/${bookingId}`,
             null,
             {
                 params: {
@@ -74,7 +97,7 @@ const rejectBooking = async (bookingId: number, email: string, rejectReason: str
     console.log(`Rejecting booking ${bookingId} with reason: ${rejectReason}`);
     try {
         const response = await axios.put(
-            `http://localhost:8080/api/bookings/update/${bookingId}`,
+            `${apiUrl}/api/bookings/update/${bookingId}`,
             null, // No body required since we are using query params
             {
                 params: {
@@ -91,7 +114,11 @@ const rejectBooking = async (bookingId: number, email: string, rejectReason: str
     }
 };
 
-onMounted(fetchPendingBookings);
+onMounted(() => {
+    fetchPendingBookings();
+    connectWebSocket();
+});
+
 </script>
 
 <template>
@@ -116,9 +143,9 @@ onMounted(fetchPendingBookings);
                     <template #actions-data="{ row }">
                         <div class="flex justify-center gap-2">
                             <UButton @click="openApproveModal(row.bookingId, row.email)" color="green" variant="solid"
-                                icon="i-gridicons-checkmark" label="Approve" />
+                                icon="i-heroicons:check" label="Approve" />
                             <UButton @click="openRejectModal(row.bookingId, row.email)" color="red" variant="solid"
-                                icon="i-fluent-dismiss-20-regular" label="Reject" class="px-3 py-1 gap-2" />
+                                icon="i-heroicons:x-mark" label="Reject" class="px-3 py-1 gap-2" />
                         </div>
                         <RejectModal ref="rejectModal" />
                         <ConfirmationModal ref="confirmModal" />

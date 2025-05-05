@@ -27,7 +27,17 @@ interface AffectedBooking {
   email: string;
 }
 
+// Define maintenance request data
+interface MaintenanceRequest {
+  facilityId: number | null;
+  startDate: string;
+  endDate: string;
+  description: string;
+  createdBy: string;
+}
+
 export function useMaintenance() {
+  const { apiUrl } = useApi();
   const maintenanceLoading = ref<boolean>(false);
   const facilitiesUnderMaintenance = reactive<MaintenanceStatusMap>({});
   const affectedBookings = ref<AffectedBooking[]>([]);
@@ -47,8 +57,8 @@ export function useMaintenance() {
       
       // Use the date-specific endpoint if date is provided
       const url = date 
-        ? `http://localhost:8080/api/maintenance/check/${facilityId}?date=${date}`
-        : `http://localhost:8080/api/maintenance/check/${facilityId}`;
+        ? `${apiUrl}/api/maintenance/check/${facilityId}?date=${date}`
+        : `${apiUrl}/api/maintenance/check/${facilityId}`;
       
       const response = await axios.get<boolean>(url);
       
@@ -97,7 +107,7 @@ export function useMaintenance() {
       
       // Make a single API call with all facility IDs and date
       const response = await axios.post<Record<string, boolean>>(
-        'http://localhost:8080/api/maintenance/check-maintenance-status',
+        `${apiUrl}/api/maintenance/check-maintenance-status`,
         payload
       );
       
@@ -154,8 +164,8 @@ export function useMaintenance() {
       
       // Use date-specific endpoint if date is provided
       const url = date
-        ? `http://localhost:8080/api/maintenance/current/${facilityId}?date=${date}`
-        : `http://localhost:8080/api/maintenance/current/${facilityId}`;
+        ? `${apiUrl}/api/maintenance/current/${facilityId}?date=${date}`
+        : `${apiUrl}/api/maintenance/current/${facilityId}`;
         
       const response = await axios.get<MaintenanceDetails>(url);
       return response.data;
@@ -183,7 +193,7 @@ export function useMaintenance() {
       maintenanceLoading.value = true;
       
       const response = await axios.get(
-        `http://localhost:8080/api/maintenance/affected-bookings`, {
+        `${apiUrl}/api/maintenance/affected-bookings`, {
           params: {
             facilityId,
             startDate,
@@ -200,6 +210,70 @@ export function useMaintenance() {
     } catch (error) {
       console.error('Error checking affected bookings:', error);
       return 0;
+    } finally {
+      maintenanceLoading.value = false;
+    }
+  };
+  
+  /**
+   * Schedule maintenance for a facility
+   * @param maintenanceData The maintenance data
+   */
+  const scheduleMaintenanceForFacility = async (maintenanceData: MaintenanceRequest): Promise<MaintenanceDetails> => {
+    try {
+      maintenanceLoading.value = true;
+      
+      const response = await axios.post<MaintenanceDetails>(
+        `${apiUrl}/api/maintenance/schedule`,
+        maintenanceData
+      );
+      
+      return response.data;
+    } catch (error) {
+      console.error('Error scheduling maintenance:', error);
+      throw error;
+    } finally {
+      maintenanceLoading.value = false;
+    }
+  };
+  
+  /**
+   * Release a facility from maintenance early
+   * @param facilityId The facility ID
+   */
+  const releaseFacilityFromMaintenance = async (facilityId: number | string): Promise<MaintenanceDetails> => {
+    try {
+      maintenanceLoading.value = true;
+      
+      const response = await axios.post<MaintenanceDetails>(
+        `${apiUrl}/api/maintenance/release/${facilityId}`
+      );
+      
+      return response.data;
+    } catch (error) {
+      console.error('Error releasing facility from maintenance:', error);
+      throw error;
+    } finally {
+      maintenanceLoading.value = false;
+    }
+  };
+  
+  /**
+   * Get maintenance schedules for a specific facility
+   * @param facilityId The facility ID
+   */
+  const getFacilityMaintenanceSchedules = async (facilityId: number | string): Promise<MaintenanceDetails[]> => {
+    try {
+      maintenanceLoading.value = true;
+      
+      const response = await axios.get<MaintenanceDetails[]>(
+        `${apiUrl}/api/maintenance/facility/${facilityId}`
+      );
+      
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching facility maintenance schedules:', error);
+      return [];
     } finally {
       maintenanceLoading.value = false;
     }
@@ -225,6 +299,9 @@ export function useMaintenance() {
     isUnderMaintenance,
     getMaintenanceDetails,
     checkAffectedBookings,
+    scheduleMaintenanceForFacility,
+    releaseFacilityFromMaintenance,
+    getFacilityMaintenanceSchedules,
     clearMaintenanceCache
   };
 }

@@ -1,0 +1,30 @@
+- name: Provision application server
+  hosts: all
+  become: true
+  tasks:
+    - name: Update OS packages
+      apt:
+        update_cache: yes
+        upgrade: yes
+
+    - name: Install Nginx
+      apt:
+        name: nginx
+        state: latest
+
+    # Uncomment and adjust the following tasks to deploy your app's vhost:
+    # - name: Deploy application vhost
+    #   template:
+    #     src: your-app.conf.j2
+    #     dest: /etc/nginx/sites-available/your-app.conf
+    #
+    # - name: Enable application vhost
+    #   file:
+    #     src: /etc/nginx/sites-available/your-app.conf
+    #     dest: /etc/nginx/sites-enabled/your-app.conf
+    #     state: link
+
+    - name: Reload Nginx
+      systemd:
+        name: nginx
+        state: reloaded

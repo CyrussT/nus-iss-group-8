@@ -3,8 +3,7 @@ import jakarta.persistence.*;
 import java.util.List;
 
 import com.fasterxml.jackson.annotation.JsonBackReference;
-import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
-
+ 
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -30,7 +29,7 @@ public class Facility {
     @Column(name = "FACILITY_ID")
     private Long facilityId;
 
-    @Column(name = "RESOURCE_TYPE", nullable = false)
+    @Column(name = "RESOURCE_TYPE", nullable = false, columnDefinition = "BIGINT")
     private Long resourceTypeId;
 
     @Column(name = "RESOURCE_NAME", nullable = false)

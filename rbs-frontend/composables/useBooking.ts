@@ -22,6 +22,7 @@ export interface BookingRequest {
 }
 
 export function useBooking() {
+  const { apiUrl } = useApi();
   const upcomingApprovedBookings = ref<Booking[]>([]);
   const pendingBookings = ref<Booking[]>([]); 
   const pastBookings = ref<Booking[]>([]); 
@@ -31,7 +32,7 @@ export function useBooking() {
 
   const fetchAccountId = async (email: string) => {
     try {
-      const response = await axios.get(`http://localhost:8080/api/auth/account-id`, {
+      const response = await axios.get(`${apiUrl}/api/auth/account-id`, {
         params: { email }
       });
       return response.data; // This should be the account ID
@@ -46,7 +47,7 @@ export function useBooking() {
     if (!accountId) return; // Ensure accountId is available before fetching
 
     try {
-      const response = await axios.get("http://localhost:8080/api/bookings/upcoming-approved", {
+      const response = await axios.get(`${apiUrl}/api/bookings/upcoming-approved`, {
         params: { accountId }  // ✅ Send accountId as query param
       });
 
@@ -60,7 +61,7 @@ export function useBooking() {
     if (!accountId) return; // Ensure accountId is available before fetching
 
     try {
-      const response = await axios.get("http://localhost:8080/api/bookings/pending-future", {
+      const response = await axios.get(`${apiUrl}/api/bookings/pending-future`, {
         params: { accountId }  // Using accountId since bookings are linked to it
       });
 
@@ -74,7 +75,7 @@ export function useBooking() {
     if (!accountId) return; // Ensure accountId is available before fetching
 
     try {
-      const response = await axios.post("http://localhost:8080/api/bookings/history", {
+      const response = await axios.post(`${apiUrl}/api/bookings/history`, {
         studentId: accountId,  // Using accountId since bookings are linked to it
         status: ""  // Fetch all past bookings, modify if needed
       });
@@ -90,7 +91,7 @@ export function useBooking() {
     if (!email) return; // Ensure email is available before fetching
 
     try {
-      const response = await axios.get("http://localhost:8080/api/credit", {
+      const response = await axios.get(`${apiUrl}/api/credit`, {
         params: { email }  // Send email as query param
       });
 

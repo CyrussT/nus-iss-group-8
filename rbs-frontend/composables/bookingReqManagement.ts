@@ -1,6 +1,7 @@
 import { ref } from "vue";
 import axios from "axios";
 
+
 // Define the expected type for booking objects
 interface Booking {
   bookingId: number;
@@ -13,6 +14,7 @@ interface Booking {
 }
 
 export function bookingRequestManagement() {
+  const { apiUrl } = useApi();
   const pendingBookings = ref<Booking[]>([]); 
   const loading = ref(false); // Loading state
   const sortBy = ref<string>('bookedDatetime'); // Default sorting key
@@ -21,7 +23,7 @@ export function bookingRequestManagement() {
   const fetchPendingBookings = async() => {
     try {
       loading.value = true;
-      const response = await axios.get("http://localhost:8080/api/bookings/pending-bookings", {
+      const response = await axios.get(`${apiUrl}/api/bookings/pending-bookings`, {
         params: {
           status: "PENDING", // Filter by status
           sort: `${sortBy.value},${sortOrder.value}`, // Sorting by selected field and order

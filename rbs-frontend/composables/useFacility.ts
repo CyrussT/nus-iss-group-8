@@ -20,6 +20,8 @@ export interface Facility {
 }
 
 export const useFacility = () => {
+  const { apiUrl } = useApi();
+
   const facility = ref<Facility>({
     resourceTypeId: undefined,
     resourceName: "",
@@ -56,7 +58,7 @@ export const useFacility = () => {
 
   const fetchResourceTypes = async () => {
     try {
-      const { data } = await axios.get("http://localhost:8080/api/facility-types/all");
+      const { data } = await axios.get(`${apiUrl}/api/facility-types/all`);
       if (Array.isArray(data)) {
         resourceTypeOptions.value = data.map(item => ({
           id: item.id,
@@ -81,7 +83,7 @@ export const useFacility = () => {
   const fetchFacilities = async () => {
     try {
       loading.value = true;
-      const response = await axios.get("http://localhost:8080/api/facilities/search", {
+      const response = await axios.get(`${apiUrl}/api/facilities/search`, {
         params: {
           ...searchQuery.value,
           page: currentPage.value - 1,
@@ -117,7 +119,7 @@ export const useFacility = () => {
 
   const fetchFacilityDetails = async (facilityId: number) => {
     try {
-      const response = await axios.get(`http://localhost:8080/api/facilities/${facilityId}/details`);
+      const response = await axios.get(`${apiUrl}/api/facilities/${facilityId}/details`);
       facility.value = response.data;
     } catch (error) {
       console.error("Error fetching facility details:", error);

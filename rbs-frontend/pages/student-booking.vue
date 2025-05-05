@@ -9,7 +9,8 @@ import axios from "axios";
 import { computed, onMounted, ref } from "vue";
 import ConfirmationModal from "~/components/booking/ConfirmationModal.vue";
 
-const auth = useAuthStore();
+const auth = useAuthStore(); 
+const { apiUrl } = useApi();
 const { upcomingApprovedBookings, pendingBookings, pastBookings, fetchAccountId, fetchUpcomingApprovedBookings, fetchPendingBookings, fetchPastBookings } = useBooking();
 
 const authStore = useAuthStore();
@@ -55,44 +56,28 @@ const columns = [
   { key: 'actions', label: 'Actions' }
 ];
 
-// Format Upcoming bookings
+const formatBookingData = (bookings: any[]) => {
+  return bookings.map(booking => ({
+    facilityName: booking.facilityName,
+    bookedDatetime: new Date(booking.bookedDatetime).toLocaleDateString(),
+    timeslot: booking.timeslot,
+    supported: "N/A", // Placeholder — can be enhanced later
+    purpose: "N/A",   // Placeholder — can be enhanced later
+    status: booking.status,
+    bookingId: booking.bookingId,
+  }));
+};
+
 const formattedUpcomingApprovedBookings = computed(() => {
-  return upcomingApprovedBookings.value.map(upcomingApprovedBookings => ({
-    facilityName: upcomingApprovedBookings.facilityName,
-    bookedDatetime: new Date(upcomingApprovedBookings.bookedDatetime).toLocaleDateString(),
-    timeslot: upcomingApprovedBookings.timeslot,
-    supported: "N/A",
-    purpose: "N/A",
-    status: upcomingApprovedBookings.status,
-    bookingId: upcomingApprovedBookings.bookingId,
-  }));
+  return formatBookingData(upcomingApprovedBookings.value);
 });
 
-// Format Pending bookings
 const formattedPendingBookings = computed(() => {
-  return pendingBookings.value.map(pendingBookings => ({
-    facilityName: pendingBookings.facilityName,
-    bookedDatetime: new Date(pendingBookings.bookedDatetime).toLocaleDateString(),
-    timeslot: pendingBookings.timeslot,
-    supported: "N/A",
-    purpose: "N/A",
-    status: pendingBookings.status,
-    bookingId: pendingBookings.bookingId,
-  }));
+  return formatBookingData(pendingBookings.value);
 });
 
-
-// Format Past bookings 
 const formattedPastBookings = computed(() => {
-  return pastBookings.value.map(pastBookings => ({
-    facilityName: pastBookings.facilityName,
-    bookedDatetime: new Date(pastBookings.bookedDatetime).toLocaleDateString(),  // Format date
-    timeslot: pastBookings.timeslot,
-    supported: "N/A",  // Placeholder
-    purpose: "N/A",  // Placeholder
-    status: pastBookings.status,
-    bookingId: pastBookings.bookingId
-  }));
+  return formatBookingData(pastBookings.value);
 });
 
 // Open the modal and pass the dynamic data for the modal
@@ -112,7 +97,7 @@ const cancelBooking = async (bookingId: number) => {
     const userEmail: string = authStore.user.value?.email ?? '';
 
     // Make the DELETE request to the backend API to cancel the booking
-    const response = await axios.delete(`http://localhost:8080/api/bookings/cancel-booking/${bookingId}?toEmail=${encodeURIComponent(userEmail)}`);
+    const response = await axios.delete(`${apiUrl}/api/bookings/cancel-booking/${bookingId}?toEmail=${encodeURIComponent(userEmail)}`);
 
     // Log success message or handle the response accordingly
     console.log('Booking canceled:', bookingId);

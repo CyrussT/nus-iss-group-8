@@ -5,6 +5,7 @@ import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
+import org.springframework.transaction.annotation.Transactional;
 
 import com.group8.rbs.entities.Credit;
 
@@ -20,4 +21,11 @@ public interface CreditRepository extends JpaRepository<Credit, Long> {
     @Query("UPDATE Credit c SET c.creditBalance = c.creditBalance - :amount " +
            "WHERE c.accountId = :accountId AND c.creditBalance >= :amount")
     int checkAndDeductCredits(@Param("accountId") Long accountId, @Param("amount") Double amount);
+    
+    // Add credits back to an account (for refunds)
+    @Modifying
+    @Transactional
+    @Query("UPDATE Credit c SET c.creditBalance = c.creditBalance + :amount " +
+           "WHERE c.accountId = :accountId")
+    int addCredits(@Param("accountId") Long accountId, @Param("amount") Integer amount);
 }

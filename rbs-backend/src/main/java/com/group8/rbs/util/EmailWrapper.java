@@ -18,16 +18,16 @@ public final class EmailWrapper {
         Resend resend = new Resend(resendKey);
 
         CreateEmailOptions params = CreateEmailOptions.builder()
-            .from("Resource Booking System SIT (RBS) <rbs@resend.dev>")
-            .to(to)
-            .subject(subject)
-            .html(body)
-            .build();
+                .from("Resource Booking System RBS <rbs@rbs.clyns.cloud>")
+                .to(to)
+                .subject(subject)
+                .html(body)
+                .build();
 
         try {
             CreateEmailResponse data = resend.emails().send(params);
             System.out.println(data.getId());
-            
+
         } catch (ResendException e) {
             e.printStackTrace();
             return false;
