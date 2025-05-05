@@ -23,6 +23,15 @@ const isReleaseConfirmModalOpen = ref(false);
 const selectedFacility = ref<Partial<Facility> | null>(null);
 const currentMaintenanceDetails = ref<any>(null);
 
+const errors = reactive({
+  resourceTypeId: '',
+  resourceName: '',
+  location: '',
+  capacity: ''
+});
+
+
+
 // Maintenance composable
 const maintenanceModule = useMaintenance();
 const {
@@ -432,6 +441,17 @@ watch(() => maintenanceData.value.description, (newValue) => {
   }
 });
 
+const validateForm = () => {
+  let valid = true;
+  errors.resourceTypeId = facility.value.resourceTypeId ? '' : 'Resource type is required';
+  errors.resourceName = facility.value.resourceName?.trim() ? '' : 'Resource name is required';
+  errors.location = facility.value.location?.trim() ? '' : 'Location is required';
+  errors.capacity = facility.value.capacity > 0 ? '' : 'Capacity must be greater than 0';
+
+  valid = !Object.values(errors).some(err => err);
+  return valid;
+};
+
 const saveMaintenance = async () => {
   try {
     // Validate the form
@@ -482,6 +502,7 @@ const saveMaintenance = async () => {
 };
 
 const saveFacility = async () => {
+  if (!validateForm()) return;
   try {
     // Validate required fields
     if (!facility.value.resourceName || !facility.value.resourceName.trim()) {
@@ -554,14 +575,18 @@ onMounted(async () => {
 <template>
   <div class="p-8 dark:bg-gray-900 dark:text-white">
     <h1 class="text-2xl font-bold mb-4 dark:text-white">Facility Management</h1>
-    
+
     <div class="grid grid-cols-2 gap-4">
       <UInputMenu v-model="searchQuery.resourceTypeId" :options="resourceTypeOptions" option-attribute="name"
-        value-attribute="id" placeholder="Type or select resource type" size="md" class="w-full dark:bg-gray-800 dark:text-white dark:border-gray-700" clearable />
+        value-attribute="id" placeholder="Type or select resource type" size="md"
+        class="w-full dark:bg-gray-800 dark:text-white dark:border-gray-700" clearable />
 
-      <UInput v-model="searchQuery.resourceName" placeholder="Resource Name" class="dark:bg-gray-800 dark:text-white dark:border-gray-700" />
-      <UInput v-model="searchQuery.location" placeholder="Location" class="dark:bg-gray-800 dark:text-white dark:border-gray-700" />
-      <UInput v-model="searchQuery.capacity" type="number" placeholder="Capacity" class="dark:bg-gray-800 dark:text-white dark:border-gray-700" />
+      <UInput v-model="searchQuery.resourceName" placeholder="Resource Name"
+        class="dark:bg-gray-800 dark:text-white dark:border-gray-700" />
+      <UInput v-model="searchQuery.location" placeholder="Location"
+        class="dark:bg-gray-800 dark:text-white dark:border-gray-700" />
+      <UInput v-model="searchQuery.capacity" type="number" placeholder="Capacity"
+        class="dark:bg-gray-800 dark:text-white dark:border-gray-700" />
 
       <div class="col-span-2 flex justify-end gap-2">
         <UButton @click="() => { currentPage = 1; fetchFacilities(); }" color="blue" variant="solid"
@@ -617,7 +642,8 @@ onMounted(async () => {
   <!-- Facility Modal -->
   <UModal v-model="isModalOpen">
     <UCard class="p-9 max-w-lg dark:bg-gray-800 dark:text-white dark:border-gray-700">
-      <button @click="closeModal" class="absolute top-4 right-4 text-gray-500 hover:text-gray-700 dark:text-gray-300 dark:hover:text-gray-100">
+      <button @click="closeModal"
+        class="absolute top-4 right-4 text-gray-500 hover:text-gray-700 dark:text-gray-300 dark:hover:text-gray-100">
         <UIcon name="i-heroicons-x-mark" class="w-6 h-6" />
       </button>
 
@@ -628,22 +654,42 @@ onMounted(async () => {
         <label class="text-gray-700 font-medium col-span-1 dark:text-gray-300">Resource Type:</label>
 
         <UInputMenu v-model="facility.resourceTypeId" :options="resourceTypeOptions" option-attribute="name"
-          value-attribute="id" placeholder="Type or select resource type" size="md" class="col-span-2 w-full dark:bg-gray-700 dark:text-white dark:border-gray-600"
-          clearable />
+          value-attribute="id" placeholder="Type or select resource type" size="md"
+          class="col-span-2 w-full dark:bg-gray-700 dark:text-white dark:border-gray-600" clearable
+          :error="errors.resourceTypeId" />
+        <p v-if="errors.resourceTypeId" class="text-sm text-red-500 col-span-3 mt-1 ml-[33%]">
+          {{ errors.resourceTypeId }}
+        </p>
 
         <label class="text-gray-700 font-medium col-span-1 dark:text-gray-300">Resource Name:</label>
-        <UInput v-model="facility.resourceName" class="col-span-2 w-full dark:bg-gray-700 dark:text-white dark:border-gray-600" />
+        <UInput v-model="facility.resourceName"
+          class="col-span-2 w-full dark:bg-gray-700 dark:text-white dark:border-gray-600"
+          :error="errors.resourceName" />
+        <p v-if="errors.resourceName" class="text-sm text-red-500 col-span-3 mt-1 ml-[33%]">
+          {{ errors.resourceName }}
+        </p>
 
         <label class="text-gray-700 font-medium col-span-1 dark:text-gray-300">Location:</label>
-        <UInput v-model="facility.location" class="col-span-2 w-full dark:bg-gray-700 dark:text-white dark:border-gray-600" />
+        <UInput v-model="facility.location"
+          class="col-span-2 w-full dark:bg-gray-700 dark:text-white dark:border-gray-600" :error="errors.location" />
 
+        <p v-if="errors.location" class="text-sm text-red-500 col-span-3 mt-1 ml-[33%]">
+          {{ errors.location }}
+        </p>
         <label class="text-gray-700 font-medium col-span-1 dark:text-gray-300">Capacity:</label>
-        <UInput v-model.number="facility.capacity" type="number" class="col-span-2 w-full dark:bg-gray-700 dark:text-white dark:border-gray-600" />
+        <UInput v-model.number="facility.capacity" type="number"
+          class="col-span-2 w-full dark:bg-gray-700 dark:text-white dark:border-gray-600" :error="errors.capacity" />
+        <p v-if="errors.capacity" class="text-sm text-red-500 col-span-3 mt-1 ml-[33%]">
+          {{ errors.capacity }}
+        </p>
       </div>
 
+
       <div class="mt-9 flex justify-end gap-3">
-        <UButton @click="closeModal" color="gray" variant="solid" label="Cancel" class="dark:bg-gray-600 dark:hover:bg-gray-700" />
-        <UButton @click="saveFacility" color="green" variant="solid" :label="isEditing ? 'Update Facility' : 'Save Facility'" />
+        <UButton @click="closeModal" color="gray" variant="solid" label="Cancel"
+          class="dark:bg-gray-600 dark:hover:bg-gray-700" />
+        <UButton @click="saveFacility" color="green" variant="solid"
+          :label="isEditing ? 'Update Facility' : 'Save Facility'" />
       </div>
     </UCard>
   </UModal>
@@ -651,7 +697,8 @@ onMounted(async () => {
   <!-- Maintenance Modal -->
   <UModal v-model="isMaintenanceModalOpen">
     <UCard class="p-9 max-w-lg dark:bg-gray-800 dark:text-white dark:border-gray-700">
-      <button @click="closeMaintenanceModal" class="absolute top-4 right-4 text-gray-500 hover:text-gray-700 dark:text-gray-300 dark:hover:text-gray-100">
+      <button @click="closeMaintenanceModal"
+        class="absolute top-4 right-4 text-gray-500 hover:text-gray-700 dark:text-gray-300 dark:hover:text-gray-100">
         <UIcon name="i-heroicons-x-mark" class="w-6 h-6" />
       </button>
 
@@ -661,14 +708,16 @@ onMounted(async () => {
 
       <div v-if="selectedFacility" class="mb-6 p-4 bg-gray-50 rounded-lg dark:bg-gray-700">
         <p class="font-medium dark:text-white">Facility: {{ selectedFacility.resourceName }}</p>
-        <p class="text-sm text-gray-600 dark:text-gray-300">Resource Type: {{ getResourceTypeName(Number(selectedFacility.resourceTypeId))
+        <p class="text-sm text-gray-600 dark:text-gray-300">Resource Type: {{
+          getResourceTypeName(Number(selectedFacility.resourceTypeId))
           }}
         </p>
         <p class="text-sm text-gray-600 dark:text-gray-300">Location: {{ selectedFacility.location }}</p>
       </div>
 
       <!-- Upcoming maintenance for this facility -->
-      <div v-if="facilityUpcomingMaintenance.length > 0" class="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg dark:bg-blue-900/30 dark:border-blue-800">
+      <div v-if="facilityUpcomingMaintenance.length > 0"
+        class="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg dark:bg-blue-900/30 dark:border-blue-800">
         <div class="flex items-start mb-2">
           <UIcon name="i-heroicons-calendar" class="text-blue-500 mr-2 flex-shrink-0 dark:text-blue-400" />
           <h3 class="font-medium text-blue-800 dark:text-blue-300">Upcoming Maintenance for this Facility</h3>
@@ -678,7 +727,9 @@ onMounted(async () => {
           <div v-for="maintenance in facilityUpcomingMaintenance" :key="maintenance.maintenanceId"
             class="border-l-4 border-blue-400 pl-3 py-1 bg-white rounded-md dark:bg-gray-700 dark:border-blue-500">
             <div class="text-sm">
-              <p class="font-medium text-blue-700 dark:text-blue-300">{{ formatDateForDisplay(maintenance.startDate) }} to {{
+              <p class="font-medium text-blue-700 dark:text-blue-300">{{ formatDateForDisplay(maintenance.startDate) }}
+                to
+                {{
                 formatDateForDisplay(maintenance.endDate) }}</p>
               <p class="text-gray-600 line-clamp-2 dark:text-gray-300">{{ maintenance.description }}</p>
             </div>
@@ -687,9 +738,11 @@ onMounted(async () => {
       </div>
 
       <!-- Affected Bookings Warning -->
-      <div v-if="affectedBookingsCount > 0" class="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg dark:bg-red-900/30 dark:border-red-800">
+      <div v-if="affectedBookingsCount > 0"
+        class="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg dark:bg-red-900/30 dark:border-red-800">
         <div class="flex items-start">
-          <UIcon name="i-heroicons-exclamation-triangle" class="text-red-500 mr-3 flex-shrink-0 mt-0.5 dark:text-red-400" />
+          <UIcon name="i-heroicons-exclamation-triangle"
+            class="text-red-500 mr-3 flex-shrink-0 mt-0.5 dark:text-red-400" />
           <div>
             <h3 class="font-medium text-red-700 mb-1 dark:text-red-300">Warning: {{ affectedBookingsCount }} Booking{{
               affectedBookingsCount
@@ -704,7 +757,7 @@ onMounted(async () => {
               <ul class="list-disc pl-5 space-y-1 dark:text-gray-200">
                 <li v-for="booking in affectedBookings" :key="booking.bookingId">
                   {{ booking.studentName }} ({{ booking.email }}) - {{ new
-                    Date(booking.bookedDatetime).toLocaleDateString() }} / {{ booking.timeslot }}
+                  Date(booking.bookedDatetime).toLocaleDateString() }} / {{ booking.timeslot }}
                 </li>
               </ul>
             </div>
@@ -716,16 +769,19 @@ onMounted(async () => {
         <label class="text-gray-700 font-medium col-span-1 mt-2.5 dark:text-gray-300">Start Date:<span
             class="text-red-500">*</span></label>
         <div class="col-span-2 w-full">
-          <UInput v-model="maintenanceData.startDate" type="date" class="w-full dark:bg-gray-700 dark:text-white dark:border-gray-600"
-            :min="minDate" :color="validationErrors.startDate ? 'red' : undefined" />
+          <UInput v-model="maintenanceData.startDate" type="date"
+            class="w-full dark:bg-gray-700 dark:text-white dark:border-gray-600" :min="minDate"
+            :color="validationErrors.startDate ? 'red' : undefined" />
           <p v-if="validationErrors.startDate" class="text-red-500 text-sm mt-1 dark:text-red-400">
             {{ validationErrors.startDate }}
           </p>
         </div>
 
-        <label class="text-gray-700 font-medium col-span-1 mt-2.5 dark:text-gray-300">End Date:<span class="text-red-500">*</span></label>
+        <label class="text-gray-700 font-medium col-span-1 mt-2.5 dark:text-gray-300">End Date:<span
+            class="text-red-500">*</span></label>
         <div class="col-span-2 w-full">
-          <UInput v-model="maintenanceData.endDate" type="date" class="w-full dark:bg-gray-700 dark:text-white dark:border-gray-600"
+          <UInput v-model="maintenanceData.endDate" type="date"
+            class="w-full dark:bg-gray-700 dark:text-white dark:border-gray-600"
             :min="maintenanceData.startDate || minDate" :color="validationErrors.endDate ? 'red' : undefined" />
           <p v-if="validationErrors.endDate" class="text-red-500 text-sm mt-1 dark:text-red-400">
             {{ validationErrors.endDate }}
@@ -735,7 +791,8 @@ onMounted(async () => {
         <label class="text-gray-700 font-medium col-span-1 mt-2.5 dark:text-gray-300">Description:<span
             class="text-red-500">*</span></label>
         <div class="col-span-2 w-full">
-          <UTextarea v-model="maintenanceData.description" class="w-full dark:bg-gray-700 dark:text-white dark:border-gray-600" :rows="textareaRows"
+          <UTextarea v-model="maintenanceData.description"
+            class="w-full dark:bg-gray-700 dark:text-white dark:border-gray-600" :rows="textareaRows"
             placeholder="Enter maintenance details here..." :color="validationErrors.description ? 'red' : undefined" />
           <p v-if="validationErrors.description" class="text-red-500 text-sm mt-1 dark:text-red-400">
             {{ validationErrors.description }}
@@ -744,7 +801,8 @@ onMounted(async () => {
       </div>
 
       <div class="mt-9 flex justify-end gap-3">
-        <UButton @click="closeMaintenanceModal" color="gray" variant="solid" label="Cancel" class="dark:bg-gray-600 dark:hover:bg-gray-700" />
+        <UButton @click="closeMaintenanceModal" color="gray" variant="solid" label="Cancel"
+          class="dark:bg-gray-600 dark:hover:bg-gray-700" />
         <UButton @click="saveMaintenance" color="red" variant="solid" label="Schedule Maintenance" />
       </div>
     </UCard>
@@ -753,7 +811,8 @@ onMounted(async () => {
   <!-- Early Release Confirmation Modal -->
   <UModal v-model="isReleaseConfirmModalOpen">
     <UCard class="p-9 max-w-lg dark:bg-gray-800 dark:text-white dark:border-gray-700">
-      <button @click="closeReleaseConfirmModal" class="absolute top-4 right-4 text-gray-500 hover:text-gray-700 dark:text-gray-300 dark:hover:text-gray-100">
+      <button @click="closeReleaseConfirmModal"
+        class="absolute top-4 right-4 text-gray-500 hover:text-gray-700 dark:text-gray-300 dark:hover:text-gray-100">
         <UIcon name="i-heroicons-x-mark" class="w-6 h-6" />
       </button>
 
@@ -763,13 +822,15 @@ onMounted(async () => {
 
       <div v-if="selectedFacility" class="mb-6 p-4 bg-gray-100 rounded-lg dark:bg-gray-700">
         <p class="font-medium dark:text-white">Facility: {{ selectedFacility.resourceName }}</p>
-        <p class="text-sm text-gray-600 dark:text-gray-300">Resource Type: {{ getResourceTypeName(Number(selectedFacility.resourceTypeId))
+        <p class="text-sm text-gray-600 dark:text-gray-300">Resource Type: {{
+          getResourceTypeName(Number(selectedFacility.resourceTypeId))
           }}
         </p>
         <p class="text-sm text-gray-600 dark:text-gray-300">Location: {{ selectedFacility.location }}</p>
       </div>
 
-      <div v-if="currentMaintenanceDetails" class="mb-6 p-4 bg-orange-50 border border-orange-200 rounded-lg dark:bg-orange-900/30 dark:border-orange-800">
+      <div v-if="currentMaintenanceDetails"
+        class="mb-6 p-4 bg-orange-50 border border-orange-200 rounded-lg dark:bg-orange-900/30 dark:border-orange-800">
         <h3 class="font-medium text-orange-700 mb-2 dark:text-orange-300">Current Maintenance Information</h3>
         <div class="grid grid-cols-2 gap-2 text-sm">
           <p class="text-gray-600 dark:text-gray-300">Start Date:</p>
@@ -783,9 +844,11 @@ onMounted(async () => {
         </div>
       </div>
 
-      <div class="bg-yellow-50 p-4 rounded-lg mb-6 border border-yellow-200 dark:bg-yellow-900/30 dark:border-yellow-800">
+      <div
+        class="bg-yellow-50 p-4 rounded-lg mb-6 border border-yellow-200 dark:bg-yellow-900/30 dark:border-yellow-800">
         <div class="flex items-start">
-          <UIcon name="i-heroicons-exclamation-triangle" class="text-yellow-500 mr-3 flex-shrink-0 mt-0.5 dark:text-yellow-400" />
+          <UIcon name="i-heroicons-exclamation-triangle"
+            class="text-yellow-500 mr-3 flex-shrink-0 mt-0.5 dark:text-yellow-400" />
           <p class="text-sm text-gray-700 dark:text-gray-200">
             You are about to release this facility from maintenance earlier than scheduled.
             The maintenance end date will be set to today, and the facility will be available for booking from tomorrow.
@@ -794,9 +857,10 @@ onMounted(async () => {
       </div>
 
       <div class="mt-6 flex justify-end gap-3">
-        <UButton @click="closeReleaseConfirmModal" color="gray" variant="solid" label="Cancel" class="dark:bg-gray-600 dark:hover:bg-gray-700" />
-        <UButton @click="handleReleaseFacility"
-          color="orange" variant="solid" label="Release Facility" :loading="releasingMaintenance" />
+        <UButton @click="closeReleaseConfirmModal" color="gray" variant="solid" label="Cancel"
+          class="dark:bg-gray-600 dark:hover:bg-gray-700" />
+        <UButton @click="handleReleaseFacility" color="orange" variant="solid" label="Release Facility"
+          :loading="releasingMaintenance" />
       </div>
     </UCard>
   </UModal>

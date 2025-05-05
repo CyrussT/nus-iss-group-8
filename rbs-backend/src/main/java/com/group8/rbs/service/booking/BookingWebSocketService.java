@@ -7,8 +7,7 @@ import org.springframework.stereotype.Service;
 @Service
 public class BookingWebSocketService {
 
-    @Autowired
-    private SimpMessagingTemplate messagingTemplate;
+    @Autowired SimpMessagingTemplate messagingTemplate;
 
     public void sendBookingUpdate(Long bookingId) {
         messagingTemplate.convertAndSend("/topic/bookings", bookingId); // notify all clients
