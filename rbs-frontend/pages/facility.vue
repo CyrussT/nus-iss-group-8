@@ -590,12 +590,12 @@ onMounted(async () => {
 
       <div class="col-span-2 flex justify-end gap-2">
         <UButton @click="() => { currentPage = 1; fetchFacilities(); }" color="blue" variant="solid"
-          icon="i-heroicons:magnifying-glass" label="Search" class="px-4 py-2 gap-2" />
+          icon="i-heroicons-outline:magnifying-glass" label="Search" class="px-4 py-2 gap-2" />
 
-        <UButton @click="resetSearch" color="gray" variant="solid" icon="i-heroicons:arrow-path" label="Reset"
+        <UButton @click="resetSearch" color="gray" variant="solid" icon="i-heroicons-outline:arrow-path" label="Reset"
           class="px-4 py-2 gap-2 hover:bg-red-500 dark:hover:bg-red-600" />
 
-        <UButton @click="openModal()" color="green" variant="solid" icon="i-heroicons:plus" label="Add Facility"
+        <UButton @click="openModal()" color="green" variant="solid" icon="i-heroicons-outline:plus" label="Add Facility"
           class="px-4 py-2 gap-2" />
       </div>
     </div>
@@ -616,15 +616,15 @@ onMounted(async () => {
 
           <template #actions-data="{ row }">
             <div class="flex justify-center gap-2">
-              <UButton @click="viewFacility(row.facilityId)" color="blue" variant="solid" icon="i-heroicons:eye"
+              <UButton @click="viewFacility(row.facilityId)" color="blue" variant="solid" icon="material-symbols:visibility-outline"
                 label="View" />
 
-              <UButton @click="openModal(row)" color="yellow" variant="solid" icon="i-heroicons:pencil" label="Edit"
+              <UButton @click="openModal(row)" color="yellow" variant="solid" icon="material-symbols:edit-outline" label="Edit"
                 class="px-3 py-1 gap-2" />
 
               <UButton @click="handleMaintenanceButtonClick(row)"
                 :color="isUnderMaintenance(row.facilityId) ? 'orange' : 'red'" variant="solid"
-                :icon="isUnderMaintenance(row.facilityId) ? 'i-heroicons:check-circle' : 'i-heroicons:wrench'"
+                :icon="isUnderMaintenance(row.facilityId) ? 'material-symbols:check-circle-outline' : 'material-symbols:tools-wrench-outline'"
                 :loading="maintenanceLoading" :label="isUnderMaintenance(row.facilityId) ? 'Release' : 'Maintenance'"
                 class="px-3 py-1 gap-2" />
             </div>
@@ -710,7 +710,7 @@ onMounted(async () => {
         <p class="font-medium dark:text-white">Facility: {{ selectedFacility.resourceName }}</p>
         <p class="text-sm text-gray-600 dark:text-gray-300">Resource Type: {{
           getResourceTypeName(Number(selectedFacility.resourceTypeId))
-          }}
+        }}
         </p>
         <p class="text-sm text-gray-600 dark:text-gray-300">Location: {{ selectedFacility.location }}</p>
       </div>
@@ -730,7 +730,7 @@ onMounted(async () => {
               <p class="font-medium text-blue-700 dark:text-blue-300">{{ formatDateForDisplay(maintenance.startDate) }}
                 to
                 {{
-                formatDateForDisplay(maintenance.endDate) }}</p>
+                  formatDateForDisplay(maintenance.endDate) }}</p>
               <p class="text-gray-600 line-clamp-2 dark:text-gray-300">{{ maintenance.description }}</p>
             </div>
           </div>
@@ -746,7 +746,7 @@ onMounted(async () => {
           <div>
             <h3 class="font-medium text-red-700 mb-1 dark:text-red-300">Warning: {{ affectedBookingsCount }} Booking{{
               affectedBookingsCount
-              > 1 ? 's' : '' }} Will Be Cancelled</h3>
+                > 1 ? 's' : '' }} Will Be Cancelled</h3>
             <p class="text-sm text-red-600 mb-2 dark:text-red-300">
               Scheduling maintenance during this period will automatically cancel {{ affectedBookingsCount }}
               existing booking{{ affectedBookingsCount > 1 ? 's' : '' }} and send notification emails to affected users.
@@ -757,7 +757,7 @@ onMounted(async () => {
               <ul class="list-disc pl-5 space-y-1 dark:text-gray-200">
                 <li v-for="booking in affectedBookings" :key="booking.bookingId">
                   {{ booking.studentName }} ({{ booking.email }}) - {{ new
-                  Date(booking.bookedDatetime).toLocaleDateString() }} / {{ booking.timeslot }}
+                    Date(booking.bookedDatetime).toLocaleDateString() }} / {{ booking.timeslot }}
                 </li>
               </ul>
             </div>
@@ -824,7 +824,7 @@ onMounted(async () => {
         <p class="font-medium dark:text-white">Facility: {{ selectedFacility.resourceName }}</p>
         <p class="text-sm text-gray-600 dark:text-gray-300">Resource Type: {{
           getResourceTypeName(Number(selectedFacility.resourceTypeId))
-          }}
+        }}
         </p>
         <p class="text-sm text-gray-600 dark:text-gray-300">Location: {{ selectedFacility.location }}</p>
       </div>
