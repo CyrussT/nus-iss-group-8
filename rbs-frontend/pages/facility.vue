@@ -616,15 +616,15 @@ onMounted(async () => {
 
           <template #actions-data="{ row }">
             <div class="flex justify-center gap-2">
-              <UButton @click="viewFacility(row.facilityId)" color="blue" variant="solid" icon="material-symbols:visibility-outline"
+              <UButton @click="viewFacility(row.facilityId)" color="blue" variant="solid" icon="i-heroicons-outline:eye"
                 label="View" />
 
-              <UButton @click="openModal(row)" color="yellow" variant="solid" icon="material-symbols:edit-outline" label="Edit"
+              <UButton @click="openModal(row)" color="yellow" variant="solid" icon="i-heroicons-outline:pencil" label="Edit"
                 class="px-3 py-1 gap-2" />
 
               <UButton @click="handleMaintenanceButtonClick(row)"
                 :color="isUnderMaintenance(row.facilityId) ? 'orange' : 'red'" variant="solid"
-                :icon="isUnderMaintenance(row.facilityId) ? 'material-symbols:check-circle-outline' : 'material-symbols:tools-wrench-outline'"
+                :icon="isUnderMaintenance(row.facilityId) ? 'i-heroicons-outline:check-circle' : 'i-heroicons-outline:wrench'"
                 :loading="maintenanceLoading" :label="isUnderMaintenance(row.facilityId) ? 'Release' : 'Maintenance'"
                 class="px-3 py-1 gap-2" />
             </div>
