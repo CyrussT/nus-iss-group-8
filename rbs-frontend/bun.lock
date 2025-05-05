@@ -8,6 +8,7 @@
         "@fullcalendar/interaction": "^6.1.15",
         "@fullcalendar/resource-timeline": "^6.1.15",
         "@fullcalendar/vue3": "^6.1.15",
+        "@iconify-json/heroicons": "^1.2.2",
         "@stomp/stompjs": "^7.1.1",
         "axios": "^1.7.9",
         "nuxt-app": "file:",
