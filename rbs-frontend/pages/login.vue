@@ -82,7 +82,7 @@ async function onSubmit(event: FormSubmitEvent<LoginData>) {
     <div class="form-container">
       <UCard class="w-full max-w-md">
         <template #header>
-          <h2>Login to RBS (Pipeline Demo)</h2>
+          <h2>Login to RBS</h2>
         </template>
 
         <UForm :schema="loginSchema" :validate="validate" :state="state" @submit="onSubmit" class="space-y-4">
