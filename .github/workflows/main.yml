@@ -44,15 +44,8 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-owasp-${{ steps.get-date.outputs.datetime }}
             ${{ runner.os }}-owasp-
-
-      - name: Cache SonarQube packages
-        uses: actions/cache@v4
-        with:
-          path: ~/.sonar/cache
-          key: ${{ runner.os }}-sonar
-          restore-keys: ${{ runner.os }}-sonar
           
-      - name: Build and test backend and run OWASP Dependency Check and SonarQube
+      - name: Build and test backend and run OWASP Dependency Check
         run: |
           mvn clean verify
         env:
@@ -147,7 +140,18 @@ jobs:
         with:
           distribution: "temurin"
           java-version: "21"
-          
+
+      - name: Set up Maven
+        uses: stCarolas/setup-maven@v5
+        with:
+          maven-version: 3.8.2
+        
+    # Add this step to compile the backend code
+      - name: Build backend for SonarQube
+        run: |
+          cd rbs-backend
+          mvn clean compile -DskipTests
+
       - name: Cache SonarQube packages
         uses: actions/cache@v4
         with:
