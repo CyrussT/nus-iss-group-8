@@ -1,0 +1,43 @@
+version: '3.8'
+
+services:
+  backend:
+    build:
+      context: ./rbs-backend
+      dockerfile: Dockerfile
+    container_name: rbs-backend
+    ports:
+      - "8080:8080"
+    environment:
+      - SPRING_APPLICATION_NAME=rbs
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://aws-0-ap-southeast-1.pooler.supabase.com:5432/postgres?user=postgres.qwhvrsanwjqxzozgugwy&password=b5xg0zpfNuPRASDr
+      - SPRING_DATASOURCE_DRIVER_CLASS_NAME=org.postgresql.Driver
+      - SPRING_JPA_PROPERTIES_HIBERNATE_DIALECT=org.hibernate.dialect.PostgreSQLDialect
+      - SPRING_JPA_HIBERNATE_DDL_AUTO=update
+      - SPRING_JPA_SHOW_SQL=false
+      - SECURITY_JWT_SECRET_KEY=404E635266556A586E3272357538782F413F4428472B4B6250645367566B5975
+      - EMAIL_APIKEY=re_C3cks3dN_Ne3DoaRhCmLGh8dwWpcWJtvU
+      - ALLOWED_ORIGIN=http://localhost:3000,http://${DOMAIN:-localhost}:3000
+    networks:
+      - rbs-network
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./rbs-frontend
+      dockerfile: Dockerfile
+    container_name: rbs-frontend
+    ports:
+      - "3000:3000"
+    environment:
+      - API_BASE_URL=http://localhost:8080
+      - NODE_ENV=production
+    depends_on:
+      - backend
+    networks:
+      - rbs-network
+    restart: unless-stopped
+
+networks:
+  rbs-network:
+    driver: bridge
