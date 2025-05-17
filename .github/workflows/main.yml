@@ -44,13 +44,20 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-owasp-${{ steps.get-date.outputs.datetime }}
             ${{ runner.os }}-owasp-
+      
+      - name: Cache SonarQube packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.sonar/cache
+          key: ${{ runner.os }}-sonar
+          restore-keys: ${{ runner.os }}-sonar
 
-      - name: Build and test backend and run OWASP Dependency Check
+      - name: Build and test backend and run OWASP Dependency Check and SonarQube Scanning
         run: |
-          mvn clean verify
-          mvn test
+            mvn clean verify org.sonarsource.scanner.maven:sonar-maven-plugin:sonar -Dsonar.projectKey=iss-group-8_rbs-backend
         env:
           NVD_API_KEY: ${{ secrets.NVD_KEY }}
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
 
       - name: Save OWASP cache
         uses: actions/cache/save@v3
@@ -105,6 +112,13 @@ jobs:
 
       - name: Build and test frontend
         run: bun test:all
+      
+      - name: SonarQube Scan for Frontend
+        uses: SonarSource/sonarqube-scan-action@v5
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        with:
+          projectBaseDir: ./rbs-frontend
 
       - name: Run ESLint and save report
         run: bun eslint . --format stylish --output-file eslint-report.txt
