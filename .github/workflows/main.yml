@@ -111,7 +111,7 @@ jobs:
         run: bun install
 
       - name: Build and test frontend
-        run: bun test:coverage --no-threads
+        run: bun test:coverage
       
       - name: SonarQube Scan for Frontend
         uses: SonarSource/sonarqube-scan-action@v5
