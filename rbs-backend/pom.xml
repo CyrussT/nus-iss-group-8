@@ -6,7 +6,7 @@
 	<parent>
 		<groupId>org.springframework.boot</groupId>
 		<artifactId>spring-boot-starter-parent</artifactId>
-		<version>3.4.4</version>
+		<version>3.4.5</version>
 		<relativePath /> <!-- lookup parent from repository -->
 	</parent>
 	<groupId>com.group8</groupId>
@@ -43,7 +43,6 @@
 				</exclusion>
 			</exclusions>
 		</dependency>
-		<!-- Manually Add -->
 		<dependency>
 			<groupId>org.springframework.security</groupId>
 			<artifactId>spring-security-crypto</artifactId>
@@ -62,7 +61,12 @@
 				</exclusion>
 			</exclusions>
 		</dependency>
-		<!-- Manually Add -->
+		<!-- https://mvnrepository.com/artifact/org.springframework/spring-context -->
+		<dependency>
+			<groupId>org.springframework</groupId>
+			<artifactId>spring-context</artifactId>
+			<version>6.2.7</version>
+		</dependency>
 		<dependency>
 			<groupId>org.apache.tomcat.embed</groupId>
 			<artifactId>tomcat-embed-core</artifactId>
@@ -99,7 +103,6 @@
 				</exclusion>
 			</exclusions>
 		</dependency>
-		<!-- Manually Add -->
 		<dependency>
 			<groupId>org.quartz-scheduler</groupId>
 			<artifactId>quartz</artifactId>
@@ -164,6 +167,12 @@
 			<groupId>com.resend</groupId>
 			<artifactId>resend-java</artifactId>
 			<version>4.2.0</version>
+		</dependency>
+		<!-- https://mvnrepository.com/artifact/com.squareup.okio/okio -->
+		<dependency>
+			<groupId>com.squareup.okio</groupId>
+			<artifactId>okio</artifactId>
+			<version>3.4.0</version>
 		</dependency>
 
 		<!-- H2 Database for Testing -->
