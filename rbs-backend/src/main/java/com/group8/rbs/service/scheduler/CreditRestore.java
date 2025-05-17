@@ -45,8 +45,8 @@ public class CreditRestore implements Job {
         try (Connection conn = DriverManager.getConnection(url, user, password);
                 PreparedStatement stmt = conn.prepareStatement(updateQuery)) {
 
-            int rowsUpdated = stmt.executeUpdate();
-            System.out.println("Credit restore completed. Rows affected: " + rowsUpdated);
+            stmt.executeUpdate();
+            
         } catch (Exception e) {
             e.printStackTrace();
         }
