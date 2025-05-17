@@ -122,8 +122,6 @@ public class MaintenanceController {
                     Optional<Account> account = accountRepository.findByEmail(createdByEmail);
                     if (account.isPresent()) {
                         createdById = account.get().getAccountId();
-                    } else {
-                        logger.warn("No account found for email: {}, using default admin ID", createdByEmail);
                     }
                 }
             }
