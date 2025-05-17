@@ -225,4 +225,4 @@ jobs:
         with:
           name: zap report
           path: |
-            ./zap_baseline_report.html
+            ./zap_baseline_report.txt
