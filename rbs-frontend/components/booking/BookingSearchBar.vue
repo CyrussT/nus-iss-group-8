@@ -84,8 +84,9 @@ onBeforeUnmount(() => {
     <div class="mb-4 grid grid-cols-1 md:grid-cols-2 gap-4">
       <!-- Resource Type with UInputMenu -->
       <div>
-        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Resource Type</label>
+        <label for="resourceTypeId" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Resource Type</label>
         <UInputMenu
+          id="resourceTypeId"
           v-model="searchQuery.resourceTypeId"
           :options="resourceTypeOptions"
           option-attribute="facilityType"
@@ -100,8 +101,9 @@ onBeforeUnmount(() => {
 
       <!-- Resource Name with regular UInput - no autocomplete -->
       <div>
-        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Resource Name</label>
+        <label for="resourceName" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Resource Name</label>
         <UInput
+          id="resourceName"
           v-model="searchQuery.resourceName"
           placeholder="Enter resource name"
           size="md"
@@ -113,8 +115,9 @@ onBeforeUnmount(() => {
 
       <!-- Location with UInputMenu -->
       <div>
-        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Location</label>
+        <label for="location" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Location</label>
         <UInputMenu
+          id="location"
           v-model="searchQuery.location"
           :options="locationOptions"
           placeholder="Type or select location"
@@ -127,8 +130,9 @@ onBeforeUnmount(() => {
 
       <!-- Capacity -->
       <div>
-        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Minimum Capacity</label>
+        <label for="capacity" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Minimum Capacity</label>
         <UInput 
+          id="capacity"
           v-model="searchQuery.capacity" 
           type="number" 
           placeholder="Min. capacity needed"

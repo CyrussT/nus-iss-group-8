@@ -651,9 +651,9 @@ onMounted(async () => {
         {{ isEditing ? "Edit Facility" : "Add Facility" }}
       </h2>
       <div class="grid grid-cols-3 gap-4 items-center">
-        <label class="text-gray-700 font-medium col-span-1 dark:text-gray-300">Resource Type:</label>
+        <label for="resourceType" class="text-gray-700 font-medium col-span-1 dark:text-gray-300">Resource Type:</label>
 
-        <UInputMenu v-model="facility.resourceTypeId" :options="resourceTypeOptions" option-attribute="name"
+        <UInputMenu id="resourceType" v-model="facility.resourceTypeId" :options="resourceTypeOptions" option-attribute="name"
           value-attribute="id" placeholder="Type or select resource type" size="md"
           class="col-span-2 w-full dark:bg-gray-700 dark:text-white dark:border-gray-600" clearable
           :error="errors.resourceTypeId" />
@@ -661,23 +661,23 @@ onMounted(async () => {
           {{ errors.resourceTypeId }}
         </p>
 
-        <label class="text-gray-700 font-medium col-span-1 dark:text-gray-300">Resource Name:</label>
-        <UInput v-model="facility.resourceName"
+        <label for="resourceName" class="text-gray-700 font-medium col-span-1 dark:text-gray-300">Resource Name:</label>
+        <UInput id="resourceName" v-model="facility.resourceName"
           class="col-span-2 w-full dark:bg-gray-700 dark:text-white dark:border-gray-600"
           :error="errors.resourceName" />
         <p v-if="errors.resourceName" class="text-sm text-red-500 col-span-3 mt-1 ml-[33%]">
           {{ errors.resourceName }}
         </p>
 
-        <label class="text-gray-700 font-medium col-span-1 dark:text-gray-300">Location:</label>
-        <UInput v-model="facility.location"
+        <label for="location" class="text-gray-700 font-medium col-span-1 dark:text-gray-300">Location:</label>
+        <UInput id="location" v-model="facility.location"
           class="col-span-2 w-full dark:bg-gray-700 dark:text-white dark:border-gray-600" :error="errors.location" />
 
         <p v-if="errors.location" class="text-sm text-red-500 col-span-3 mt-1 ml-[33%]">
           {{ errors.location }}
         </p>
-        <label class="text-gray-700 font-medium col-span-1 dark:text-gray-300">Capacity:</label>
-        <UInput v-model.number="facility.capacity" type="number"
+        <label for="capacity" class="text-gray-700 font-medium col-span-1 dark:text-gray-300">Capacity:</label>
+        <UInput id="capacity" v-model.number="facility.capacity" type="number"
           class="col-span-2 w-full dark:bg-gray-700 dark:text-white dark:border-gray-600" :error="errors.capacity" />
         <p v-if="errors.capacity" class="text-sm text-red-500 col-span-3 mt-1 ml-[33%]">
           {{ errors.capacity }}
@@ -766,10 +766,10 @@ onMounted(async () => {
       </div>
 
       <div class="grid grid-cols-3 gap-4 items-start">
-        <label class="text-gray-700 font-medium col-span-1 mt-2.5 dark:text-gray-300">Start Date:<span
+        <label for="startDate" class="text-gray-700 font-medium col-span-1 mt-2.5 dark:text-gray-300">Start Date:<span
             class="text-red-500">*</span></label>
         <div class="col-span-2 w-full">
-          <UInput v-model="maintenanceData.startDate" type="date"
+          <UInput id="startDate" v-model="maintenanceData.startDate" type="date"
             class="w-full dark:bg-gray-700 dark:text-white dark:border-gray-600" :min="minDate"
             :color="validationErrors.startDate ? 'red' : undefined" />
           <p v-if="validationErrors.startDate" class="text-red-500 text-sm mt-1 dark:text-red-400">
@@ -777,10 +777,10 @@ onMounted(async () => {
           </p>
         </div>
 
-        <label class="text-gray-700 font-medium col-span-1 mt-2.5 dark:text-gray-300">End Date:<span
+        <label for="endDate" class="text-gray-700 font-medium col-span-1 mt-2.5 dark:text-gray-300">End Date:<span
             class="text-red-500">*</span></label>
         <div class="col-span-2 w-full">
-          <UInput v-model="maintenanceData.endDate" type="date"
+          <UInput id="endDate" v-model="maintenanceData.endDate" type="date"
             class="w-full dark:bg-gray-700 dark:text-white dark:border-gray-600"
             :min="maintenanceData.startDate || minDate" :color="validationErrors.endDate ? 'red' : undefined" />
           <p v-if="validationErrors.endDate" class="text-red-500 text-sm mt-1 dark:text-red-400">
@@ -788,10 +788,10 @@ onMounted(async () => {
           </p>
         </div>
 
-        <label class="text-gray-700 font-medium col-span-1 mt-2.5 dark:text-gray-300">Description:<span
+        <label for="description" class="text-gray-700 font-medium col-span-1 mt-2.5 dark:text-gray-300">Description:<span
             class="text-red-500">*</span></label>
         <div class="col-span-2 w-full">
-          <UTextarea v-model="maintenanceData.description"
+          <UTextarea id="description" v-model="maintenanceData.description"
             class="w-full dark:bg-gray-700 dark:text-white dark:border-gray-600" :rows="textareaRows"
             placeholder="Enter maintenance details here..." :color="validationErrors.description ? 'red' : undefined" />
           <p v-if="validationErrors.description" class="text-red-500 text-sm mt-1 dark:text-red-400">
