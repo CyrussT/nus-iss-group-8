@@ -1,9 +1,7 @@
 package com.group8.rbs.controller;
 
 import com.group8.rbs.dto.facility.*;
-import com.group8.rbs.security.JwtAuthFilter;
 import com.group8.rbs.service.facility.*;
-import com.group8.rbs.service.security.JwtService;
 
 
 import org.junit.jupiter.api.BeforeEach;
@@ -13,7 +11,6 @@ import org.mockito.Mockito;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
-import org.springframework.boot.test.mock.mockito.MockBean;
 
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Page;
@@ -36,14 +33,7 @@ public class FacilityControllerTest {
     @Autowired
     private MockMvc mockMvc;
 
-    @MockBean
     private FacilityService facilityService;
-
-    @MockBean
-    private JwtService jwtService;
-
-    @MockBean
-    private JwtAuthFilter jwtAuthFilter;
 
     @Autowired
     private ObjectMapper objectMapper;

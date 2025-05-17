@@ -28,7 +28,6 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
-import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.security.test.context.support.WithMockUser;
@@ -44,13 +43,9 @@ import com.group8.rbs.entities.MaintenanceSchedule;
 import com.group8.rbs.enums.BookingStatus;
 import com.group8.rbs.exception.MaintenanceOverlapException;
 import com.group8.rbs.repository.AccountRepository;
-import com.group8.rbs.security.CustomUserDetailsService;
 import com.group8.rbs.security.SecurityConfig;
 import com.group8.rbs.service.email.EmailServiceFactory;
 import com.group8.rbs.service.maintenance.MaintenanceService;
-import com.group8.rbs.service.maintenance.MaintenanceWebSocketService;
-import com.group8.rbs.service.security.AuthService;
-import com.group8.rbs.service.security.JwtService;
 
 @WebMvcTest(MaintenanceController.class)
 @Import({ SecurityConfig.class, TestConfig.class })
@@ -60,26 +55,9 @@ public class MaintenanceControllerTest {
         @Autowired
         private MockMvc mockMvc;
 
-        @MockBean
         private MaintenanceService maintenanceService;
 
-        @MockBean
         private AccountRepository accountRepository;
-
-        @MockBean
-        private EmailServiceFactory emailServiceFactory;
-
-        @MockBean
-        private JwtService jwtService;
-
-        @MockBean
-        private AuthService authService;
-
-        @MockBean
-        private CustomUserDetailsService customUserDetailsService;
-
-        @MockBean
-        private MaintenanceWebSocketService maintenanceWebSocketService;
 
         @Autowired
         private ObjectMapper objectMapper;

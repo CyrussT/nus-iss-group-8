@@ -2,14 +2,11 @@ package com.group8.rbs.controller;
 
 import com.group8.rbs.entities.FacilityType;
 import com.group8.rbs.repository.FacilityTypeRepository;
-import com.group8.rbs.security.JwtAuthFilter;
-import com.group8.rbs.service.security.JwtService;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
-import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.util.List;
@@ -25,15 +22,7 @@ class FacilityTypeControllerTest {
     @Autowired
     private MockMvc mockMvc;
 
-    @MockBean
     private FacilityTypeRepository facilityTypeRepository;
-
-    @MockBean
-    private JwtService jwtService;
-
-    @MockBean
-    private JwtAuthFilter jwtAuthFilter;
-
 
     @Test
     void testGetAllFacilityTypes_returnsList() throws Exception {
