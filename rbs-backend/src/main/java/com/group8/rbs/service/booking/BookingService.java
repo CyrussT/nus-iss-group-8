@@ -232,8 +232,6 @@ public class BookingService {
         List<Booking> bookings = bookingRepository.findUpcomingApprovedOrConfirmedBookings(
                 accountId, List.of(BookingStatus.APPROVED, BookingStatus.CONFIRMED), now);
 
-        logger.info("Found " + bookings.size() + " upcoming approved/confirmed bookings");
-
         return bookings.stream()
                 .map(bookingMapper::toResponseDTO)
                 .collect(Collectors.toList());
@@ -245,7 +243,6 @@ public class BookingService {
         List<Booking> bookings = bookingRepository.findByAccount_AccountIdAndStatusAndBookedDateTimeAfter(
                 accountId, BookingStatus.PENDING, now);
 
-        logger.info("Found " + bookings.size() + " pending bookings");
         return bookings.stream()
                 .map(bookingMapper::toResponseDTO)
                 .collect(Collectors.toList());
@@ -275,8 +272,6 @@ public class BookingService {
             logger.info("Formatted DateTime: " + bookedTime.format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")));
             logger.info("----------");
         }
-
-        logger.info("Found " + bookings.size() + " past bookings");
 
         return bookings.stream().map(bookingMapper::toResponseDTO).collect(Collectors.toList());
     }

@@ -29,9 +29,6 @@ public interface FacilityRepository extends JpaRepository<Facility, Long>,JpaSpe
                                 @Param("resourceName") String resourceName,
                                 @Param("location") String location,
                                 @Param("capacity") Integer capacity);
-    
-    // @Query("SELECT DISTINCT f.resourceType FROM Facility f ORDER BY f.resourceType")
-    // List<String> findAllResourceTypes();
 
     @Query("SELECT DISTINCT f.resourceTypeId FROM Facility f ORDER BY f.resourceTypeId")
     List<Long> findAllResourceTypeIDs();

@@ -21,9 +21,6 @@ import com.group8.rbs.dto.facility.FacilityResponseDTO;
 import com.group8.rbs.dto.facility.FacilitySearchDTO;
 import com.group8.rbs.service.facility.FacilityService;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 
 import jakarta.validation.Valid;
 
@@ -31,7 +28,6 @@ import jakarta.validation.Valid;
 @RequestMapping("/api/facilities")
 public class FacilityController {
     private final FacilityService facilityService;
-    private static final Logger logger = LoggerFactory.getLogger(FacilityService.class);
 
     @Autowired
     public FacilityController(FacilityService facilityService) {
