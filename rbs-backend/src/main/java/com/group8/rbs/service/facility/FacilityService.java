@@ -131,8 +131,6 @@ public class FacilityService {
         Facility facility = facilityRepository.findById(facilityId)
                 .orElseThrow(() -> new RuntimeException(FACILITY_NOT_FOUND));
 
-        LocalDateTime now = LocalDateTime.now();
-
         // Fetch past and upcoming bookings
         List<Booking> bookings = bookingRepository.findByFacility_FacilityId(facilityId);
 

@@ -92,7 +92,6 @@ public class BookingController {
 
     @PostMapping
     public ResponseEntity<?> createBooking(@RequestBody BookingDTO request) throws MessagingException {
-        logger.info("Received booking request: " + request);
 
         try {
             BookingResponseDTO response = bookingService.createBooking(request);

@@ -135,9 +135,6 @@ public class MaintenanceService {
             creationTime = LocalDateTime.now();
         }
 
-        logger.info("Finding bookings affected by maintenance for facility ID: {}, from: {} to: {}, creation time: {}",
-                facilityId, startDateStr, endDateStr, creationTime);
-
         // Define the time range for cancellation
         LocalDateTime startDateTime;
 

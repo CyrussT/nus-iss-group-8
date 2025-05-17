@@ -31,7 +31,7 @@ public class CustomEmailService implements EmailService {
             messageHelper.setText(body, true); // Email body (HTML format)
 
             javaMailSender.send(mimeMessage);
-            System.out.println("Email sent successfully to " + toEmail);
+            
             return true; // Successfully sent
         } catch (MailException e) {
             e.printStackTrace();
