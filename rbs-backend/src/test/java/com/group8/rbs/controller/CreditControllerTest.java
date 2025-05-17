@@ -10,6 +10,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.mockito.Mock;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.context.annotation.Import;
@@ -20,8 +21,10 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
 import com.group8.rbs.config.TestConfig;
+import com.group8.rbs.security.CustomUserDetailsService;
 import com.group8.rbs.security.SecurityConfig;
 import com.group8.rbs.service.credit.CreditService;
+import com.group8.rbs.service.security.JwtService;
 
 @WebMvcTest(CreditController.class)
 @Import({SecurityConfig.class, TestConfig.class})
@@ -33,6 +36,12 @@ public class CreditControllerTest {
 
     @MockitoBean
     private CreditService creditService;
+
+    @MockitoBean
+    private JwtService jwtService;
+
+    @MockitoBean
+    private CustomUserDetailsService userDetailsService;
 
     @Test
     @DisplayName("Get credit should return credit balance")

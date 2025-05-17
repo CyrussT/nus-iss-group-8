@@ -44,9 +44,13 @@ import com.group8.rbs.entities.MaintenanceSchedule;
 import com.group8.rbs.enums.BookingStatus;
 import com.group8.rbs.exception.MaintenanceOverlapException;
 import com.group8.rbs.repository.AccountRepository;
+import com.group8.rbs.security.CustomUserDetailsService;
 import com.group8.rbs.security.SecurityConfig;
 import com.group8.rbs.service.email.EmailServiceFactory;
 import com.group8.rbs.service.maintenance.MaintenanceService;
+import com.group8.rbs.service.maintenance.MaintenanceWebSocketService;
+import com.group8.rbs.service.security.AuthService;
+import com.group8.rbs.service.security.JwtService;
 
 @WebMvcTest(MaintenanceController.class)
 @Import({ SecurityConfig.class, TestConfig.class })
@@ -61,6 +65,21 @@ public class MaintenanceControllerTest {
 
         @MockitoBean
         private AccountRepository accountRepository;
+
+        @MockitoBean
+        private JwtService jwtService;
+
+        @MockitoBean
+        private EmailServiceFactory emailServiceFactory;
+
+        @MockitoBean
+        private AuthService authService;
+
+        @MockitoBean
+        private CustomUserDetailsService userDetailsService;
+
+        @MockitoBean
+        private MaintenanceWebSocketService maintenanceWebSocketService;
 
         @Autowired
         private ObjectMapper objectMapper;

@@ -1,8 +1,9 @@
 package com.group8.rbs.controller;
 
 import com.group8.rbs.dto.facility.*;
+import com.group8.rbs.security.JwtAuthFilter;
 import com.group8.rbs.service.facility.*;
-
+import com.group8.rbs.service.security.JwtService;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -35,6 +36,12 @@ public class FacilityControllerTest {
 
     @MockitoBean
     private FacilityService facilityService;
+
+    @MockitoBean
+    private JwtService jwtService;
+
+    @MockitoBean
+    private JwtAuthFilter jwtAuthFilter;
 
     @Autowired
     private ObjectMapper objectMapper;

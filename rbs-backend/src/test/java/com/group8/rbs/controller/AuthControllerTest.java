@@ -14,6 +14,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.mockito.Mock;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.context.annotation.Import;
@@ -30,8 +31,10 @@ import com.group8.rbs.dto.auth.LoginRequest;
 import com.group8.rbs.dto.auth.RegisterRequest;
 import com.group8.rbs.enums.AccountType;
 import com.group8.rbs.exception.AuthException;
+import com.group8.rbs.security.CustomUserDetailsService;
 import com.group8.rbs.security.SecurityConfig;
 import com.group8.rbs.service.security.AuthService;
+import com.group8.rbs.service.security.JwtService;
 
 @WebMvcTest(AuthController.class)
 @Import({SecurityConfig.class, TestConfig.class})
@@ -43,6 +46,12 @@ public class AuthControllerTest {
 
     @MockitoBean
     private AuthService authService;
+
+    @MockitoBean
+    private JwtService jwtService;
+
+    @MockitoBean
+    private CustomUserDetailsService userDetailsService;
 
     @Autowired
     private ObjectMapper objectMapper;
