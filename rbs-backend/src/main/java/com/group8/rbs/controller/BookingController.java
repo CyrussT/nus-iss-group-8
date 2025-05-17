@@ -46,6 +46,11 @@ public class BookingController {
         this.maintenanceService = maintenanceService;
     }
 
+    private static final String PENDING = "PENDING";
+    private static final String BOOKINGID = "bookingId";
+    private static final String EMAILSERVICE = "resendEmailService";
+    private static final String ERROR = "error";
+
     @GetMapping("/admin/dashboard-stats")
     public ResponseEntity<Map<String, Object>> getDashboardStats() {
         Map<String, Object> stats = new HashMap<>();
@@ -96,14 +101,14 @@ public class BookingController {
                 // Construct email details
                 String toEmail = request.getAccountEmail();
                 String status = response.getStatus();
-                String strategyKey = status.equalsIgnoreCase("PENDING") ? "PENDING" : "SYSTEMAPPROVED";
+                String strategyKey = status.equalsIgnoreCase(PENDING) ? PENDING : "SYSTEMAPPROVED";
 
                 // Fetch the email content strategy using the factory
                 EmailContentStrategy strategy = emailContentStrategyFactory.getStrategy(strategyKey);
 
                 // Prepare the parameters for email content (e.g., bookingId, reason if needed)
                 Map<String, Object> emailParams = new HashMap<>();
-                emailParams.put("bookingId", response.getBookingId());
+                emailParams.put(BOOKINGID, response.getBookingId());
                 emailParams.put("bookedDatetime", response.getBookedDatetime()); // Add the bookedDatetime
                 emailParams.put("facilityName", response.getFacilityName());
                 emailParams.put("timeslot", response.getTimeslot());
@@ -113,26 +118,26 @@ public class BookingController {
                 String body = strategy.buildBody(emailParams);
 
                 // Send email
-                EmailService emailService = emailServiceFactory.getEmailService("resendEmailService");
+                EmailService emailService = emailServiceFactory.getEmailService(EMAILSERVICE);
                 boolean emailSent = emailService.sendEmail(toEmail, subject, body);
 
                 if (emailSent) {
                     logger.info("Booking confirmation email sent successfully.");
                 } else {
-                    return ResponseEntity.status(500).body(Map.of("error", "Failed to create booking"));
+                    return ResponseEntity.status(500).body(Map.of(ERROR, "Failed to create booking"));
                 }
 
                 return ResponseEntity.ok(response);
             } else {
-                return ResponseEntity.status(500).body(Map.of("error", "Failed to create booking"));
+                return ResponseEntity.status(500).body(Map.of(ERROR, "Failed to create booking"));
             }
         } catch (RuntimeException e) {
             // Return the validation error with HTTP 400
             logger.warn("Validation error: {}", e.getMessage());
-            return ResponseEntity.status(400).body(Map.of("error", e.getMessage()));
+            return ResponseEntity.status(400).body(Map.of(ERROR, e.getMessage()));
         } catch (Exception e) {
             logger.error("Unexpected error creating booking", e);
-            return ResponseEntity.status(500).body(Map.of("error", "An unexpected error occurred"));
+            return ResponseEntity.status(500).body(Map.of(ERROR, "An unexpected error occurred"));
         }
     }
 
@@ -166,12 +171,12 @@ public class BookingController {
             EmailContentStrategy strategy = emailContentStrategyFactory.getStrategy("CANCELLED");
 
             Map<String, Object> emailParams = new HashMap<>();
-            emailParams.put("bookingId", bookingId);
+            emailParams.put(BOOKINGID, bookingId);
 
             String subject = strategy.buildSubject(emailParams);
             String body = strategy.buildBody(emailParams);
 
-            EmailService emailService = emailServiceFactory.getEmailService("resendEmailService");
+            EmailService emailService = emailServiceFactory.getEmailService(EMAILSERVICE);
             boolean emailSent = emailService.sendEmail(toEmail, subject, body);
             // up user credit
 
@@ -189,7 +194,7 @@ public class BookingController {
 
     @GetMapping("/pending-bookings")
     public ResponseEntity<List<BookingResponseDTO>> getPendingBookings() {
-        List<BookingResponseDTO> pendingBookings = bookingService.getBookingsByStatus("PENDING");
+        List<BookingResponseDTO> pendingBookings = bookingService.getBookingsByStatus(PENDING);
 
         if (pendingBookings.isEmpty()) {
             return ResponseEntity.noContent().build();
@@ -210,13 +215,13 @@ public class BookingController {
         if (updated && status.equals(BookingStatus.REJECTED)) {
             EmailContentStrategy strategy = emailContentStrategyFactory.getStrategy("REJECTED");
             Map<String, Object> emailParams = new HashMap<>();
-            emailParams.put("bookingId", bookingId);
+            emailParams.put(BOOKINGID, bookingId);
             emailParams.put("reason", rejectReason);
 
             String subject = strategy.buildSubject(emailParams);
             String body = strategy.buildBody(emailParams);
 
-            EmailService emailService = emailServiceFactory.getEmailService("resendEmailService");
+            EmailService emailService = emailServiceFactory.getEmailService(EMAILSERVICE);
             boolean emailSent = emailService.sendEmail(toEmail, subject, body);
 
             if (emailSent) {
@@ -232,12 +237,12 @@ public class BookingController {
             EmailContentStrategy strategy = emailContentStrategyFactory.getStrategy("ADMINPPROVED");
 
             Map<String, Object> emailParams = new HashMap<>();
-            emailParams.put("bookingId", bookingId);
+            emailParams.put(BOOKINGID, bookingId);
 
             String subject = strategy.buildSubject(emailParams);
             String body = strategy.buildBody(emailParams);
 
-            EmailService emailService = emailServiceFactory.getEmailService("resendEmailService");
+            EmailService emailService = emailServiceFactory.getEmailService(EMAILSERVICE);
             boolean emailSent = emailService.sendEmail(toEmail, subject, body);
 
             if (emailSent) {

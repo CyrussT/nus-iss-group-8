@@ -39,7 +39,7 @@ public class FacilityService {
 
     private final BookingRepository bookingRepository;
 
-    private static final Logger logger = LoggerFactory.getLogger(FacilityService.class);
+    private static final String FACILITY_NOT_FOUND = "Facility not found";
 
     @Autowired
     public FacilityService(FacilityRepository facilityRepository, FacilityMapper facilityMapper, BookingRepository bookingRepository) {
@@ -74,7 +74,7 @@ public class FacilityService {
 
     public FacilityResponseDTO getFacilityById(Long id) {
         Facility facility = facilityRepository.findById(id)
-                .orElseThrow(() -> new FacilityException.FacilityNotFoundException("Facility not found"));
+                .orElseThrow(() -> new FacilityException.FacilityNotFoundException(FACILITY_NOT_FOUND));
         return facilityMapper.toDTO(facility);
     }
 
@@ -115,7 +115,7 @@ public class FacilityService {
 
     public void deleteFacility(Long id) {
         Facility facility = facilityRepository.findById(id)
-                .orElseThrow(() -> new FacilityException.FacilityNotFoundException("Facility not found"));
+                .orElseThrow(() -> new FacilityException.FacilityNotFoundException(FACILITY_NOT_FOUND));
         facilityRepository.delete(facility);
     }
 
@@ -129,7 +129,7 @@ public class FacilityService {
 
     public FacilityResponseDTO getFacilityWithBookings(Long facilityId) {
         Facility facility = facilityRepository.findById(facilityId)
-                .orElseThrow(() -> new RuntimeException("Facility not found"));
+                .orElseThrow(() -> new RuntimeException(FACILITY_NOT_FOUND));
 
         LocalDateTime now = LocalDateTime.now();
 
