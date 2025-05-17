@@ -290,35 +290,6 @@ export function useBooking() {
     }
   };
 
-  // Convert a date to Singapore timezone (UTC+8)
-  const convertToSGTime = (date: Date): string => {
-    // Create a formatter with explicit Singapore timezone
-    const formatter = new Intl.DateTimeFormat('en-US', {
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-      hour: '2-digit',
-      minute: '2-digit',
-      second: '2-digit',
-      hour12: false,
-      timeZone: 'Asia/Singapore'
-    });
-    
-    // Get parts
-    const parts = formatter.formatToParts(date);
-    const mappedParts: {[key: string]: string} = {};
-    
-    // Map the parts
-    for (const part of parts) {
-      mappedParts[part.type] = part.value;
-    }
-    
-    // Format as ISO-like string with explicit +08:00 timezone
-    const sgTimeString = `${mappedParts.year}-${mappedParts.month}-${mappedParts.day}T${mappedParts.hour}:${mappedParts.minute}:${mappedParts.second}+08:00`;
-    
-    return sgTimeString;
-  };
-
   return {
     upcomingApprovedBookings,
     pendingBookings,

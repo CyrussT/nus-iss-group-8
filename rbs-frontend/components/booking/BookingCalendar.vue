@@ -125,7 +125,6 @@ const resources = computed(() => {
     const facilityId = facility.facilityId.toString();
     
     // Check if this facility is under maintenance
-    const currentDate = getCurrentCalendarDate();
     const underMaintenance = isResourceUnderMaintenance(facilityId);
     
     return {
@@ -417,10 +416,7 @@ const calendarOptions = ref({
       // Add maintenance title - but check if it already has text first
       const eventTitle = info.el.querySelector('.fc-event-title');
       if (eventTitle) {
-        if (!eventTitle.textContent || eventTitle.textContent === '') {
-          eventTitle.innerHTML = 'Maintenance';
-        } else if (eventTitle.textContent === 'MaintenanceMaintenance') {
-          // Fix double text if it already happened
+        if ((!eventTitle.textContent || eventTitle.textContent === '') || (eventTitle.textContent === 'MaintenanceMaintenance')) {
           eventTitle.innerHTML = 'Maintenance';
         }
         eventTitle.style.display = 'block';
