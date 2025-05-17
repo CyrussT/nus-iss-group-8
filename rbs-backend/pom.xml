@@ -43,7 +43,6 @@
 				</exclusion>
 			</exclusions>
 		</dependency>
-		<!-- Manually Add -->
 		<dependency>
 			<groupId>org.springframework.security</groupId>
 			<artifactId>spring-security-crypto</artifactId>
@@ -62,7 +61,12 @@
 				</exclusion>
 			</exclusions>
 		</dependency>
-		<!-- Manually Add -->
+		<!-- https://mvnrepository.com/artifact/org.springframework/spring-context -->
+		<dependency>
+			<groupId>org.springframework</groupId>
+			<artifactId>spring-context</artifactId>
+			<version>6.2.7</version>
+		</dependency>
 		<dependency>
 			<groupId>org.apache.tomcat.embed</groupId>
 			<artifactId>tomcat-embed-core</artifactId>
@@ -99,7 +103,6 @@
 				</exclusion>
 			</exclusions>
 		</dependency>
-		<!-- Manually Add -->
 		<dependency>
 			<groupId>org.quartz-scheduler</groupId>
 			<artifactId>quartz</artifactId>
