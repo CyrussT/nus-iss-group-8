@@ -14,7 +14,6 @@ import com.group8.rbs.exception.MaintenanceOverlapException;
 import com.group8.rbs.repository.AccountRepository;
 import com.group8.rbs.service.maintenance.MaintenanceService;
 import com.group8.rbs.service.maintenance.MaintenanceWebSocketService;
-import com.group8.rbs.service.email.CustomEmailService;
 import com.group8.rbs.service.email.EmailServiceFactory;
 
 import java.time.LocalDate;
@@ -25,7 +24,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/maintenance")
@@ -55,8 +53,6 @@ public class MaintenanceController {
     @PostMapping("/schedule")
     public ResponseEntity<?> scheduleMaintenanceForFacility(@RequestBody Map<String, Object> requestMap) {
         try {
-            logger.info("Maintenance request received: {}", requestMap);
-
             // Validation for required fields
             if (!requestMap.containsKey("facilityId")) {
                 return createErrorResponse("Facility ID is required");
@@ -126,9 +122,6 @@ public class MaintenanceController {
                     Optional<Account> account = accountRepository.findByEmail(createdByEmail);
                     if (account.isPresent()) {
                         createdById = account.get().getAccountId();
-                        logger.info("Found account ID {} for email {}", createdById, createdByEmail);
-                    } else {
-                        logger.warn("No account found for email: {}, using default admin ID", createdByEmail);
                     }
                 }
             }
@@ -339,9 +332,6 @@ public class MaintenanceController {
         List<Long> facilityIds = (List<Long>) requestMap.get("facilityIds");
         String dateStr = (String) requestMap.get("date");
 
-        logger.info("Checking maintenance status for {} facilities on date {}",
-                facilityIds != null ? facilityIds.size() : 0, dateStr);
-
         // Parse the date or use current date if not provided
         LocalDate checkDate = null;
         if (dateStr != null && !dateStr.isEmpty()) {
@@ -358,7 +348,7 @@ public class MaintenanceController {
         }
 
         // Deduplicate facility IDs
-        List<Long> uniqueFacilityIds = facilityIds.stream().distinct().collect(Collectors.toList());
+        List<Long> uniqueFacilityIds = facilityIds.stream().distinct().toList();
 
         // Get maintenance status for all facilities in a single operation
         Map<String, Boolean> maintenanceStatusMap = maintenanceService.checkMaintenanceStatusBatch(uniqueFacilityIds,

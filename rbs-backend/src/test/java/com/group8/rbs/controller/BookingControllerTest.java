@@ -29,13 +29,12 @@ import java.util.Map;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.mockito.Mockito;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.http.MediaType;
 import org.springframework.security.test.context.support.WithMockUser;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -44,11 +43,8 @@ import com.group8.rbs.dto.booking.BookingRequestDTO;
 import com.group8.rbs.dto.booking.BookingResponseDTO;
 import com.group8.rbs.dto.booking.FacilitySearchDTO;
 import com.group8.rbs.enums.BookingStatus;
-import com.group8.rbs.security.CustomUserDetailsService;
 import com.group8.rbs.service.booking.BookingService;
 import com.group8.rbs.service.maintenance.MaintenanceService;
-import com.group8.rbs.service.security.AuthService;
-import com.group8.rbs.service.security.JwtService;
 import com.group8.rbs.service.email.EmailContentStrategy;
 import com.group8.rbs.service.email.EmailContentStrategyFactory;
 import com.group8.rbs.service.email.EmailService;
@@ -62,25 +58,16 @@ public class BookingControllerTest {
     @Autowired
     private MockMvc mockMvc;
 
-    @MockBean
+    @MockitoBean
     private BookingService bookingService;
 
-    @MockBean
+    @MockitoBean
     private EmailServiceFactory emailServiceFactory;
 
-    @MockBean
+    @MockitoBean
     private EmailContentStrategyFactory emailContentStrategyFactory;
 
-    @MockBean
-    private JwtService jwtService;
-
-    @MockBean
-    private AuthService authService;
-
-    @MockBean
-    private CustomUserDetailsService customUserDetailsService;
-
-    @MockBean
+    @MockitoBean
     private MaintenanceService maintenanceService; // Added for dashboard stats
 
     @Autowired

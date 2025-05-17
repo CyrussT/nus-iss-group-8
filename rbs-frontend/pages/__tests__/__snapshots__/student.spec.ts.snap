@@ -1,0 +1,11 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`student > renders correctly 1`] = `
+"<div>
+  <p>Student Page</p>
+</div>
+<!-- 
+  <div v-if="emergencyMessage" class="bg-red-100 p-4 rounded-xl text-red-700 font-semibold shadow mb-4">
+    🚨 {{ emergencyMessage }}
+  </div> -->"
+`;

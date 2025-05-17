@@ -8,6 +8,7 @@ class RbsApplicationTests {
 
 	@Test
 	void contextLoads() {
+		// runs the application context test
 	}
 
 }

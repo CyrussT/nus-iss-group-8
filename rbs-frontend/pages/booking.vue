@@ -14,10 +14,6 @@ import { useBooking } from '#imports';
 import { useMaintenance } from '~/composables/useMaintenance';
 import { Client } from '@stomp/stompjs';
 
-
-
-
-
 const auth = useAuthStore();
 const { apiUrl } = useApi();
 const toast = useToast();

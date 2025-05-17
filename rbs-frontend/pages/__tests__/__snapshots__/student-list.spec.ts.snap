@@ -1,0 +1,48 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`studentList > renders correctly 1`] = `
+"<div class="p-8">
+  <h1 class="text-2xl font-bold mb-4">Student Management</h1>
+  <h3 class="text-2xl font-bold mb-4">Search for Students</h3>
+  <div class="grid grid-cols-2 gap-4">
+    <!-- Student Name -->
+    <div><label class="text-sm font-semibold text-gray-700">Student Name</label>
+      <div class="relative"><input type="text" placeholder="Enter Student Name" class="relative block w-full disabled:cursor-not-allowed disabled:opacity-75 focus:outline-none border-0 form-input rounded-md placeholder-gray-400 dark:placeholder-gray-500 text-sm px-2.5 py-1.5 shadow-sm bg-white dark:bg-gray-900 text-gray-900 dark:text-white ring-1 ring-inset ring-gray-300 dark:ring-gray-700 focus:ring-2 focus:ring-primary-500 dark:focus:ring-primary-400" value="">
+        <!--v-if-->
+        <!--v-if-->
+      </div>
+    </div><!-- Student ID -->
+    <div><label class="text-sm font-semibold text-gray-700">Student ID</label>
+      <div class="relative"><input type="text" placeholder="Enter Student ID" class="relative block w-full disabled:cursor-not-allowed disabled:opacity-75 focus:outline-none border-0 form-input rounded-md placeholder-gray-400 dark:placeholder-gray-500 text-sm px-2.5 py-1.5 shadow-sm bg-white dark:bg-gray-900 text-gray-900 dark:text-white ring-1 ring-inset ring-gray-300 dark:ring-gray-700 focus:ring-2 focus:ring-primary-500 dark:focus:ring-primary-400" value="">
+        <!--v-if-->
+        <!--v-if-->
+      </div>
+    </div><!-- Enrollment Year -->
+    <div><label class="text-sm font-semibold text-gray-700">Enrollment Year</label>
+      <div data-v-1437ce7f="" class="relative"><select data-v-1437ce7f="" class="relative block w-full disabled:cursor-not-allowed disabled:opacity-75 focus:outline-none border-0 form-select rounded-md text-sm px-2.5 py-1.5 shadow-sm bg-white dark:bg-gray-900 text-gray-900 dark:text-white ring-1 ring-inset ring-gray-300 dark:ring-gray-700 focus:ring-2 focus:ring-primary-500 dark:focus:ring-primary-400 pe-9" value="All">
+          <option data-v-1437ce7f="" disabled="" value="">Select Year</option>
+          <option data-v-1437ce7f="" selected="" value="All">All</option>
+          <option data-v-1437ce7f="" value="2020">2020</option>
+          <option data-v-1437ce7f="" value="2021">2021</option>
+          <option data-v-1437ce7f="" value="2022">2022</option>
+          <option data-v-1437ce7f="" value="2023">2023</option>
+          <option data-v-1437ce7f="" value="2024">2024</option>
+          <option data-v-1437ce7f="" value="2025">2025</option>
+        </select>
+        <!--v-if--><span data-v-1437ce7f="" class="absolute inset-y-0 end-0 flex items-center pointer-events-none px-2.5"><u-icon-stub data-v-1437ce7f="" name="i-heroicons-chevron-down-20-solid" class="flex-shrink-0 text-gray-400 dark:text-gray-500 h-5 w-5" aria-hidden="true"></u-icon-stub></span>
+      </div>
+    </div><!-- Status -->
+    <div><label class="text-sm font-semibold text-gray-700">Status</label>
+      <div data-v-1437ce7f="" class="relative"><select data-v-1437ce7f="" class="relative block w-full disabled:cursor-not-allowed disabled:opacity-75 focus:outline-none border-0 form-select rounded-md text-sm px-2.5 py-1.5 shadow-sm bg-white dark:bg-gray-900 text-gray-900 dark:text-white ring-1 ring-inset ring-gray-300 dark:ring-gray-700 focus:ring-2 focus:ring-primary-500 dark:focus:ring-primary-400 pe-9" value="All">
+          <option data-v-1437ce7f="" disabled="" value="">Select Status</option>
+          <option data-v-1437ce7f="" selected="" value="All">All</option>
+          <option data-v-1437ce7f="" value="Active">Active</option>
+          <option data-v-1437ce7f="" value="Inactive">Inactive</option>
+        </select>
+        <!--v-if--><span data-v-1437ce7f="" class="absolute inset-y-0 end-0 flex items-center pointer-events-none px-2.5"><u-icon-stub data-v-1437ce7f="" name="i-heroicons-chevron-down-20-solid" class="flex-shrink-0 text-gray-400 dark:text-gray-500 h-5 w-5" aria-hidden="true"></u-icon-stub></span>
+      </div>
+    </div>
+  </div><!-- Added mt-6 mb-6 for spacing -->
+  <div class="col-span-2 flex justify-end gap-2 mt-6 mb-6"><button class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-700 flex items-center gap-2"><span class="iconify i-ic:baseline-search w-5 h-5" aria-hidden="true"></span> Search </button><button class="bg-gray-400 text-white px-4 py-2 rounded hover:bg-red-500 flex items-center gap-2"><span class="iconify i-ic:round-restart-alt w-5 h-5" aria-hidden="true"></span> Reset </button></div>
+</div>"
+`;
