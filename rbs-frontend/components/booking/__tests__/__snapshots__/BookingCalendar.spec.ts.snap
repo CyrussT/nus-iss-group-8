@@ -107,7 +107,7 @@ exports[`BookingCalendar > renders correctly 1`] = `
                                 <th colspan="2" data-date="2025-05-17T16:00:00" class="fc-timeline-slot fc-timeline-slot-label fc-day fc-day-sat fc-day-today fc-day-past">
                                   <div class="fc-timeline-slot-frame" style="height: 0px;"><a class="fc-timeline-slot-cushion fc-scrollgrid-sync-inner">4pm</a></div>
                                 </th>
-                                <th colspan="2" data-date="2025-05-17T17:00:00" class="fc-timeline-slot fc-timeline-slot-label fc-day fc-day-sat fc-day-today fc-day-future">
+                                <th colspan="2" data-date="2025-05-17T17:00:00" class="fc-timeline-slot fc-timeline-slot-label fc-day fc-day-sat fc-day-today fc-day-past">
                                   <div class="fc-timeline-slot-frame" style="height: 0px;"><a class="fc-timeline-slot-cushion fc-scrollgrid-sync-inner">5pm</a></div>
                                 </th>
                                 <th colspan="2" data-date="2025-05-17T18:00:00" class="fc-timeline-slot fc-timeline-slot-label fc-day fc-day-sat fc-day-today fc-day-future">
@@ -227,10 +227,10 @@ exports[`BookingCalendar > renders correctly 1`] = `
                                   <td data-date="2025-05-17T16:00:00" class="fc-timeline-slot fc-timeline-slot-lane fc-timeline-slot-major fc-slot fc-slot-sat fc-slot-today fc-slot-past">
                                     <div class=""></div>
                                   </td>
-                                  <td data-date="2025-05-17T16:30:00" class="fc-timeline-slot fc-timeline-slot-lane fc-timeline-slot-minor fc-slot fc-slot-sat fc-slot-today fc-slot-future">
+                                  <td data-date="2025-05-17T16:30:00" class="fc-timeline-slot fc-timeline-slot-lane fc-timeline-slot-minor fc-slot fc-slot-sat fc-slot-today fc-slot-past">
                                     <div class=""></div>
                                   </td>
-                                  <td data-date="2025-05-17T17:00:00" class="fc-timeline-slot fc-timeline-slot-lane fc-timeline-slot-major fc-slot fc-slot-sat fc-slot-today fc-slot-future">
+                                  <td data-date="2025-05-17T17:00:00" class="fc-timeline-slot fc-timeline-slot-lane fc-timeline-slot-major fc-slot fc-slot-sat fc-slot-today fc-slot-past">
                                     <div class=""></div>
                                   </td>
                                   <td data-date="2025-05-17T17:30:00" class="fc-timeline-slot fc-timeline-slot-lane fc-timeline-slot-minor fc-slot fc-slot-sat fc-slot-today fc-slot-future">
