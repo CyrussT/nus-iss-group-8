@@ -14,7 +14,6 @@ import com.group8.rbs.exception.MaintenanceOverlapException;
 import com.group8.rbs.repository.AccountRepository;
 import com.group8.rbs.service.maintenance.MaintenanceService;
 import com.group8.rbs.service.maintenance.MaintenanceWebSocketService;
-import com.group8.rbs.service.email.CustomEmailService;
 import com.group8.rbs.service.email.EmailServiceFactory;
 
 import java.time.LocalDate;
@@ -25,7 +24,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/maintenance")
@@ -358,7 +356,7 @@ public class MaintenanceController {
         }
 
         // Deduplicate facility IDs
-        List<Long> uniqueFacilityIds = facilityIds.stream().distinct().collect(Collectors.toList());
+        List<Long> uniqueFacilityIds = facilityIds.stream().distinct().toList();
 
         // Get maintenance status for all facilities in a single operation
         Map<String, Boolean> maintenanceStatusMap = maintenanceService.checkMaintenanceStatusBatch(uniqueFacilityIds,

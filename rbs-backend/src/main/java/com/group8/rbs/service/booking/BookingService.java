@@ -23,7 +23,6 @@ import jakarta.transaction.Transactional;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.time.Duration;
@@ -36,7 +35,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.stream.Collectors;
 
 @Service
 @Transactional
@@ -102,7 +100,7 @@ public class BookingService {
                                                 booking.getStatus() == BookingStatus.CONFIRMED ||
                                                 booking.getStatus() == BookingStatus.PENDING);
                             })
-                            .collect(Collectors.toList());
+                            .toList();
 
                     // Replace the bookings list with the filtered one
                     facility.setBookings(filteredBookings);
@@ -113,7 +111,7 @@ public class BookingService {
         // Map to response DTOs with bookings included
         return filteredFacilities.stream()
                 .map(bookingFacilityMapper::toResponseDTO)
-                .collect(Collectors.toList());
+                .toList();
     }
 
     public long countTodayBookings() {
@@ -146,7 +144,7 @@ public class BookingService {
                     String name = (String) result[1];
                     return new FacilityNameOptionsResponse(id, name);
                 })
-                .collect(Collectors.toList());
+                .toList();
     }
 
     public List<String> getLocations() {
@@ -234,7 +232,7 @@ public class BookingService {
 
         return bookings.stream()
                 .map(bookingMapper::toResponseDTO)
-                .collect(Collectors.toList());
+                .toList();
     }
 
     // Fetch pending bookings with a future date
@@ -245,23 +243,19 @@ public class BookingService {
 
         return bookings.stream()
                 .map(bookingMapper::toResponseDTO)
-                .collect(Collectors.toList());
+                .toList();
     }
 
     public List<BookingResponseDTO> getBookingHistory(Long accountId, String status) {
         LocalDateTime now = LocalDateTime.now();
-        logger.info("Fetching booking history for studentId: " + accountId);
-        logger.info("Current Server Time: " + now);
 
         List<Booking> bookings;
 
         if (status != null && !status.isEmpty()) {
             BookingStatus bookingStatus = BookingStatus.valueOf(status.toUpperCase());
-            logger.info("Filtering by status: " + bookingStatus);
             bookings = bookingRepository.findByAccount_AccountIdAndStatusAndBookedDateTimeBefore(
                     accountId, bookingStatus, now);
         } else {
-            logger.info("Fetching all past bookings (no status filter)");
             bookings = bookingRepository.findByAccount_AccountIdAndBookedDateTimeBefore(accountId, now);
         }
 
@@ -273,7 +267,7 @@ public class BookingService {
             logger.info("----------");
         }
 
-        return bookings.stream().map(bookingMapper::toResponseDTO).collect(Collectors.toList());
+        return bookings.stream().map(bookingMapper::toResponseDTO).toList();
     }
 
     public boolean deleteBooking(Long bookingId) {
