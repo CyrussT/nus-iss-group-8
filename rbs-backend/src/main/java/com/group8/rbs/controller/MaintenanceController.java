@@ -53,8 +53,6 @@ public class MaintenanceController {
     @PostMapping("/schedule")
     public ResponseEntity<?> scheduleMaintenanceForFacility(@RequestBody Map<String, Object> requestMap) {
         try {
-            logger.info("Maintenance request received: {}", requestMap);
-
             // Validation for required fields
             if (!requestMap.containsKey("facilityId")) {
                 return createErrorResponse("Facility ID is required");
@@ -124,7 +122,6 @@ public class MaintenanceController {
                     Optional<Account> account = accountRepository.findByEmail(createdByEmail);
                     if (account.isPresent()) {
                         createdById = account.get().getAccountId();
-                        logger.info("Found account ID {} for email {}", createdById, createdByEmail);
                     } else {
                         logger.warn("No account found for email: {}, using default admin ID", createdByEmail);
                     }
@@ -336,9 +333,6 @@ public class MaintenanceController {
         @SuppressWarnings("unchecked")
         List<Long> facilityIds = (List<Long>) requestMap.get("facilityIds");
         String dateStr = (String) requestMap.get("date");
-
-        logger.info("Checking maintenance status for {} facilities on date {}",
-                facilityIds != null ? facilityIds.size() : 0, dateStr);
 
         // Parse the date or use current date if not provided
         LocalDate checkDate = null;
