@@ -123,7 +123,7 @@ const closeModal = () => {
         <!-- Booking Details -->
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
-            <label class="block text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">Resource</label>
+            <span class="block text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">Resource</span>
             <div class="flex items-center">
               <UIcon name="i-heroicons-building-office" class="mr-2 text-gray-400 dark:text-gray-500" />
               <p class="dark:text-gray-200">{{ booking.resourceName }}</p>
@@ -131,7 +131,7 @@ const closeModal = () => {
           </div>
           
           <div>
-            <label class="block text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">Location</label>
+            <span class="block text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">Location</span>
             <div class="flex items-center">
               <UIcon name="i-heroicons-map-pin" class="mr-2 text-gray-400 dark:text-gray-500" />
               <p class="dark:text-gray-200">{{ booking.location || 'Not specified' }}</p>
@@ -153,7 +153,7 @@ const closeModal = () => {
         
         <!-- User Info - only show for regular bookings -->
         <div v-if="!isMaintenanceEvent" class="bg-gray-50 dark:bg-gray-700/50 p-3 rounded-md">
-          <label class="block text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">Booked by</label>
+          <span class="block text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">Booked by</span>
           <div class="flex items-center">
             <UIcon name="i-heroicons-user" class="mr-2 text-gray-400 dark:text-gray-500" />
             <p class="dark:text-gray-200">{{ booking.studentName }} ({{ booking.studentId }})</p>
@@ -162,7 +162,7 @@ const closeModal = () => {
         
         <!-- Description Section -->
         <div v-if="booking.description">
-          <label class="block text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">Description</label>
+          <span class="block text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">Description</span>
           <UCard class="bg-gray-50 dark:bg-gray-700/50 p-3">
             <p class="whitespace-pre-wrap dark:text-gray-200">{{ booking.description }}</p>
           </UCard>
