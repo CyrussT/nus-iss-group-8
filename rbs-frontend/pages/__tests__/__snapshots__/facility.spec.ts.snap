@@ -1,0 +1,100 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`facility > renders correctly 1`] = `
+"<div data-v-629372b2="" class="p-8 dark:bg-gray-900 dark:text-white">
+  <h1 data-v-629372b2="" class="text-2xl font-bold mb-4 dark:text-white">Facility Management</h1>
+  <div data-v-629372b2="" class="grid grid-cols-2 gap-4">
+    <div class="relative w-full dark:bg-gray-800 dark:text-white dark:border-gray-700" data-headlessui-state="">
+      <div class="flex items-center w-full"><input value="" id="headlessui-combobox-input-v-0" aria-expanded="false" aria-autocomplete="list" role="combobox" type="text" tabindex="0" data-headlessui-state="" placeholder="Type or select resource type" class="relative block w-full disabled:cursor-not-allowed disabled:opacity-75 focus:outline-none border-0 form-input rounded-md placeholder-gray-400 dark:placeholder-gray-500 text-sm px-3 py-2 shadow-sm bg-white dark:bg-gray-900 text-gray-900 dark:text-white ring-1 ring-inset ring-gray-300 dark:ring-gray-700 focus:ring-2 focus:ring-primary-500 dark:focus:ring-primary-400 pe-10" autocomplete="off" clearable="">
+        <!--v-if--><button id="headlessui-combobox-button-v-1" type="button" tabindex="-1" aria-haspopup="listbox" aria-expanded="false" data-headlessui-state="" class="absolute inset-y-0 end-0 flex items-center px-3">
+          <u-icon-stub name="i-heroicons-chevron-down-20-solid" class="flex-shrink-0 text-gray-400 dark:text-gray-500 h-5 w-5"></u-icon-stub>
+        </button>
+      </div>
+      <!--v-if-->
+    </div>
+    <div data-v-629372b2="" class="relative dark:bg-gray-800 dark:text-white dark:border-gray-700"><input type="text" placeholder="Resource Name" class="relative block w-full disabled:cursor-not-allowed disabled:opacity-75 focus:outline-none border-0 form-input rounded-md placeholder-gray-400 dark:placeholder-gray-500 text-sm px-2.5 py-1.5 shadow-sm bg-white dark:bg-gray-900 text-gray-900 dark:text-white ring-1 ring-inset ring-gray-300 dark:ring-gray-700 focus:ring-2 focus:ring-primary-500 dark:focus:ring-primary-400" value="">
+      <!--v-if-->
+      <!--v-if-->
+    </div>
+    <div data-v-629372b2="" class="relative dark:bg-gray-800 dark:text-white dark:border-gray-700"><input type="text" placeholder="Location" class="relative block w-full disabled:cursor-not-allowed disabled:opacity-75 focus:outline-none border-0 form-input rounded-md placeholder-gray-400 dark:placeholder-gray-500 text-sm px-2.5 py-1.5 shadow-sm bg-white dark:bg-gray-900 text-gray-900 dark:text-white ring-1 ring-inset ring-gray-300 dark:ring-gray-700 focus:ring-2 focus:ring-primary-500 dark:focus:ring-primary-400" value="">
+      <!--v-if-->
+      <!--v-if-->
+    </div>
+    <div data-v-629372b2="" class="relative dark:bg-gray-800 dark:text-white dark:border-gray-700"><input type="number" placeholder="Capacity" class="relative block w-full disabled:cursor-not-allowed disabled:opacity-75 focus:outline-none border-0 form-input rounded-md placeholder-gray-400 dark:placeholder-gray-500 text-sm px-2.5 py-1.5 shadow-sm bg-white dark:bg-gray-900 text-gray-900 dark:text-white ring-1 ring-inset ring-gray-300 dark:ring-gray-700 focus:ring-2 focus:ring-primary-500 dark:focus:ring-primary-400" value="">
+      <!--v-if-->
+      <!--v-if-->
+    </div>
+    <div data-v-629372b2="" class="col-span-2 flex justify-end gap-2"><button data-v-629372b2="" type="button" class="focus:outline-none disabled:cursor-not-allowed disabled:opacity-75 aria-disabled:cursor-not-allowed aria-disabled:opacity-75 flex-shrink-0 font-medium rounded-md text-sm shadow-sm text-white dark:text-gray-900 bg-blue-500 hover:bg-blue-600 disabled:bg-blue-500 aria-disabled:bg-blue-500 dark:bg-blue-400 dark:hover:bg-blue-500 dark:disabled:bg-blue-400 dark:aria-disabled:bg-blue-400 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500 dark:focus-visible:outline-blue-400 inline-flex items-center px-4 py-2 gap-2">
+        <u-icon-stub name="i-heroicons-outline:magnifying-glass" class="flex-shrink-0 h-5 w-5" aria-hidden="true"></u-icon-stub><span class="">Search</span>
+        <!--v-if-->
+      </button><button data-v-629372b2="" type="button" class="focus:outline-none focus-visible:outline-0 disabled:cursor-not-allowed disabled:opacity-75 aria-disabled:cursor-not-allowed aria-disabled:opacity-75 flex-shrink-0 font-medium rounded-md text-sm shadow-sm ring-1 ring-inset ring-gray-300 dark:ring-gray-700 text-gray-700 dark:text-gray-200 bg-gray-50 disabled:bg-gray-50 aria-disabled:bg-gray-50 dark:bg-gray-800 dark:disabled:bg-gray-800 dark:aria-disabled:bg-gray-800 focus-visible:ring-2 focus-visible:ring-primary-500 dark:focus-visible:ring-primary-400 inline-flex items-center px-4 py-2 gap-2 hover:bg-red-500 dark:hover:bg-red-600">
+        <u-icon-stub name="i-heroicons-outline:arrow-path" class="flex-shrink-0 h-5 w-5" aria-hidden="true"></u-icon-stub><span class="">Reset</span>
+        <!--v-if-->
+      </button><button data-v-629372b2="" type="button" class="focus:outline-none disabled:cursor-not-allowed disabled:opacity-75 aria-disabled:cursor-not-allowed aria-disabled:opacity-75 flex-shrink-0 font-medium rounded-md text-sm shadow-sm text-white dark:text-gray-900 bg-green-500 hover:bg-green-600 disabled:bg-green-500 aria-disabled:bg-green-500 dark:bg-green-400 dark:hover:bg-green-500 dark:disabled:bg-green-400 dark:aria-disabled:bg-green-400 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-green-500 dark:focus-visible:outline-green-400 inline-flex items-center px-4 py-2 gap-2">
+        <u-icon-stub name="i-heroicons-outline:plus" class="flex-shrink-0 h-5 w-5" aria-hidden="true"></u-icon-stub><span class="">Add Facility</span>
+        <!--v-if-->
+      </button></div>
+  </div>
+  <div data-v-629372b2="" class="rounded-lg divide-y divide-gray-200 dark:divide-gray-800 ring-1 ring-gray-200 dark:ring-gray-800 w-full max-w-8xl p-6 shadow-lg bg-white dark:bg-gray-800 dark:border-gray-700 mt-4">
+    <!--v-if-->
+    <div class="px-4 py-5 sm:p-6">
+      <div data-v-629372b2="" class="mt-6 overflow-x-auto">
+        <div data-v-629372b2="" class="relative overflow-x-auto dark:text-gray-200">
+          <table class="min-w-full table-fixed divide-y divide-gray-300 dark:divide-gray-700">
+            <!--v-if-->
+            <thead class="relative">
+              <tr class="">
+                <!--v-if-->
+                <th scope="col" class="text-left rtl:text-right px-4 py-3.5 text-gray-900 dark:text-white font-semibold text-sm"><span>SN</span></th>
+                <th scope="col" class="text-left rtl:text-right px-4 py-3.5 text-gray-900 dark:text-white font-semibold text-sm" aria-sort="none">
+                  <u-button-stub type="button" block="false" label="Resource Type" loading="false" disabled="false" padded="true" size="sm" color="gray" variant="ghost" icon="i-heroicons-arrows-up-down-20-solid" loadingicon="i-heroicons-arrow-path-20-solid" trailing="true" leading="false" square="true" truncate="false" class="-m-1.5" ui="[object Object]"></u-button-stub>
+                </th>
+                <th scope="col" class="text-left rtl:text-right px-4 py-3.5 text-gray-900 dark:text-white font-semibold text-sm" aria-sort="none">
+                  <u-button-stub type="button" block="false" label="Name" loading="false" disabled="false" padded="true" size="sm" color="gray" variant="ghost" icon="i-heroicons-arrows-up-down-20-solid" loadingicon="i-heroicons-arrow-path-20-solid" trailing="true" leading="false" square="true" truncate="false" class="-m-1.5" ui="[object Object]"></u-button-stub>
+                </th>
+                <th scope="col" class="text-left rtl:text-right px-4 py-3.5 text-gray-900 dark:text-white font-semibold text-sm" aria-sort="none">
+                  <u-button-stub type="button" block="false" label="Location" loading="false" disabled="false" padded="true" size="sm" color="gray" variant="ghost" icon="i-heroicons-arrows-up-down-20-solid" loadingicon="i-heroicons-arrow-path-20-solid" trailing="true" leading="false" square="true" truncate="false" class="-m-1.5" ui="[object Object]"></u-button-stub>
+                </th>
+                <th scope="col" class="text-left rtl:text-right px-4 py-3.5 text-gray-900 dark:text-white font-semibold text-sm" aria-sort="none">
+                  <u-button-stub type="button" block="false" label="Capacity" loading="false" disabled="false" padded="true" size="sm" color="gray" variant="ghost" icon="i-heroicons-arrows-up-down-20-solid" loadingicon="i-heroicons-arrow-path-20-solid" trailing="true" leading="false" square="true" truncate="false" class="-m-1.5" ui="[object Object]"></u-button-stub>
+                </th>
+                <th scope="col" class="text-left rtl:text-right px-4 py-3.5 text-gray-900 dark:text-white font-semibold text-sm text-center"><span>Actions</span></th>
+              </tr>
+              <tr>
+                <td colspan="0" class="absolute inset-x-0 -bottom-[0.5px] p-0">
+                  <div data-v-4e5d44bb="" class="w-full flex flex-col gap-2" role="progressbar">
+                    <!--v-if--><progress data-v-4e5d44bb="" class="block appearance-none border-none overflow-hidden w-full [&amp;::-webkit-progress-bar]:w-full h-px rounded-full [&amp;::-webkit-progress-bar]:rounded-full [&amp;::-webkit-progress-bar]:bg-gray-200 [&amp;::-webkit-progress-bar]:dark:bg-gray-700 [@supports(selector(&amp;::-moz-progress-bar))]:bg-gray-200 [@supports(selector(&amp;::-moz-progress-bar))]:dark:bg-gray-700 [&amp;::-webkit-progress-value]:rounded-full [&amp;::-webkit-progress-value]:transition-all [&amp;::-webkit-progress-value]:ease-in-out [&amp;::-moz-progress-bar]:rounded-full text-primary-500 dark:text-primary-400 [&amp;::-webkit-progress-value]:bg-current [&amp;::-moz-progress-bar]:bg-current indeterminate:relative indeterminate:after:rounded-full [&amp;:indeterminate::-webkit-progress-value]:rounded-full [&amp;:indeterminate::-moz-progress-bar]:rounded-full bar-animation-carousel"></progress>
+                    <!--v-if-->
+                  </div>
+                </td>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-200 dark:divide-gray-800">
+              <tr>
+                <td colspan="6">
+                  <div class="flex flex-col items-center justify-center flex-1 px-6 py-14 sm:px-14">
+                    <u-icon-stub name="i-heroicons-arrow-path-20-solid" class="w-6 h-6 mx-auto text-gray-400 dark:text-gray-500 mb-4 animate-spin" aria-hidden="true"></u-icon-stub>
+                    <p class="text-sm text-center text-gray-900 dark:text-white">Loading...</p>
+                  </div>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <div data-v-629372b2="" class="mt-4 flex justify-center">
+        <div data-v-629372b2="" class="flex items-center -space-x-px dark:text-white">
+          <u-button-stub type="button" block="false" loading="false" disabled="true" padded="true" size="sm" color="white" variant="solid" icon="i-heroicons-chevron-double-left-20-solid" loadingicon="i-heroicons-arrow-path-20-solid" trailing="false" leading="false" square="false" truncate="false" class="first:rounded-s-md last:rounded-e-md rtl:[&amp;_span:first-child]:rotate-180" ui="[object Object]" aria-label="First"></u-button-stub>
+          <u-button-stub type="button" block="false" loading="false" disabled="true" padded="true" size="sm" color="white" variant="solid" icon="i-heroicons-chevron-left-20-solid" loadingicon="i-heroicons-arrow-path-20-solid" trailing="false" leading="false" square="false" truncate="false" class="first:rounded-s-md last:rounded-e-md rtl:[&amp;_span:first-child]:rotate-180" ui="[object Object]" aria-label="Prev"></u-button-stub>
+          <u-button-stub type="button" block="false" loading="false" disabled="true" padded="true" size="sm" color="white" variant="solid" icon="i-heroicons-chevron-right-20-solid" loadingicon="i-heroicons-arrow-path-20-solid" trailing="false" leading="false" square="false" truncate="false" class="first:rounded-s-md last:rounded-e-md rtl:[&amp;_span:last-child]:rotate-180" ui="[object Object]" aria-label="Next"></u-button-stub>
+          <u-button-stub type="button" block="false" loading="false" disabled="true" padded="true" size="sm" color="white" variant="solid" icon="i-heroicons-chevron-double-right-20-solid" loadingicon="i-heroicons-arrow-path-20-solid" trailing="false" leading="false" square="false" truncate="false" class="first:rounded-s-md last:rounded-e-md rtl:[&amp;_span:last-child]:rotate-180" ui="[object Object]" aria-label="Last"></u-button-stub>
+        </div>
+      </div>
+    </div>
+    <!--v-if-->
+  </div>
+</div>
+<!-- Facility Modal -->
+<!-- Maintenance Modal -->
+<!-- Early Release Confirmation Modal -->"
+`;

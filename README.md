@@ -14,7 +14,7 @@ The Resource Booking System (RBS) is a modern web application designed for Singa
 - Role-based access control
 
 ### Tech Stack 💻
-- Frontend: Angular
+- Frontend: Nuxt
 - Backend: Spring Boot
 - Database: PostgreSQL (Supabase)
 - Containerization: Docker/Kubernetes

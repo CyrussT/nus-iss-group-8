@@ -1,0 +1,53 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`login > renders correctly 1`] = `
+"<div data-v-e8ce220f="" class="login-page">
+  <!-- Background Image --><img data-v-e8ce220f="" src="/pages/image/index.jpg" alt="Background" class="background-image"><!-- Overlay (optional for darkening the image) -->
+  <div data-v-e8ce220f="" class="overlay"></div><!-- Centered Login Card -->
+  <div data-v-e8ce220f="" class="form-container">
+    <div data-v-e8ce220f="" class="rounded-lg divide-y divide-gray-200 dark:divide-gray-800 ring-1 ring-gray-200 dark:ring-gray-800 shadow bg-white dark:bg-gray-900 w-full max-w-md">
+      <div class="px-4 py-5 sm:px-6">
+        <h2 data-v-e8ce220f="">Login to RBS (Pipeline Demo)</h2>
+      </div>
+      <div class="px-4 py-5 sm:p-6">
+        <form data-v-e8ce220f="" class="space-y-4">
+          <div data-v-e8ce220f="" class="space-y-2">
+            <div class="">
+              <div class="flex content-center items-center justify-between text-sm"><label for="v-1" class="block font-medium text-gray-700 dark:text-gray-200">Email</label>
+                <!--v-if-->
+              </div>
+              <!--v-if-->
+            </div>
+            <div class="mt-1 relative">
+              <div data-v-e8ce220f="" class="relative"><input id="v-1" name="email" type="text" placeholder="Enter your email" class="relative block w-full disabled:cursor-not-allowed disabled:opacity-75 focus:outline-none border-0 form-input rounded-md placeholder-gray-400 dark:placeholder-gray-500 text-sm px-2.5 py-1.5 shadow-sm bg-white dark:bg-gray-900 text-gray-900 dark:text-white ring-1 ring-inset ring-gray-300 dark:ring-gray-700 focus:ring-2 focus:ring-primary-500 dark:focus:ring-primary-400" value="">
+                <!--v-if-->
+                <!--v-if-->
+              </div>
+              <!--v-if-->
+            </div>
+          </div>
+          <div data-v-e8ce220f="" class="space-y-2">
+            <div class="">
+              <div class="flex content-center items-center justify-between text-sm"><label for="v-2" class="block font-medium text-gray-700 dark:text-gray-200">Password</label>
+                <!--v-if-->
+              </div>
+              <!--v-if-->
+            </div>
+            <div class="mt-1 relative">
+              <div data-v-e8ce220f="" class="relative"><input id="v-2" name="password" type="password" placeholder="Enter your password" class="relative block w-full disabled:cursor-not-allowed disabled:opacity-75 focus:outline-none border-0 form-input rounded-md placeholder-gray-400 dark:placeholder-gray-500 text-sm px-2.5 py-1.5 shadow-sm bg-white dark:bg-gray-900 text-gray-900 dark:text-white ring-1 ring-inset ring-gray-300 dark:ring-gray-700 focus:ring-2 focus:ring-primary-500 dark:focus:ring-primary-400" value="">
+                <!--v-if-->
+                <!--v-if-->
+              </div>
+              <!--v-if-->
+            </div>
+          </div><button data-v-e8ce220f="" type="submit" class="focus:outline-none disabled:cursor-not-allowed disabled:opacity-75 aria-disabled:cursor-not-allowed aria-disabled:opacity-75 flex-shrink-0 font-medium rounded-md text-sm gap-x-1.5 px-2.5 py-1.5 shadow-sm text-white dark:text-gray-900 bg-primary-500 hover:bg-primary-600 disabled:bg-primary-500 aria-disabled:bg-primary-500 dark:bg-primary-400 dark:hover:bg-primary-500 dark:disabled:bg-primary-400 dark:aria-disabled:bg-primary-400 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-500 dark:focus-visible:outline-primary-400 w-full flex justify-center items-center mt-4">
+            <!--v-if--> Login <span data-v-e8ce220f="" class="iconify i-heroicons:arrow-right-20-solid" aria-hidden="true"></span>
+            <!--v-if-->
+          </button>
+        </form>
+      </div>
+      <!--v-if-->
+    </div>
+  </div>
+</div>"
+`;

@@ -1,0 +1,54 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`BookingSearchBar > renders correctly 1`] = `
+"<div data-v-c950d2e1="" class="rounded-lg divide-y divide-gray-200 dark:divide-gray-800 ring-1 ring-gray-200 dark:ring-gray-800 shadow bg-white dark:bg-gray-900 booking-search-bar p-4">
+  <div class="px-4 py-5 sm:px-6">
+    <div data-v-c950d2e1="" class="flex items-center"><span data-v-c950d2e1="" class="iconify i-heroicons:magnifying-glass mr-2 text-gray-500 dark:text-gray-400" aria-hidden="true"></span>
+      <h3 data-v-c950d2e1="" class="text-lg font-medium dark:text-white">Find Available Resources</h3>
+    </div>
+  </div>
+  <div class="px-4 py-5 sm:p-6">
+    <div data-v-c950d2e1="" class="mb-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+      <!-- Resource Type with UInputMenu -->
+      <div data-v-c950d2e1=""><label data-v-c950d2e1="" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Resource Type</label>
+        <div class="relative w-full" data-headlessui-state="">
+          <div class="flex items-center w-full"><input value="" id="headlessui-combobox-input-v-0" aria-expanded="false" aria-autocomplete="list" role="combobox" type="text" tabindex="0" data-headlessui-state="" placeholder="Type or select resource type" class="relative block w-full disabled:cursor-not-allowed disabled:opacity-75 focus:outline-none border-0 form-input rounded-md placeholder-gray-400 dark:placeholder-gray-500 text-sm px-3 py-2 shadow-sm bg-white dark:bg-gray-900 text-gray-900 dark:text-white ring-1 ring-inset ring-gray-300 dark:ring-gray-700 focus:ring-2 focus:ring-primary-500 dark:focus:ring-primary-400 pe-10" autocomplete="off" clearable="">
+            <!--v-if--><button id="headlessui-combobox-button-v-1" type="button" tabindex="-1" aria-haspopup="listbox" aria-expanded="false" data-headlessui-state="" class="absolute inset-y-0 end-0 flex items-center px-3">
+              <u-icon-stub name="i-heroicons-chevron-down-20-solid" class="flex-shrink-0 text-gray-400 dark:text-gray-500 h-5 w-5"></u-icon-stub>
+            </button>
+          </div>
+          <!--v-if-->
+        </div>
+      </div><!-- Resource Name with regular UInput - no autocomplete -->
+      <div data-v-c950d2e1=""><label data-v-c950d2e1="" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Resource Name</label>
+        <div data-v-c950d2e1="" class="relative w-full"><input type="text" placeholder="Enter resource name" class="relative block w-full disabled:cursor-not-allowed disabled:opacity-75 focus:outline-none border-0 form-input rounded-md placeholder-gray-400 dark:placeholder-gray-500 text-sm px-3 py-2 shadow-sm bg-white dark:bg-gray-900 text-gray-900 dark:text-white ring-1 ring-inset ring-gray-300 dark:ring-gray-700 focus:ring-2 focus:ring-primary-500 dark:focus:ring-primary-400 ps-10" clearable="" value=""><span class="absolute inset-y-0 start-0 flex items-center pointer-events-none px-3"><u-icon-stub name="i-heroicons-building-office" class="flex-shrink-0 text-gray-400 dark:text-gray-500 h-5 w-5"></u-icon-stub></span>
+          <!--v-if-->
+        </div>
+      </div><!-- Location with UInputMenu -->
+      <div data-v-c950d2e1=""><label data-v-c950d2e1="" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Location</label>
+        <div class="relative w-full" data-headlessui-state="">
+          <div class="flex items-center w-full"><input value="" id="headlessui-combobox-input-v-2" aria-expanded="false" aria-autocomplete="list" role="combobox" type="text" tabindex="0" data-headlessui-state="" placeholder="Type or select location" class="relative block w-full disabled:cursor-not-allowed disabled:opacity-75 focus:outline-none border-0 form-input rounded-md placeholder-gray-400 dark:placeholder-gray-500 text-sm px-3 py-2 shadow-sm bg-white dark:bg-gray-900 text-gray-900 dark:text-white ring-1 ring-inset ring-gray-300 dark:ring-gray-700 focus:ring-2 focus:ring-primary-500 dark:focus:ring-primary-400 pe-10" autocomplete="off" clearable="">
+            <!--v-if--><button id="headlessui-combobox-button-v-3" type="button" tabindex="-1" aria-haspopup="listbox" aria-expanded="false" data-headlessui-state="" class="absolute inset-y-0 end-0 flex items-center px-3">
+              <u-icon-stub name="i-heroicons-chevron-down-20-solid" class="flex-shrink-0 text-gray-400 dark:text-gray-500 h-5 w-5"></u-icon-stub>
+            </button>
+          </div>
+          <!--v-if-->
+        </div>
+      </div><!-- Capacity -->
+      <div data-v-c950d2e1=""><label data-v-c950d2e1="" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Minimum Capacity</label>
+        <div data-v-c950d2e1="" class="relative"><input type="number" placeholder="Min. capacity needed" class="relative block w-full disabled:cursor-not-allowed disabled:opacity-75 focus:outline-none border-0 form-input rounded-md placeholder-gray-400 dark:placeholder-gray-500 text-sm px-3 py-2 shadow-sm bg-white dark:bg-gray-900 text-gray-900 dark:text-white ring-1 ring-inset ring-gray-300 dark:ring-gray-700 focus:ring-2 focus:ring-primary-500 dark:focus:ring-primary-400 ps-10" value=""><span class="absolute inset-y-0 start-0 flex items-center pointer-events-none px-3"><u-icon-stub name="i-heroicons-user-group" class="flex-shrink-0 text-gray-400 dark:text-gray-500 h-5 w-5"></u-icon-stub></span>
+          <!--v-if-->
+        </div>
+      </div>
+    </div>
+    <div data-v-c950d2e1="" class="flex justify-end gap-3"><button data-v-c950d2e1="" type="button" class="focus:outline-none focus-visible:outline-0 disabled:cursor-not-allowed disabled:opacity-75 aria-disabled:cursor-not-allowed aria-disabled:opacity-75 flex-shrink-0 font-medium rounded-md text-sm gap-x-1.5 px-2.5 py-1.5 text-gray-500 dark:text-gray-400 bg-gray-50 hover:bg-gray-100 disabled:bg-gray-50 aria-disabled:bg-gray-50 dark:bg-gray-950 dark:hover:bg-gray-900 dark:disabled:bg-gray-950 dark:aria-disabled:bg-gray-950 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-gray-500 dark:focus-visible:ring-gray-400 inline-flex items-center">
+        <u-icon-stub name="i-heroicons-arrow-path" class="flex-shrink-0 h-5 w-5" aria-hidden="true"></u-icon-stub> Reset
+        <!--v-if-->
+      </button><button data-v-c950d2e1="" type="button" class="focus:outline-none disabled:cursor-not-allowed disabled:opacity-75 aria-disabled:cursor-not-allowed aria-disabled:opacity-75 flex-shrink-0 font-medium rounded-md text-sm gap-x-1.5 px-2.5 py-1.5 shadow-sm text-white dark:text-gray-900 bg-primary-500 hover:bg-primary-600 disabled:bg-primary-500 aria-disabled:bg-primary-500 dark:bg-primary-400 dark:hover:bg-primary-500 dark:disabled:bg-primary-400 dark:aria-disabled:bg-primary-400 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-500 dark:focus-visible:outline-primary-400 inline-flex items-center">
+        <u-icon-stub name="i-heroicons-magnifying-glass" class="flex-shrink-0 h-5 w-5" aria-hidden="true"></u-icon-stub> Search
+        <!--v-if-->
+      </button></div>
+  </div>
+  <!--v-if-->
+</div>"
+`;

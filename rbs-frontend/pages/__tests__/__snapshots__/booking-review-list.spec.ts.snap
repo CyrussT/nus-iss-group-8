@@ -1,0 +1,53 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`bookingReviewList > renders correctly 1`] = `
+"<div class="p-8">
+  <h1 class="text-2xl font-bold mb-4">Booking Request Management</h1>
+  <div class="rounded-lg divide-y divide-gray-200 dark:divide-gray-800 ring-1 ring-gray-200 dark:ring-gray-800 dark:bg-gray-900 w-full max-w-8xl p-6 shadow-lg bg-white">
+    <!--v-if-->
+    <div class="px-4 py-5 sm:p-6">
+      <div>
+        <div class="relative overflow-x-auto">
+          <table class="min-w-full table-fixed divide-y divide-gray-300 dark:divide-gray-700">
+            <!--v-if-->
+            <thead class="relative">
+              <tr class="">
+                <!--v-if-->
+                <th scope="col" class="text-left rtl:text-right px-4 py-3.5 text-gray-900 dark:text-white font-semibold text-sm"><span>S/N</span></th>
+                <th scope="col" class="text-left rtl:text-right px-4 py-3.5 text-gray-900 dark:text-white font-semibold text-sm" aria-sort="none">
+                  <u-button-stub type="button" block="false" label="Facility" loading="false" disabled="false" padded="true" size="sm" color="gray" variant="ghost" icon="i-heroicons-arrows-up-down-20-solid" loadingicon="i-heroicons-arrow-path-20-solid" trailing="true" leading="false" square="true" truncate="false" class="-m-1.5" ui="[object Object]"></u-button-stub>
+                </th>
+                <th scope="col" class="text-left rtl:text-right px-4 py-3.5 text-gray-900 dark:text-white font-semibold text-sm" aria-sort="none">
+                  <u-button-stub type="button" block="false" label="Location" loading="false" disabled="false" padded="true" size="sm" color="gray" variant="ghost" icon="i-heroicons-arrows-up-down-20-solid" loadingicon="i-heroicons-arrow-path-20-solid" trailing="true" leading="false" square="true" truncate="false" class="-m-1.5" ui="[object Object]"></u-button-stub>
+                </th>
+                <th scope="col" class="text-left rtl:text-right px-4 py-3.5 text-gray-900 dark:text-white font-semibold text-sm" aria-sort="none">
+                  <u-button-stub type="button" block="false" label="Booked Date" loading="false" disabled="false" padded="true" size="sm" color="gray" variant="ghost" icon="i-heroicons-arrows-up-down-20-solid" loadingicon="i-heroicons-arrow-path-20-solid" trailing="true" leading="false" square="true" truncate="false" class="-m-1.5" ui="[object Object]"></u-button-stub>
+                </th>
+                <th scope="col" class="text-left rtl:text-right px-4 py-3.5 text-gray-900 dark:text-white font-semibold text-sm" aria-sort="none">
+                  <u-button-stub type="button" block="false" label="Timeslot" loading="false" disabled="false" padded="true" size="sm" color="gray" variant="ghost" icon="i-heroicons-arrows-up-down-20-solid" loadingicon="i-heroicons-arrow-path-20-solid" trailing="true" leading="false" square="true" truncate="false" class="-m-1.5" ui="[object Object]"></u-button-stub>
+                </th>
+                <th scope="col" class="text-left rtl:text-right px-4 py-3.5 text-gray-900 dark:text-white font-semibold text-sm" aria-sort="none">
+                  <u-button-stub type="button" block="false" label="Status" loading="false" disabled="false" padded="true" size="sm" color="gray" variant="ghost" icon="i-heroicons-arrows-up-down-20-solid" loadingicon="i-heroicons-arrow-path-20-solid" trailing="true" leading="false" square="true" truncate="false" class="-m-1.5" ui="[object Object]"></u-button-stub>
+                </th>
+                <th scope="col" class="text-left rtl:text-right px-4 py-3.5 text-gray-900 dark:text-white font-semibold text-sm text-center"><span>Actions</span></th>
+              </tr>
+              <!--v-if-->
+            </thead>
+            <tbody class="divide-y divide-gray-200 dark:divide-gray-800">
+              <tr>
+                <td colspan="7">
+                  <div class="flex flex-col items-center justify-center flex-1 px-6 py-14 sm:px-14">
+                    <u-icon-stub name="i-heroicons-circle-stack-20-solid" class="w-6 h-6 mx-auto text-gray-400 dark:text-gray-500 mb-4" aria-hidden="true"></u-icon-stub>
+                    <p class="text-sm text-center text-gray-900 dark:text-white">No items.</p>
+                  </div>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+    <!--v-if-->
+  </div>
+</div>"
+`;

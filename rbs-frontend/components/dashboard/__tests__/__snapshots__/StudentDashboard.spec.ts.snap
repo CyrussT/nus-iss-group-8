@@ -1,0 +1,5 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`StudentDashboard > renders correctly with bookings data 1`] = `""`;
+
+exports[`StudentDashboard > renders correctly with empty bookings 1`] = `""`;
